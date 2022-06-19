@@ -1,0 +1,8 @@
+[package]
+name = "vtrace"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+vulkano = "0.29.0"
+bytemuck = "1.9.1"
