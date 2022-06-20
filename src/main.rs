@@ -14,23 +14,26 @@
 
 use vulkano::buffer::*;
 use vulkano::command_buffer::*;
+use vulkano::descriptor_set::*;
 use vulkano::device::physical::*;
 use vulkano::device::*;
 use vulkano::instance::*;
+use vulkano::pipeline::*;
+use vulkano::shader::*;
 use vulkano::sync::{self, *};
 
 fn main() {
     let instance = Instance::new(InstanceCreateInfo::default())
-        .expect("ERROR: Couldn't create Vulkan instance.");
+        .expect("ERROR: Couldn't create Vulkan instance");
 
     let physical = PhysicalDevice::enumerate(&instance)
         .next()
-        .expect("ERROR: No physical device is available.");
+        .expect("ERROR: No physical device is available");
 
     let queue_family = physical
         .queue_families()
         .find(|&q| q.supports_graphics() && q.supports_compute())
-        .expect("ERROR: Couldn't find a graphical queue family.");
+        .expect("ERROR: Couldn't find a graphical queue family");
 
     let (device, mut queues) = Device::new(
         physical,
@@ -39,21 +42,35 @@ fn main() {
             ..Default::default()
         },
     )
-    .expect("ERROR: Couldn't create logical device.");
+    .expect("ERROR: Couldn't create logical device");
 
     let queue = queues
         .next()
-        .expect("ERROR: No queues given to logical device.");
+        .expect("ERROR: No queues given to logical device");
 
-    let src_contents = 0..256;
-    let src_buffer =
-        CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, src_contents)
-            .expect("Error: Failed to create buffer.");
+    let shader = unsafe {
+        ShaderModule::from_bytes(device.clone(), include_bytes!("../shaders/compute.spv"))
+    }
+    .expect("ERROR: Failed to create shader");
 
-    let dst_contents = (0..256).map(|_| 0);
-    let dst_buffer =
-        CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, dst_contents)
-            .expect("Error: Failed to create buffer.");
+    let compute_pipeline = ComputePipeline::new(
+        device.clone(),
+        shader.entry_point("main").unwrap(),
+        &(),
+        None,
+        |_| {},
+    )
+    .expect("ERROR: Failed to create compute pipeline");
+
+    let buffer = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, 0..256)
+        .expect("Error: Failed to create buffer");
+
+    let layout = compute_pipeline.layout().set_layouts().get(0).unwrap();
+    let set = PersistentDescriptorSet::new(
+        layout.clone(),
+        [WriteDescriptorSet::buffer(0, buffer.clone())],
+    )
+    .unwrap();
 
     let mut builder = AutoCommandBufferBuilder::primary(
         device.clone(),
@@ -63,7 +80,14 @@ fn main() {
     .unwrap();
 
     builder
-        .copy_buffer(src_buffer.clone(), dst_buffer.clone())
+        .bind_pipeline_compute(compute_pipeline.clone())
+        .bind_descriptor_sets(
+            PipelineBindPoint::Compute,
+            compute_pipeline.layout().clone(),
+            0,
+            set,
+        )
+        .dispatch([4, 1, 1])
         .unwrap();
 
     let command_buffer = builder.build().unwrap();
@@ -73,10 +97,13 @@ fn main() {
         .unwrap()
         .then_signal_fence_and_flush()
         .unwrap();
+
     future.wait(None).unwrap();
 
-    let src_content = src_buffer.read().unwrap();
-    let dst_content = dst_buffer.read().unwrap();
-    assert_eq!(&*src_content, &*dst_content);
+    let read_contents = buffer.read().unwrap();
+    for (n, val) in read_contents.iter().enumerate() {
+        assert_eq!(n as u32 % 64 | n as u32 / 64, *val);
+    }
+
     println!("SUCCESS");
 }
