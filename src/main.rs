@@ -12,15 +12,33 @@
  * along with vtrace-rs. If not, see <https://www.gnu.org/licenses/>.
  */
 
+use bytemuck::*;
+
+use image::{ImageBuffer, Rgba};
+
 use vulkano::buffer::*;
 use vulkano::command_buffer::*;
-use vulkano::descriptor_set::*;
 use vulkano::device::physical::*;
 use vulkano::device::*;
+use vulkano::format::*;
+use vulkano::image::view::*;
+use vulkano::image::*;
 use vulkano::instance::*;
+use vulkano::pipeline::graphics::input_assembly::*;
+use vulkano::pipeline::graphics::vertex_input::*;
+use vulkano::pipeline::graphics::viewport::*;
 use vulkano::pipeline::*;
+use vulkano::render_pass::*;
 use vulkano::shader::*;
 use vulkano::sync::{self, *};
+
+#[repr(C)]
+#[derive(Default, Copy, Clone, Zeroable, Pod)]
+struct Vertex {
+    position: [f32; 2],
+}
+
+vulkano::impl_vertex!(Vertex, position);
 
 fn main() {
     let instance = Instance::new(InstanceCreateInfo::default())
@@ -32,8 +50,8 @@ fn main() {
 
     let queue_family = physical
         .queue_families()
-        .find(|&q| q.supports_graphics() && q.supports_compute())
-        .expect("ERROR: Couldn't find a graphical queue family");
+        .find(|&q| q.supports_graphics())
+        .expect("ERROR: Couldn't find a queue family supporting graphics");
 
     let (device, mut queues) = Device::new(
         physical,
@@ -48,29 +66,88 @@ fn main() {
         .next()
         .expect("ERROR: No queues given to logical device");
 
-    let shader = unsafe {
-        ShaderModule::from_bytes(device.clone(), include_bytes!("../shaders/compute.spv"))
-    }
-    .expect("ERROR: Failed to create shader");
+    let vert_shader =
+        unsafe { ShaderModule::from_bytes(device.clone(), include_bytes!("../shaders/vert.spv")) }
+            .expect("ERROR: Failed to create shader");
 
-    let compute_pipeline = ComputePipeline::new(
+    let frag_shader =
+        unsafe { ShaderModule::from_bytes(device.clone(), include_bytes!("../shaders/frag.spv")) }
+            .expect("ERROR: Failed to create shader");
+
+    let vertices: Vec<Vertex> = vec![[-0.5, -0.5], [0.0, 0.5], [0.5, -0.25]]
+        .iter()
+        .map(|x| Vertex { position: *x })
+        .collect();
+
+    let vertex_buffer = CpuAccessibleBuffer::from_iter(
         device.clone(),
-        shader.entry_point("main").unwrap(),
-        &(),
-        None,
-        |_| {},
-    )
-    .expect("ERROR: Failed to create compute pipeline");
-
-    let buffer = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, 0..256)
-        .expect("Error: Failed to create buffer");
-
-    let layout = compute_pipeline.layout().set_layouts().get(0).unwrap();
-    let set = PersistentDescriptorSet::new(
-        layout.clone(),
-        [WriteDescriptorSet::buffer(0, buffer.clone())],
+        BufferUsage::vertex_buffer(),
+        false,
+        vertices,
     )
     .unwrap();
+
+    let render_pass = vulkano::single_pass_renderpass!(device.clone(),
+        attachments: {
+            color: {
+                load: Clear,
+                store: Store,
+                format: Format::R8G8B8A8_UNORM,
+                samples: 1,
+            }
+        },
+        pass: {
+            color: [color],
+            depth_stencil: {}
+        }
+    )
+    .unwrap();
+
+    let image = StorageImage::new(
+        device.clone(),
+        ImageDimensions::Dim2d {
+            width: 1024,
+            height: 1024,
+            array_layers: 1,
+        },
+        Format::R8G8B8A8_UNORM,
+        Some(queue.family()),
+    )
+    .unwrap();
+
+    let view = ImageView::new_default(image.clone()).unwrap();
+    let framebuffer = Framebuffer::new(
+        render_pass.clone(),
+        FramebufferCreateInfo {
+            attachments: vec![view],
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let buffer = CpuAccessibleBuffer::from_iter(
+        device.clone(),
+        BufferUsage::all(),
+        false,
+        (0..1024 * 1024 * 4).map(|_| 0u8),
+    )
+    .expect("ERROR: Failed to create buffer");
+
+    let viewport = Viewport {
+        origin: [0.0, 0.0],
+        dimensions: [1024.0, 1024.0],
+        depth_range: 0.0..1.0,
+    };
+
+    let pipeline = GraphicsPipeline::start()
+        .vertex_input_state(BuffersDefinition::new().vertex::<Vertex>())
+        .vertex_shader(vert_shader.entry_point("main").unwrap(), ())
+        .input_assembly_state(InputAssemblyState::new())
+        .viewport_state(ViewportState::viewport_fixed_scissor_irrelevant([viewport]))
+        .fragment_shader(frag_shader.entry_point("main").unwrap(), ())
+        .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
+        .build(device.clone())
+        .unwrap();
 
     let mut builder = AutoCommandBufferBuilder::primary(
         device.clone(),
@@ -80,14 +157,19 @@ fn main() {
     .unwrap();
 
     builder
-        .bind_pipeline_compute(compute_pipeline.clone())
-        .bind_descriptor_sets(
-            PipelineBindPoint::Compute,
-            compute_pipeline.layout().clone(),
-            0,
-            set,
+        .begin_render_pass(
+            framebuffer.clone(),
+            SubpassContents::Inline,
+            vec![[0.0, 0.0, 1.0, 1.0].into()],
         )
-        .dispatch([4, 1, 1])
+        .unwrap()
+        .bind_pipeline_graphics(pipeline.clone())
+        .bind_vertex_buffers(0, vertex_buffer.clone())
+        .draw(3, 1, 0, 0)
+        .unwrap()
+        .end_render_pass()
+        .unwrap()
+        .copy_image_to_buffer(image, buffer.clone())
         .unwrap();
 
     let command_buffer = builder.build().unwrap();
@@ -97,13 +179,11 @@ fn main() {
         .unwrap()
         .then_signal_fence_and_flush()
         .unwrap();
-
     future.wait(None).unwrap();
 
-    let read_contents = buffer.read().unwrap();
-    for (n, val) in read_contents.iter().enumerate() {
-        assert_eq!(n as u32 % 64 | n as u32 / 64, *val);
-    }
+    let buffer_content = buffer.read().unwrap();
+    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &buffer_content[..]).unwrap();
+    image.save("image.png").unwrap();
 
     println!("SUCCESS");
 }

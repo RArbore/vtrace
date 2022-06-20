@@ -15,7 +15,7 @@
 use std::fs;
 use std::process::Command;
 
-const SHADERS: &[(&str, &str)] = &[("compute", "comp")];
+const SHADERS: &[(&str, &str)] = &[("compute", "comp"), ("vert", "vert"), ("frag", "frag")];
 
 fn main() {
     for (shader, stage) in SHADERS {
@@ -41,5 +41,6 @@ fn main() {
         }
 
         println!("cargo:rustc-if-changed=shaders/{}.hlsl", shader);
+        println!("cargo:rustc-if-changed=shaders/{}.spv", shader);
     }
 }

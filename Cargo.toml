@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-vulkano = "0.29.0"
 bytemuck = "1.9.1"
+image = "0.24.2"
+vulkano = "0.29.0"
