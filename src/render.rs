@@ -373,7 +373,7 @@ impl Renderer {
         }
     }
 
-    pub fn render_loop(self) {
+    pub fn render_loop(mut self) {
         let mut fences: Vec<Option<Arc<FenceSignalFuture<_>>>> = vec![None; self.images.len()];
 
         let mut previous_fence_i = 0;
@@ -395,6 +395,54 @@ impl Renderer {
                     window_resized = true;
                 }
                 winit::event::Event::MainEventsCleared => {
+                    if window_resized || recreate_swapchain {
+                        let new_dimensions = Self::get_size(self.surface.clone());
+
+                        let (swapchain, images) =
+                            match self.swapchain.recreate(SwapchainCreateInfo {
+                                image_extent: new_dimensions.into(),
+                                ..self.swapchain.create_info()
+                            }) {
+                                Ok(s) => s,
+                                Err(SwapchainCreationError::ImageExtentNotSupported { .. }) => {
+                                    return
+                                }
+                                Err(e) => panic!("ERROR: Failed to recreate swapchain: {:?}", e),
+                            };
+
+                        self.swapchain = swapchain;
+
+                        if window_resized {
+                            self.viewport.dimensions = new_dimensions.into();
+
+                            let framebuffers =
+                                Self::create_framebuffers(images.clone(), self.render_pass.clone());
+                            self.framebuffers = framebuffers;
+
+                            let graphics_pipeline = Self::create_graphics_pipeline(
+                                self.device.clone(),
+                                self.vert_shader.clone(),
+                                self.frag_shader.clone(),
+                                self.render_pass.clone(),
+                                self.viewport.clone(),
+                            );
+                            self.graphics_pipeline = graphics_pipeline;
+
+                            let command_buffers = Self::create_command_buffers(
+                                self.device.clone(),
+                                self.queue.clone(),
+                                self.cube_vertex_buffer.clone(),
+                                self.framebuffers.clone(),
+                                self.graphics_pipeline.clone(),
+                            );
+                            self.command_buffers = command_buffers;
+
+                            window_resized = false;
+                        }
+
+                        recreate_swapchain = false;
+                    }
+
                     let (image_i, suboptimal, acquire_future) =
                         match acquire_next_image(self.swapchain.clone(), None) {
                             Ok(r) => r,
@@ -402,7 +450,7 @@ impl Renderer {
                                 recreate_swapchain = true;
                                 return;
                             }
-                            Err(e) => panic!("Error: Failed to acquire next image: {:?}", e),
+                            Err(e) => panic!("ERROR: Failed to acquire next image: {:?}", e),
                         };
 
                     if suboptimal {
@@ -436,7 +484,7 @@ impl Renderer {
                             None
                         }
                         Err(e) => {
-                            println!("Error: Failed to flush future: {:?}", e);
+                            println!("ERROR: Failed to flush future: {:?}", e);
                             None
                         }
                     };
