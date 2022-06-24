@@ -15,6 +15,7 @@
 use bytemuck::*;
 
 use std::sync::*;
+use std::time::*;
 
 use vulkano::buffer::*;
 use vulkano::command_buffer::*;
@@ -178,6 +179,7 @@ impl Renderer {
                 image_extent: dimensions.into(),
                 image_usage: ImageUsage::color_attachment(),
                 composite_alpha,
+                present_mode: PresentMode::Immediate,
                 ..Default::default()
             },
         )
@@ -380,8 +382,11 @@ impl Renderer {
         let mut window_resized = false;
         let mut recreate_swapchain = false;
 
-        self.event_loop
-            .run(move |event, _, control_flow| match event {
+        let mut before_time = Instant::now();
+        let mut num_frames_in_sec = 0;
+
+        self.event_loop.run(move |event, _, control_flow| {
+            match event {
                 winit::event::Event::WindowEvent {
                     event: winit::event::WindowEvent::CloseRequested,
                     ..
@@ -492,6 +497,14 @@ impl Renderer {
                     previous_fence_i = image_i;
                 }
                 _ => (),
-            });
+            }
+            let elapsed = before_time.elapsed().as_micros();
+            num_frames_in_sec += 1;
+            if elapsed > 1000000 {
+                println!("FPS: {}", num_frames_in_sec);
+                before_time = Instant::now();
+                num_frames_in_sec = 0;
+            }
+        });
     }
 }
