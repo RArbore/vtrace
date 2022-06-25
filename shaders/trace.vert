@@ -11,13 +11,19 @@
  * You should have received a copy of the GNU General Public License
  * along with vtrace-rs. If not, see <https://www.gnu.org/licenses/>.
  */
-    
-struct VSOutput {
-    float4 Pos : SV_POSITION;
-};
 
-VSOutput main([[vk::location(0)]] float2 position : POSITION0) {
-    VSOutput output;
-    output.Pos = float4(position, 0.0, 1.0);
-    return output;
+#version 460
+
+layout (location = 0) in vec3 position;
+
+layout (push_constant) uniform PushConstants {
+    mat4 projection;
+    mat4 camera;
+} push;
+
+layout (location = 0) out vec4 out_position;
+
+void main() {
+    out_position = push.projection * push.camera * vec4(position, 1.0);
+    gl_Position = out_position;
 }

@@ -14,6 +14,9 @@
 
 use bytemuck::*;
 
+use glm::ext::*;
+use glm::*;
+
 use std::sync::*;
 use std::time::*;
 
@@ -42,10 +45,24 @@ use winit::window::*;
 #[repr(C)]
 #[derive(Default, Copy, Clone, Zeroable, Pod)]
 struct GPUVertex {
-    position: [f32; 2],
+    position: [f32; 3],
 }
 
 vulkano::impl_vertex!(GPUVertex, position);
+
+mod vs {
+    vulkano_shaders::shader! {
+        ty: "vertex",
+        path: "shaders/trace.vert"
+    }
+}
+
+mod fs {
+    vulkano_shaders::shader! {
+        ty: "fragment",
+        path: "shaders/trace.frag"
+    }
+}
 
 pub struct Renderer {
     event_loop: EventLoop<()>,
@@ -68,6 +85,9 @@ pub struct Renderer {
 
     graphics_pipeline: Arc<GraphicsPipeline>,
     command_buffers: Vec<Arc<PrimaryAutoCommandBuffer>>,
+
+    perspective: Matrix4<f32>,
+    camera: Matrix4<f32>,
 }
 
 impl Renderer {
@@ -82,10 +102,6 @@ impl Renderer {
 
     fn get_size(surface: Arc<Surface<Window>>) -> PhysicalSize<u32> {
         surface.window().inner_size()
-    }
-
-    fn get_shader(device: Arc<Device>, bytes: &[u8]) -> Arc<ShaderModule> {
-        unsafe { ShaderModule::from_bytes(device.clone(), bytes) }.unwrap()
     }
 
     fn get_device_extensions() -> DeviceExtensions {
@@ -197,14 +213,51 @@ impl Renderer {
             CommandBufferExecFuture<NowFuture, PrimaryAutoCommandBuffer>,
         ),
     ) {
-        let vert_shader = Self::get_shader(device.clone(), include_bytes!("../shaders/vert.spv"));
+        let vert_shader = vs::load(device.clone()).unwrap();
 
-        let frag_shader = Self::get_shader(device.clone(), include_bytes!("../shaders/frag.spv"));
+        let frag_shader = fs::load(device.clone()).unwrap();
 
-        let vertices: Vec<GPUVertex> = vec![[-0.5, -0.5], [0.0, 0.5], [0.5, -0.25]]
-            .iter()
-            .map(|x| GPUVertex { position: *x })
-            .collect();
+        let vertices: Vec<GPUVertex> = vec![
+            [-1.0, -1.0, -1.0],
+            [-1.0, -1.0, 1.0],
+            [-1.0, 1.0, 1.0],
+            [1.0, 1.0, -1.0],
+            [-1.0, -1.0, -1.0],
+            [-1.0, 1.0, -1.0],
+            [1.0, -1.0, 1.0],
+            [-1.0, -1.0, -1.0],
+            [1.0, -1.0, -1.0],
+            [1.0, 1.0, -1.0],
+            [1.0, -1.0, -1.0],
+            [-1.0, -1.0, -1.0],
+            [-1.0, -1.0, -1.0],
+            [-1.0, 1.0, 1.0],
+            [-1.0, 1.0, -1.0],
+            [1.0, -1.0, 1.0],
+            [-1.0, -1.0, 1.0],
+            [-1.0, -1.0, -1.0],
+            [-1.0, 1.0, 1.0],
+            [-1.0, -1.0, 1.0],
+            [1.0, -1.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [1.0, -1.0, -1.0],
+            [1.0, 1.0, -1.0],
+            [1.0, -1.0, -1.0],
+            [1.0, 1.0, 1.0],
+            [1.0, -1.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [1.0, 1.0, -1.0],
+            [-1.0, 1.0, -1.0],
+            [1.0, 1.0, 1.0],
+            [-1.0, 1.0, -1.0],
+            [-1.0, 1.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [-1.0, 1.0, 1.0],
+            [1.0, -1.0, 1.0],
+        ]
+        .iter()
+        .map(|x| GPUVertex { position: *x })
+        .collect();
 
         let vertex_buffer =
             ImmutableBuffer::from_iter(vertices, BufferUsage::vertex_buffer(), queue.clone())
@@ -286,6 +339,8 @@ impl Renderer {
         cube_vertex_buffer: Arc<ImmutableBuffer<[GPUVertex]>>,
         framebuffers: Vec<Arc<Framebuffer>>,
         graphics_pipeline: Arc<GraphicsPipeline>,
+        perspective: &Matrix4<f32>,
+        camera: &Matrix4<f32>,
     ) -> Vec<Arc<PrimaryAutoCommandBuffer>> {
         framebuffers
             .iter()
@@ -306,6 +361,11 @@ impl Renderer {
                     .unwrap()
                     .bind_pipeline_graphics(graphics_pipeline.clone())
                     .bind_vertex_buffers(0, cube_vertex_buffer.clone())
+                    .push_constants(
+                        graphics_pipeline.layout().clone(),
+                        0,
+                        (*perspective, *camera),
+                    )
                     .draw(cube_vertex_buffer.len() as u32, 1, 0, 0)
                     .unwrap()
                     .end_render_pass()
@@ -314,6 +374,24 @@ impl Renderer {
                 Arc::new(builder.build().unwrap())
             })
             .collect::<Vec<_>>()
+    }
+
+    fn create_perspective(surface: Arc<Surface<Window>>) -> Matrix4<f32> {
+        let size = Self::get_size(surface);
+        perspective(
+            80.0 / 180.0 * 3.1415926,
+            size.width as f32 / size.height as f32,
+            0.01,
+            10000.0,
+        )
+    }
+
+    fn create_camera() -> Matrix4<f32> {
+        look_at(
+            vec3(0.0, 0.0, -10.0),
+            vec3(0.0, 0.0, 0.0),
+            vec3(0.0, 1.0, 0.0),
+        )
     }
 
     pub fn new() -> Renderer {
@@ -339,6 +417,9 @@ impl Renderer {
         let framebuffers = Self::create_framebuffers(images.clone(), render_pass.clone());
         let viewport = Self::create_viewport(surface.clone());
 
+        let perspective = Self::create_perspective(surface.clone());
+        let camera = Self::create_camera();
+
         let graphics_pipeline = Self::create_graphics_pipeline(
             device.clone(),
             vert_shader.clone(),
@@ -352,6 +433,8 @@ impl Renderer {
             cube_vertex_buffer.clone(),
             framebuffers.clone(),
             graphics_pipeline.clone(),
+            &perspective,
+            &camera,
         );
 
         cube_vertex_buffer_future.flush().unwrap();
@@ -372,6 +455,8 @@ impl Renderer {
             viewport,
             graphics_pipeline,
             command_buffers,
+            perspective,
+            camera,
         }
     }
 
@@ -433,20 +518,28 @@ impl Renderer {
                             );
                             self.graphics_pipeline = graphics_pipeline;
 
-                            let command_buffers = Self::create_command_buffers(
-                                self.device.clone(),
-                                self.queue.clone(),
-                                self.cube_vertex_buffer.clone(),
-                                self.framebuffers.clone(),
-                                self.graphics_pipeline.clone(),
-                            );
-                            self.command_buffers = command_buffers;
+                            let perspective = Self::create_perspective(self.surface.clone());
+                            self.perspective = perspective;
 
                             window_resized = false;
                         }
 
                         recreate_swapchain = false;
                     }
+
+                    let camera = Self::create_camera();
+                    self.camera = camera;
+
+                    let command_buffers = Self::create_command_buffers(
+                        self.device.clone(),
+                        self.queue.clone(),
+                        self.cube_vertex_buffer.clone(),
+                        self.framebuffers.clone(),
+                        self.graphics_pipeline.clone(),
+                        &self.perspective,
+                        &self.camera,
+                    );
+                    self.command_buffers = command_buffers;
 
                     let (image_i, suboptimal, acquire_future) =
                         match acquire_next_image(self.swapchain.clone(), None) {
