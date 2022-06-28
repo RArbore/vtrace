@@ -386,12 +386,8 @@ impl Renderer {
         )
     }
 
-    fn create_camera() -> Matrix4<f32> {
-        look_at(
-            vec3(0.0, 0.0, -10.0),
-            vec3(0.0, 0.0, 0.0),
-            vec3(0.0, 1.0, 0.0),
-        )
+    fn create_camera(position: &Vec3, direction: &Vec3) -> Matrix4<f32> {
+        look_at(*position, *position + *direction, vec3(0.0, 1.0, 0.0))
     }
 
     pub fn new() -> Renderer {
@@ -418,7 +414,7 @@ impl Renderer {
         let viewport = Self::create_viewport(surface.clone());
 
         let perspective = Self::create_perspective(surface.clone());
-        let camera = Self::create_camera();
+        let camera = Self::create_camera(&vec3(0.0, 0.0, -10.0), &vec3(0.0, 0.0, 1.0));
 
         let graphics_pipeline = Self::create_graphics_pipeline(
             device.clone(),
@@ -484,6 +480,31 @@ impl Renderer {
                 } => {
                     window_resized = true;
                 }
+                winit::event::Event::WindowEvent {
+                    event:
+                        winit::event::WindowEvent::KeyboardInput {
+                            input:
+                                winit::event::KeyboardInput {
+                                    state,
+                                    virtual_keycode: Some(keycode),
+                                    ..
+                                },
+                            ..
+                        },
+                    ..
+                } => {
+                    println!("{:?} {:?}", state, keycode);
+                }
+                winit::event::Event::WindowEvent {
+                    event:
+                        winit::event::WindowEvent::CursorMoved {
+                            position: PhysicalPosition { x, y },
+                            ..
+                        },
+                    ..
+                } => {
+                    println!("{:?} {:?}", x, y);
+                }
                 winit::event::Event::MainEventsCleared => {
                     if window_resized || recreate_swapchain {
                         let new_dimensions = Self::get_size(self.surface.clone());
@@ -527,7 +548,7 @@ impl Renderer {
                         recreate_swapchain = false;
                     }
 
-                    let camera = Self::create_camera();
+                    let camera = Self::create_camera(&vec3(0.0, 0.0, -10.0), &vec3(0.0, 0.0, 1.0));
                     self.camera = camera;
 
                     let command_buffers = Self::create_command_buffers(
