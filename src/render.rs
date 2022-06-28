@@ -67,6 +67,7 @@ mod fs {
 }
 
 pub const NUM_KEYS: usize = winit::event::VirtualKeyCode::Cut as usize + 1;
+pub const NUM_BUTTONS: usize = 3;
 
 pub struct Renderer {
     event_loop: EventLoop<()>,
@@ -95,8 +96,19 @@ pub struct Renderer {
 
     keystate: [bool; NUM_KEYS],
     last_keystate: [bool; NUM_KEYS],
+    mouse_buttons: [bool; NUM_BUTTONS],
+    last_mouse_buttons: [bool; NUM_BUTTONS],
     mouse_pos: (f32, f32),
     last_mouse_pos: (f32, f32),
+}
+
+pub fn b2u(button: winit::event::MouseButton) -> usize {
+    match button {
+        winit::event::MouseButton::Left => 0,
+        winit::event::MouseButton::Right => 1,
+        winit::event::MouseButton::Middle => 2,
+        winit::event::MouseButton::Other(x) => x as usize,
+    }
 }
 
 impl Renderer {
@@ -423,7 +435,7 @@ impl Renderer {
         let viewport = Self::create_viewport(surface.clone());
 
         let perspective = Self::create_perspective(surface.clone());
-        let camera = Self::create_camera(&world.camera_position, &world.camera_direction);
+        let camera = Self::create_camera(&world.camera_position, &world.get_camera_direction());
 
         let graphics_pipeline = Self::create_graphics_pipeline(
             device.clone(),
@@ -464,6 +476,8 @@ impl Renderer {
             camera,
             keystate: [false; NUM_KEYS],
             last_keystate: [false; NUM_KEYS],
+            mouse_buttons: [false; NUM_BUTTONS],
+            last_mouse_buttons: [false; NUM_BUTTONS],
             mouse_pos: (0.0, 0.0),
             last_mouse_pos: (0.0, 0.0),
         }
@@ -509,6 +523,18 @@ impl Renderer {
                 } => {
                     self.last_keystate[keycode as usize] = self.keystate[keycode as usize];
                     self.keystate[keycode as usize] =
+                        if state == winit::event::ElementState::Pressed {
+                            true
+                        } else {
+                            false
+                        };
+                }
+                winit::event::Event::WindowEvent {
+                    event: winit::event::WindowEvent::MouseInput { state, button, .. },
+                    ..
+                } => {
+                    self.last_mouse_buttons[b2u(button)] = self.last_mouse_buttons[b2u(button)];
+                    self.mouse_buttons[b2u(button)] =
                         if state == winit::event::ElementState::Pressed {
                             true
                         } else {
@@ -570,7 +596,7 @@ impl Renderer {
                     }
 
                     let camera =
-                        Self::create_camera(&world.camera_position, &world.camera_direction);
+                        Self::create_camera(&world.camera_position, &world.get_camera_direction());
                     self.camera = camera;
 
                     let command_buffers = Self::create_command_buffers(
@@ -646,6 +672,8 @@ impl Renderer {
                 dt.elapsed().as_millis() as f32 / 1000.0,
                 &self.keystate,
                 &self.last_keystate,
+                &self.mouse_buttons,
+                &self.last_mouse_buttons,
                 &self.mouse_pos,
                 &self.last_mouse_pos,
             );

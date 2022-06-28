@@ -20,18 +20,34 @@ use winit::event::*;
 use crate::render::*;
 
 const MOVE_SPEED: f32 = 5.0;
+const SENSITIVITY: f32 = 0.0003;
+const PI: f32 = 3.14159265358979323846;
 
 pub struct WorldState {
     pub camera_position: Vec3,
-    pub camera_direction: Vec3,
+    pub camera_theta: f32,
+    pub camera_phi: f32,
 }
 
 impl WorldState {
     pub fn new() -> WorldState {
         WorldState {
             camera_position: vec3(0.0, 0.0, 0.0),
-            camera_direction: vec3(1.0, 0.0, 0.0),
+            camera_theta: 0.0,
+            camera_phi: PI / 2.0,
         }
+    }
+
+    pub fn get_camera_direction(&self) -> Vec3 {
+        vec3(
+            cos(self.camera_theta) * sin(self.camera_phi),
+            cos(self.camera_phi),
+            sin(self.camera_theta) * sin(self.camera_phi),
+        )
+    }
+
+    pub fn get_horizontal_camera_direction(&self) -> Vec3 {
+        vec3(cos(self.camera_theta), 0.0, sin(self.camera_theta))
     }
 
     pub fn update(
@@ -39,22 +55,61 @@ impl WorldState {
         dt: f32,
         keystate: &[bool; NUM_KEYS],
         last_keystate: &[bool; NUM_KEYS],
+        mouse_buttons: &[bool; NUM_BUTTONS],
+        last_mouse_buttons: &[bool; NUM_BUTTONS],
         mouse_pos: &(f32, f32),
         last_mouse_pos: &(f32, f32),
     ) {
         if keystate[VirtualKeyCode::W as usize] {
-            self.camera_position = self.camera_position + self.camera_direction * dt * MOVE_SPEED;
+            self.camera_position =
+                self.camera_position + self.get_horizontal_camera_direction() * dt * MOVE_SPEED;
         }
         if keystate[VirtualKeyCode::S as usize] {
-            self.camera_position = self.camera_position - self.camera_direction * dt * MOVE_SPEED;
+            self.camera_position =
+                self.camera_position - self.get_horizontal_camera_direction() * dt * MOVE_SPEED;
         }
         if keystate[VirtualKeyCode::A as usize] {
             self.camera_position = self.camera_position
-                - cross(self.camera_direction, vec3(0.0, 1.0, 0.0)) * dt * MOVE_SPEED;
+                - cross(self.get_horizontal_camera_direction(), vec3(0.0, 1.0, 0.0))
+                    * dt
+                    * MOVE_SPEED;
         }
         if keystate[VirtualKeyCode::D as usize] {
             self.camera_position = self.camera_position
-                + cross(self.camera_direction, vec3(0.0, 1.0, 0.0)) * dt * MOVE_SPEED;
+                + cross(self.get_horizontal_camera_direction(), vec3(0.0, 1.0, 0.0))
+                    * dt
+                    * MOVE_SPEED;
         }
+        if keystate[VirtualKeyCode::Space as usize] {
+            self.camera_position = self.camera_position - vec3(0.0, 1.0, 0.0) * dt * MOVE_SPEED;
+        }
+        if keystate[VirtualKeyCode::LShift as usize] {
+            self.camera_position = self.camera_position + vec3(0.0, 1.0, 0.0) * dt * MOVE_SPEED;
+        }
+
+        let mut dmx = 0.0;
+        let mut dmy = 0.0;
+
+        if keystate[VirtualKeyCode::Left as usize] {
+            dmx -= 2.5 * dt;
+        }
+        if keystate[VirtualKeyCode::Right as usize] {
+            dmx += 2.5 * dt;
+        }
+        if keystate[VirtualKeyCode::Up as usize] {
+            dmy -= 2.5 * dt;
+        }
+        if keystate[VirtualKeyCode::Down as usize] {
+            dmy += 2.5 * dt;
+        }
+
+        if mouse_buttons[b2u(MouseButton::Left)] {
+            dmx += SENSITIVITY * (mouse_pos.0 - last_mouse_pos.0);
+            dmy += SENSITIVITY * (mouse_pos.1 - last_mouse_pos.1);
+        }
+
+        self.camera_theta += dmx;
+        self.camera_phi -= dmy;
+        self.camera_phi = clamp(self.camera_phi, 0.01, PI * 0.99);
     }
 }
