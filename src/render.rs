@@ -66,6 +66,8 @@ mod fs {
     }
 }
 
+pub const NUM_KEYS: usize = winit::event::VirtualKeyCode::Cut as usize + 1;
+
 pub struct Renderer {
     event_loop: EventLoop<()>,
     surface: Arc<Surface<Window>>,
@@ -90,6 +92,11 @@ pub struct Renderer {
 
     perspective: Matrix4<f32>,
     camera: Matrix4<f32>,
+
+    keystate: [bool; NUM_KEYS],
+    last_keystate: [bool; NUM_KEYS],
+    mouse_pos: (f32, f32),
+    last_mouse_pos: (f32, f32),
 }
 
 impl Renderer {
@@ -455,6 +462,10 @@ impl Renderer {
             command_buffers,
             perspective,
             camera,
+            keystate: [false; NUM_KEYS],
+            last_keystate: [false; NUM_KEYS],
+            mouse_pos: (0.0, 0.0),
+            last_mouse_pos: (0.0, 0.0),
         }
     }
 
@@ -496,7 +507,13 @@ impl Renderer {
                         },
                     ..
                 } => {
-                    println!("{:?} {:?}", state, keycode);
+                    self.last_keystate[keycode as usize] = self.keystate[keycode as usize];
+                    self.keystate[keycode as usize] =
+                        if state == winit::event::ElementState::Pressed {
+                            true
+                        } else {
+                            false
+                        };
                 }
                 winit::event::Event::WindowEvent {
                     event:
@@ -506,7 +523,8 @@ impl Renderer {
                         },
                     ..
                 } => {
-                    println!("{:?} {:?}", x, y);
+                    self.last_mouse_pos = self.mouse_pos;
+                    self.mouse_pos = (x as f32, y as f32);
                 }
                 winit::event::Event::MainEventsCleared => {
                     if window_resized || recreate_swapchain {
@@ -624,7 +642,13 @@ impl Renderer {
                 num_frames_in_sec = 0;
             }
 
-            WorldState::update(&mut world, dt.elapsed().as_millis() as f32 / 1000.0);
+            world.update(
+                dt.elapsed().as_millis() as f32 / 1000.0,
+                &self.keystate,
+                &self.last_keystate,
+                &self.mouse_pos,
+                &self.last_mouse_pos,
+            );
         });
     }
 }

@@ -12,7 +12,14 @@
  * along with vtrace-rs. If not, see <https://www.gnu.org/licenses/>.
  */
 
+use glm::builtin::*;
 use glm::*;
+
+use winit::event::*;
+
+use crate::render::*;
+
+const MOVE_SPEED: f32 = 5.0;
 
 pub struct WorldState {
     pub camera_position: Vec3,
@@ -27,5 +34,27 @@ impl WorldState {
         }
     }
 
-    pub fn update(world: &mut WorldState, dt: f32) {}
+    pub fn update(
+        &mut self,
+        dt: f32,
+        keystate: &[bool; NUM_KEYS],
+        last_keystate: &[bool; NUM_KEYS],
+        mouse_pos: &(f32, f32),
+        last_mouse_pos: &(f32, f32),
+    ) {
+        if keystate[VirtualKeyCode::W as usize] {
+            self.camera_position = self.camera_position + self.camera_direction * dt * MOVE_SPEED;
+        }
+        if keystate[VirtualKeyCode::S as usize] {
+            self.camera_position = self.camera_position - self.camera_direction * dt * MOVE_SPEED;
+        }
+        if keystate[VirtualKeyCode::A as usize] {
+            self.camera_position = self.camera_position
+                - cross(self.camera_direction, vec3(0.0, 1.0, 0.0)) * dt * MOVE_SPEED;
+        }
+        if keystate[VirtualKeyCode::D as usize] {
+            self.camera_position = self.camera_position
+                + cross(self.camera_direction, vec3(0.0, 1.0, 0.0)) * dt * MOVE_SPEED;
+        }
+    }
 }
