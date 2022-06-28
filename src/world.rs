@@ -12,11 +12,20 @@
  * along with vtrace-rs. If not, see <https://www.gnu.org/licenses/>.
  */
 
-mod render;
-mod world;
+use glm::*;
 
-fn main() {
-    let world = world::WorldState::new();
-    let renderer = render::Renderer::new(&world);
-    renderer.render_loop(world);
+pub struct WorldState {
+    pub camera_position: Vec3,
+    pub camera_direction: Vec3,
+}
+
+impl WorldState {
+    pub fn new() -> WorldState {
+        WorldState {
+            camera_position: vec3(0.0, 0.0, 0.0),
+            camera_direction: vec3(1.0, 0.0, 0.0),
+        }
+    }
+
+    pub fn update(world: &mut WorldState, dt: f32) {}
 }

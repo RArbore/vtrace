@@ -42,6 +42,8 @@ use winit::dpi::*;
 use winit::event_loop::*;
 use winit::window::*;
 
+use crate::world::*;
+
 #[repr(C)]
 #[derive(Default, Copy, Clone, Zeroable, Pod)]
 struct GPUVertex {
@@ -390,7 +392,7 @@ impl Renderer {
         look_at(*position, *position + *direction, vec3(0.0, 1.0, 0.0))
     }
 
-    pub fn new() -> Renderer {
+    pub fn new(world: &WorldState) -> Renderer {
         let instance = Self::create_instance();
 
         let event_loop = EventLoop::new();
@@ -414,7 +416,7 @@ impl Renderer {
         let viewport = Self::create_viewport(surface.clone());
 
         let perspective = Self::create_perspective(surface.clone());
-        let camera = Self::create_camera(&vec3(0.0, 0.0, -10.0), &vec3(0.0, 0.0, 1.0));
+        let camera = Self::create_camera(&world.camera_position, &world.camera_direction);
 
         let graphics_pipeline = Self::create_graphics_pipeline(
             device.clone(),
@@ -456,7 +458,7 @@ impl Renderer {
         }
     }
 
-    pub fn render_loop(mut self) {
+    pub fn render_loop(mut self, mut world: WorldState) {
         let mut fences: Vec<Option<Arc<FenceSignalFuture<_>>>> = vec![None; self.images.len()];
 
         let mut previous_fence_i = 0;
@@ -467,6 +469,7 @@ impl Renderer {
         let mut num_frames_in_sec = 0;
 
         self.event_loop.run(move |event, _, control_flow| {
+            let dt = Instant::now();
             match event {
                 winit::event::Event::WindowEvent {
                     event: winit::event::WindowEvent::CloseRequested,
@@ -548,7 +551,8 @@ impl Renderer {
                         recreate_swapchain = false;
                     }
 
-                    let camera = Self::create_camera(&vec3(0.0, 0.0, -10.0), &vec3(0.0, 0.0, 1.0));
+                    let camera =
+                        Self::create_camera(&world.camera_position, &world.camera_direction);
                     self.camera = camera;
 
                     let command_buffers = Self::create_command_buffers(
@@ -619,6 +623,8 @@ impl Renderer {
                 before_time = Instant::now();
                 num_frames_in_sec = 0;
             }
+
+            WorldState::update(&mut world, dt.elapsed().as_millis() as f32 / 1000.0);
         });
     }
 }
