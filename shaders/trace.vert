@@ -23,13 +23,14 @@ layout (push_constant) uniform PushConstants {
 } push;
 
 layout (location = 0) out vec4 out_position;
+layout (location = 1) out flat uint model_id;
 
 void main() {
     // To decrease the model instance size from 17 to 16 bytes, store
     // the model id in the bottom right entry in the model matrix.
     // For an arbitrary scale/rotation/translate transformation matrix,
     // this entry will always be 1.
-    uint model_id = floatBitsToInt(model[3][3]);
+    model_id = floatBitsToInt(model[3][3]);
     mat4 recovered_model = transpose(model);
     recovered_model[3][3] = 1.0;
 

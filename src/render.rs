@@ -25,10 +25,12 @@ use vulkano::buffer::*;
 use vulkano::command_buffer::*;
 use vulkano::device::physical::*;
 use vulkano::device::*;
+use vulkano::format::*;
 use vulkano::image::view::*;
 use vulkano::image::*;
 use vulkano::instance::*;
 use vulkano::memory::pool::*;
+use vulkano::pipeline::graphics::depth_stencil::*;
 use vulkano::pipeline::graphics::input_assembly::*;
 use vulkano::pipeline::graphics::vertex_input::*;
 use vulkano::pipeline::graphics::viewport::*;
@@ -311,27 +313,41 @@ impl Renderer {
         device: Arc<Device>,
         swapchain: Arc<Swapchain<Window>>,
     ) -> Arc<RenderPass> {
-        vulkano::single_pass_renderpass!(device.clone(),
+        vulkano::single_pass_renderpass!(
+            device.clone(),
             attachments: {
                 color: {
                     load: Clear,
                     store: Store,
                     format: swapchain.image_format(),
                     samples: 1,
+                },
+                depth: {
+                    load: Clear,
+                    store: DontCare,
+                    format: Format::D32_SFLOAT,
+                    samples: 1,
                 }
             },
             pass: {
                 color: [color],
-                depth_stencil: {}
+                depth_stencil: {depth}
             }
         )
         .unwrap()
     }
 
     fn create_framebuffers(
+        device: Arc<Device>,
         images: Vec<Arc<SwapchainImage<Window>>>,
         render_pass: Arc<RenderPass>,
     ) -> Vec<Arc<Framebuffer>> {
+        let dimensions = images[0].dimensions().width_height();
+        let depth_buffer = ImageView::new_default(
+            AttachmentImage::transient(device.clone(), dimensions, Format::D32_SFLOAT).unwrap(),
+        )
+        .unwrap();
+
         images
             .iter()
             .map(|image| {
@@ -339,7 +355,7 @@ impl Renderer {
                 Framebuffer::new(
                     render_pass.clone(),
                     FramebufferCreateInfo {
-                        attachments: vec![view],
+                        attachments: vec![view, depth_buffer.clone()],
                         ..Default::default()
                     },
                 )
@@ -373,6 +389,7 @@ impl Renderer {
             .input_assembly_state(InputAssemblyState::new())
             .viewport_state(ViewportState::viewport_fixed_scissor_irrelevant([viewport]))
             .fragment_shader(frag_shader.entry_point("main").unwrap(), ())
+            .depth_stencil_state(DepthStencilState::simple_depth_test())
             .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
             .build(device.clone())
             .unwrap()
@@ -402,7 +419,10 @@ impl Renderer {
                     .begin_render_pass(
                         framebuffer.clone(),
                         SubpassContents::Inline,
-                        vec![[53.0 / 100.0, 81.0 / 100.0, 92.0 / 100.0, 1.0].into()],
+                        vec![
+                            [53.0 / 100.0, 81.0 / 100.0, 92.0 / 100.0, 1.0].into(),
+                            1.0.into(),
+                        ],
                     )
                     .unwrap()
                     .bind_pipeline_graphics(graphics_pipeline.clone())
@@ -468,7 +488,8 @@ impl Renderer {
         ) = Self::create_shaders_and_buffers(device.clone(), queue.clone());
 
         let render_pass = Self::create_render_pass(device.clone(), swapchain.clone());
-        let framebuffers = Self::create_framebuffers(images.clone(), render_pass.clone());
+        let framebuffers =
+            Self::create_framebuffers(device.clone(), images.clone(), render_pass.clone());
         let viewport = Self::create_viewport(surface.clone());
 
         let perspective = Self::create_perspective(surface.clone());
@@ -551,7 +572,7 @@ impl Renderer {
                         0.0,
                         0.0,
                         0.0,
-                        unsafe { std::mem::transmute(0) },
+                        unsafe { std::mem::transmute(x + 100) },
                     ],
                 })
                 .collect();
@@ -635,8 +656,11 @@ impl Renderer {
                         if window_resized {
                             self.viewport.dimensions = new_dimensions.into();
 
-                            let framebuffers =
-                                Self::create_framebuffers(images.clone(), self.render_pass.clone());
+                            let framebuffers = Self::create_framebuffers(
+                                self.device.clone(),
+                                images.clone(),
+                                self.render_pass.clone(),
+                            );
                             self.framebuffers = framebuffers;
 
                             let graphics_pipeline = Self::create_graphics_pipeline(
