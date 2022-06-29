@@ -20,6 +20,7 @@ use glm::*;
 use std::sync::*;
 use std::time::*;
 
+use vulkano::buffer::cpu_pool::*;
 use vulkano::buffer::*;
 use vulkano::command_buffer::*;
 use vulkano::device::physical::*;
@@ -27,6 +28,7 @@ use vulkano::device::*;
 use vulkano::image::view::*;
 use vulkano::image::*;
 use vulkano::instance::*;
+use vulkano::memory::pool::*;
 use vulkano::pipeline::graphics::input_assembly::*;
 use vulkano::pipeline::graphics::vertex_input::*;
 use vulkano::pipeline::graphics::viewport::*;
@@ -51,6 +53,13 @@ struct GPUVertex {
 }
 
 vulkano::impl_vertex!(GPUVertex, position);
+
+#[repr(C)]
+#[derive(Default, Copy, Clone, Zeroable, Pod)]
+struct GPUInstance {
+    model: [f32; 16],
+}
+vulkano::impl_vertex!(GPUInstance, model);
 
 mod vs {
     vulkano_shaders::shader! {
@@ -83,6 +92,7 @@ pub struct Renderer {
     vert_shader: Arc<ShaderModule>,
     frag_shader: Arc<ShaderModule>,
     cube_vertex_buffer: Arc<ImmutableBuffer<[GPUVertex]>>,
+    cube_instance_buffer: CpuBufferPool<GPUInstance>,
 
     render_pass: Arc<RenderPass>,
     framebuffers: Vec<Arc<Framebuffer>>,
@@ -144,7 +154,7 @@ impl Renderer {
         instance: &'a Arc<Instance>,
         surface: Arc<Surface<Window>>,
     ) -> (PhysicalDevice<'a>, QueueFamily<'a>) {
-        PhysicalDevice::enumerate(instance)
+        let (physical_device, queue_family) = PhysicalDevice::enumerate(instance)
             .filter(|&p| {
                 p.supported_extensions()
                     .is_superset_of(&Self::get_device_extensions())
@@ -163,7 +173,11 @@ impl Renderer {
                 PhysicalDeviceType::Cpu => 3,
                 PhysicalDeviceType::Other => 4,
             })
-            .expect("ERROR: No physical device is available")
+            .expect("ERROR: No physical device is available");
+
+        println!("Using device: {}", physical_device.properties().device_name);
+
+        (physical_device, queue_family)
     }
 
     fn create_device_and_queue<'a>(
@@ -203,7 +217,7 @@ impl Renderer {
         let image_format = Some(
             physical
                 .surface_formats(&surface, Default::default())
-                .unwrap()[0]
+                .unwrap()[1]
                 .0,
         );
 
@@ -233,6 +247,7 @@ impl Renderer {
             Arc<ImmutableBuffer<[GPUVertex]>>,
             CommandBufferExecFuture<NowFuture, PrimaryAutoCommandBuffer>,
         ),
+        CpuBufferPool<GPUInstance>,
     ) {
         let vert_shader = vs::load(device.clone()).unwrap();
 
@@ -280,11 +295,16 @@ impl Renderer {
         .map(|x| GPUVertex { position: *x })
         .collect();
 
-        let vertex_buffer =
+        let cube_vertex_buffer =
             ImmutableBuffer::from_iter(vertices, BufferUsage::vertex_buffer(), queue.clone())
                 .unwrap();
 
-        (vert_shader, frag_shader, vertex_buffer)
+        (
+            vert_shader,
+            frag_shader,
+            cube_vertex_buffer,
+            CpuBufferPool::vertex_buffer(device.clone()),
+        )
     }
 
     fn create_render_pass(
@@ -344,7 +364,11 @@ impl Renderer {
         viewport: Viewport,
     ) -> Arc<GraphicsPipeline> {
         GraphicsPipeline::start()
-            .vertex_input_state(BuffersDefinition::new().vertex::<GPUVertex>())
+            .vertex_input_state(
+                BuffersDefinition::new()
+                    .vertex::<GPUVertex>()
+                    .instance::<GPUInstance>(),
+            )
             .vertex_shader(vert_shader.entry_point("main").unwrap(), ())
             .input_assembly_state(InputAssemblyState::new())
             .viewport_state(ViewportState::viewport_fixed_scissor_irrelevant([viewport]))
@@ -358,6 +382,7 @@ impl Renderer {
         device: Arc<Device>,
         queue: Arc<Queue>,
         cube_vertex_buffer: Arc<ImmutableBuffer<[GPUVertex]>>,
+        cube_instance_buffer: Arc<CpuBufferPoolChunk<GPUInstance, Arc<StdMemoryPool>>>,
         framebuffers: Vec<Arc<Framebuffer>>,
         graphics_pipeline: Arc<GraphicsPipeline>,
         perspective: &Matrix4<f32>,
@@ -377,17 +402,25 @@ impl Renderer {
                     .begin_render_pass(
                         framebuffer.clone(),
                         SubpassContents::Inline,
-                        vec![[0.0, 0.0, 1.0, 1.0].into()],
+                        vec![[53.0 / 100.0, 81.0 / 100.0, 92.0 / 100.0, 1.0].into()],
                     )
                     .unwrap()
                     .bind_pipeline_graphics(graphics_pipeline.clone())
-                    .bind_vertex_buffers(0, cube_vertex_buffer.clone())
+                    .bind_vertex_buffers(
+                        0,
+                        (cube_vertex_buffer.clone(), cube_instance_buffer.clone()),
+                    )
                     .push_constants(
                         graphics_pipeline.layout().clone(),
                         0,
                         (*perspective, *camera),
                     )
-                    .draw(cube_vertex_buffer.len() as u32, 1, 0, 0)
+                    .draw(
+                        cube_vertex_buffer.len() as u32,
+                        cube_instance_buffer.len() as u32,
+                        0,
+                        0,
+                    )
                     .unwrap()
                     .end_render_pass()
                     .unwrap();
@@ -427,8 +460,12 @@ impl Renderer {
         let (swapchain, images) =
             Self::create_swapchain(physical.clone(), device.clone(), surface.clone());
 
-        let (vert_shader, frag_shader, (cube_vertex_buffer, cube_vertex_buffer_future)) =
-            Self::create_shaders_and_buffers(device.clone(), queue.clone());
+        let (
+            vert_shader,
+            frag_shader,
+            (cube_vertex_buffer, cube_vertex_buffer_future),
+            cube_instance_buffer,
+        ) = Self::create_shaders_and_buffers(device.clone(), queue.clone());
 
         let render_pass = Self::create_render_pass(device.clone(), swapchain.clone());
         let framebuffers = Self::create_framebuffers(images.clone(), render_pass.clone());
@@ -448,6 +485,7 @@ impl Renderer {
             device.clone(),
             queue.clone(),
             cube_vertex_buffer.clone(),
+            cube_instance_buffer.chunk(vec![]).unwrap(),
             framebuffers.clone(),
             graphics_pipeline.clone(),
             &perspective,
@@ -467,6 +505,7 @@ impl Renderer {
             vert_shader,
             frag_shader,
             cube_vertex_buffer,
+            cube_instance_buffer,
             render_pass,
             framebuffers,
             viewport,
@@ -494,6 +533,29 @@ impl Renderer {
         let mut num_frames_in_sec = 0;
 
         self.event_loop.run(move |event, _, control_flow| {
+            let instances: Vec<GPUInstance> = (-100..100)
+                .map(|x| GPUInstance {
+                    model: [
+                        1.0,
+                        0.0,
+                        0.0,
+                        x as f32 * 4.0,
+                        0.0,
+                        1.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        unsafe { std::mem::transmute(0) },
+                    ],
+                })
+                .collect();
+
             let dt = Instant::now();
             match event {
                 winit::event::Event::WindowEvent {
@@ -603,6 +665,7 @@ impl Renderer {
                         self.device.clone(),
                         self.queue.clone(),
                         self.cube_vertex_buffer.clone(),
+                        self.cube_instance_buffer.chunk(instances).unwrap(),
                         self.framebuffers.clone(),
                         self.graphics_pipeline.clone(),
                         &self.perspective,
