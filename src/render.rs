@@ -175,7 +175,7 @@ impl Renderer {
                 PhysicalDeviceType::Cpu => 3,
                 PhysicalDeviceType::Other => 4,
             })
-            .expect("ERROR: No physical device is available");
+            .expect("ERROR: No suitable physical device is available");
 
         println!("Using device: {}", physical_device.properties().device_name);
 
