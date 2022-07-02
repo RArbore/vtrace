@@ -12,15 +12,4 @@
  * along with vtrace-rs. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
-mod render;
-mod world;
-mod voxel;
-
-fn main() {
-    let world = world::WorldState::new();
-    let renderer = render::Renderer::new(&world);
-    renderer.render_loop(world);
-}
+pub mod common;
