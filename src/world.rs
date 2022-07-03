@@ -19,10 +19,11 @@ use winit::event::*;
 
 use crate::render::*;
 
-const MOVE_SPEED: f32 = 5.0;
-const SENSITIVITY: f32 = 0.0003;
+const MOVE_SPEED: f32 = 50.0;
+const SENSITIVITY: f32 = 0.003;
 const PI: f32 = 3.14159265358979323846;
 
+#[derive(Debug)]
 pub struct WorldState {
     pub camera_position: Vec3,
     pub camera_theta: f32,
@@ -57,8 +58,9 @@ impl WorldState {
         last_keystate: &[bool; NUM_KEYS],
         mouse_buttons: &[bool; NUM_BUTTONS],
         last_mouse_buttons: &[bool; NUM_BUTTONS],
-        mouse_pos: &(f32, f32),
-        last_mouse_pos: &(f32, f32),
+        mouse_pos: &(f64, f64),
+        last_mouse_pos: &(f64, f64),
+        cursor_moved: bool,
     ) {
         if keystate[VirtualKeyCode::W as usize] {
             self.camera_position =
@@ -91,21 +93,21 @@ impl WorldState {
         let mut dmy = 0.0;
 
         if keystate[VirtualKeyCode::Left as usize] {
-            dmx -= 2.5 * dt;
+            dmx -= MOVE_SPEED * dt;
         }
         if keystate[VirtualKeyCode::Right as usize] {
-            dmx += 2.5 * dt;
+            dmx += MOVE_SPEED * dt;
         }
         if keystate[VirtualKeyCode::Up as usize] {
-            dmy -= 2.5 * dt;
+            dmy -= MOVE_SPEED * dt;
         }
         if keystate[VirtualKeyCode::Down as usize] {
-            dmy += 2.5 * dt;
+            dmy += MOVE_SPEED * dt;
         }
 
-        if mouse_buttons[b2u(MouseButton::Left)] {
-            dmx += SENSITIVITY * (mouse_pos.0 - last_mouse_pos.0);
-            dmy += SENSITIVITY * (mouse_pos.1 - last_mouse_pos.1);
+        if cursor_moved && mouse_buttons[b2u(MouseButton::Left)] {
+            dmx += SENSITIVITY * (mouse_pos.0 - last_mouse_pos.0) as f32;
+            dmy += SENSITIVITY * (mouse_pos.1 - last_mouse_pos.1) as f32;
         }
 
         self.camera_theta += dmx;

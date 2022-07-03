@@ -110,8 +110,8 @@ pub struct Renderer {
     last_keystate: [bool; NUM_KEYS],
     mouse_buttons: [bool; NUM_BUTTONS],
     last_mouse_buttons: [bool; NUM_BUTTONS],
-    mouse_pos: (f32, f32),
-    last_mouse_pos: (f32, f32),
+    mouse_pos: (f64, f64),
+    last_mouse_pos: (f64, f64),
 }
 
 pub fn b2u(button: winit::event::MouseButton) -> usize {
@@ -578,6 +578,9 @@ impl Renderer {
                 .collect();
 
             let dt = Instant::now();
+
+            let mut cursor_moved = false;
+
             match event {
                 winit::event::Event::WindowEvent {
                     event: winit::event::WindowEvent::CloseRequested,
@@ -633,7 +636,8 @@ impl Renderer {
                     ..
                 } => {
                     self.last_mouse_pos = self.mouse_pos;
-                    self.mouse_pos = (x as f32, y as f32);
+                    self.mouse_pos = (x, y);
+                    cursor_moved = true;
                 }
                 winit::event::Event::MainEventsCleared => {
                     if window_resized || recreate_swapchain {
@@ -744,11 +748,11 @@ impl Renderer {
                     };
 
                     previous_fence_i = image_i;
+                    num_frames_in_sec += 1;
                 }
                 _ => (),
             }
             let elapsed = before_time.elapsed().as_micros();
-            num_frames_in_sec += 1;
             if elapsed > 1000000 {
                 println!("FPS: {}", num_frames_in_sec);
                 before_time = Instant::now();
@@ -763,6 +767,7 @@ impl Renderer {
                 &self.last_mouse_buttons,
                 &self.mouse_pos,
                 &self.last_mouse_pos,
+                cursor_moved,
             );
         });
     }
