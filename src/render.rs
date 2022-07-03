@@ -232,7 +232,7 @@ impl Renderer {
                 image_extent: dimensions.into(),
                 image_usage: ImageUsage::color_attachment(),
                 composite_alpha,
-                present_mode: PresentMode::Immediate,
+                present_mode: PresentMode::Mailbox,
                 ..Default::default()
             },
         )
