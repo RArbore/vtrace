@@ -12,42 +12,11 @@
  * along with vtrace-rs. If not, see <https://www.gnu.org/licenses/>.
  */
 
+pub trait Voxel: PartialEq + Eq + Copy {}
+
 pub trait VoxelFormat<'a, T>: IntoIterator + FromIterator<T> {
     fn at_mut(x: i32, y: i32, z: i32) -> Option<&'a mut T>;
     fn at(x: i32, y: i32, z: i32) -> Option<&'a T>;
 }
 
-pub struct RawChunk<T, const W: usize> {
-    data: [[[T; W]; W]; W],
-}
-
-pub struct RawChunkIter<'a, T, const W: usize> {
-    chunk: &'a RawChunk<T, W>,
-    index: usize,
-}
-
-impl<'a, T, const W: usize> IntoIterator for &'a RawChunk<T, W> {
-    type Item = &'a T;
-    type IntoIter = RawChunkIter<'a, T, W>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        RawChunkIter {
-            chunk: self,
-            index: 0,
-        }
-    }
-}
-
-impl<'a, T, const W: usize> Iterator for RawChunkIter<'a, T, W> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<&'a T> {
-        if self.index < W * W * W {
-            let result = &self.chunk.data[self.index / W / W][self.index / W % W][self.index % W];
-            self.index += 1;
-            Some(result)
-        } else {
-            None
-        }
-    }
-}
+impl Voxel for i32 {}
