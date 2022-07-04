@@ -25,26 +25,6 @@ impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> RawStaticChunk<T,
             data: [[[v; Z]; Y]; X],
         }
     }
-
-    pub fn dim_x(&self) -> usize {
-        X
-    }
-
-    pub fn dim_y(&self) -> usize {
-        Y
-    }
-
-    pub fn dim_z(&self) -> usize {
-        Z
-    }
-
-    pub fn at<'a>(&'a self, x: usize, y: usize, z: usize) -> &'a T {
-        &self.data[x][y][z]
-    }
-
-    pub fn at_mut<'a>(&'a mut self, x: usize, y: usize, z: usize) -> &'a mut T {
-        &mut self.data[x][y][z]
-    }
 }
 
 pub struct RawStaticChunkIter<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> {
@@ -113,6 +93,44 @@ impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> FromIterator<
     }
 }
 
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> VoxelFormat<T>
+    for RawStaticChunk<T, X, Y, Z>
+{
+    fn dim_x(&self) -> (i32, i32) {
+        (0, X as i32)
+    }
+
+    fn dim_y(&self) -> (i32, i32) {
+        (0, Y as i32)
+    }
+
+    fn dim_z(&self) -> (i32, i32) {
+        (0, Z as i32)
+    }
+
+    fn at<'a>(&'a self, x: i32, y: i32, z: i32) -> Option<&'a T> {
+        if contains(self, x, y, z) {
+            let x = x as usize;
+            let y = y as usize;
+            let z = z as usize;
+            Some(&self.data[x][y][z])
+        } else {
+            None
+        }
+    }
+
+    fn at_mut<'a>(&'a mut self, x: i32, y: i32, z: i32) -> Option<&'a mut T> {
+        if contains(self, x, y, z) {
+            let x = x as usize;
+            let y = y as usize;
+            let z = z as usize;
+            Some(&mut self.data[x][y][z])
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug)]
 pub struct RawDynamicChunk<T: Voxel> {
     data: Box<[T]>,
@@ -130,26 +148,6 @@ impl<T: Voxel> RawDynamicChunk<T> {
             dim_y,
             dim_z,
         }
-    }
-
-    pub fn dim_x(&self) -> usize {
-        self.dim_x
-    }
-
-    pub fn dim_y(&self) -> usize {
-        self.dim_y
-    }
-
-    pub fn dim_z(&self) -> usize {
-        self.dim_z
-    }
-
-    pub fn at<'a>(&'a self, x: usize, y: usize, z: usize) -> &'a T {
-        &self.data[z + self.dim_z * (y + self.dim_y * x)]
-    }
-
-    pub fn at_mut<'a>(&'a mut self, x: usize, y: usize, z: usize) -> &'a mut T {
-        &mut self.data[z + self.dim_z * (y + self.dim_y * x)]
     }
 }
 
@@ -174,10 +172,46 @@ impl<'a, T: Voxel> Iterator for RawDynamicChunkIter<'a, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
-        if self.index < self.chunk.dim_x() * self.chunk.dim_y() * self.chunk.dim_z() {
+        if self.index < self.chunk.dim_x * self.chunk.dim_y * self.chunk.dim_z {
             let result = self.chunk.data[self.index];
             self.index += 1;
             Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T: Voxel> VoxelFormat<T> for RawDynamicChunk<T> {
+    fn dim_x(&self) -> (i32, i32) {
+        (0, self.dim_x as i32)
+    }
+
+    fn dim_y(&self) -> (i32, i32) {
+        (0, self.dim_y as i32)
+    }
+
+    fn dim_z(&self) -> (i32, i32) {
+        (0, self.dim_z as i32)
+    }
+
+    fn at<'a>(&'a self, x: i32, y: i32, z: i32) -> Option<&'a T> {
+        if contains(self, x, y, z) {
+            let x = x as usize;
+            let y = y as usize;
+            let z = z as usize;
+            Some(&self.data[z + self.dim_z * (y + self.dim_y * x)])
+        } else {
+            None
+        }
+    }
+
+    fn at_mut<'a>(&'a mut self, x: i32, y: i32, z: i32) -> Option<&'a mut T> {
+        if contains(self, x, y, z) {
+            let x = x as usize;
+            let y = y as usize;
+            let z = z as usize;
+            Some(&mut self.data[z + self.dim_z * (y + self.dim_y * x)])
         } else {
             None
         }

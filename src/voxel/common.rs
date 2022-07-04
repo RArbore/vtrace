@@ -14,9 +14,21 @@
 
 pub trait Voxel: PartialEq + Eq + Copy + Default {}
 
-pub trait VoxelFormat<'a, T>: IntoIterator + FromIterator<T> {
-    fn at_mut(x: i32, y: i32, z: i32) -> Option<&'a mut T>;
-    fn at(x: i32, y: i32, z: i32) -> Option<&'a T>;
+pub trait VoxelFormat<T: Voxel> {
+    fn dim_x(&self) -> (i32, i32);
+    fn dim_y(&self) -> (i32, i32);
+    fn dim_z(&self) -> (i32, i32);
+    fn at<'a>(&'a self, x: i32, y: i32, z: i32) -> Option<&'a T>;
+    fn at_mut<'a>(&'a mut self, x: i32, y: i32, z: i32) -> Option<&'a mut T>;
+}
+
+pub fn contains<V: Voxel, T: VoxelFormat<V>>(voxels: &T, x: i32, y: i32, z: i32) -> bool {
+    x >= voxels.dim_x().0
+        && y >= voxels.dim_y().0
+        && z >= voxels.dim_z().0
+        && x < voxels.dim_x().1
+        && y < voxels.dim_y().1
+        && z < voxels.dim_z().1
 }
 
 impl Voxel for i32 {}
