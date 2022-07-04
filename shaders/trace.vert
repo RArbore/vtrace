@@ -22,8 +22,9 @@ layout (push_constant) uniform PushConstants {
     mat4 camera;
 } push;
 
-layout (location = 0) out vec4 out_position;
-layout (location = 1) out flat uint model_id;
+layout (location = 0) out vec4 screen_position;
+layout (location = 1) out vec4 world_position;
+layout (location = 2) out flat uint model_id;
 
 void main() {
     // To decrease the model instance size from 17 to 16 bytes, store
@@ -34,6 +35,7 @@ void main() {
     mat4 recovered_model = transpose(model);
     recovered_model[3][3] = 1.0;
 
-    out_position = push.projection * push.camera * recovered_model * vec4(position, 1.0);
-    gl_Position = out_position;
+    world_position = recovered_model * vec4(position, 1.0);
+    screen_position = push.projection * push.camera * world_position;
+    gl_Position = screen_position;
 }
