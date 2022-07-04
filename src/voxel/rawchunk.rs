@@ -19,6 +19,34 @@ pub struct RawStaticChunk<T: Voxel, const X: usize, const Y: usize, const Z: usi
     data: [[[T; Z]; Y]; X],
 }
 
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> RawStaticChunk<T, X, Y, Z> {
+    pub fn new(v: T) -> Self {
+        RawStaticChunk {
+            data: [[[v; Z]; Y]; X],
+        }
+    }
+
+    pub fn dim_x(&self) -> usize {
+        X
+    }
+
+    pub fn dim_y(&self) -> usize {
+        Y
+    }
+
+    pub fn dim_z(&self) -> usize {
+        Z
+    }
+
+    pub fn at<'a>(&'a self, x: usize, y: usize, z: usize) -> &'a T {
+        &self.data[x][y][z]
+    }
+
+    pub fn at_mut<'a>(&'a mut self, x: usize, y: usize, z: usize) -> &'a mut T {
+        &mut self.data[x][y][z]
+    }
+}
+
 pub struct RawStaticChunkIter<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> {
     chunk: &'a RawStaticChunk<T, X, Y, Z>,
     index: usize,
@@ -58,14 +86,14 @@ impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> FromIterator<
     for RawStaticChunk<T, X, Y, Z>
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut data = std::mem::MaybeUninit::<[[[T; Z]; Y]; X]>::uninit();
+        let mut chunk = RawStaticChunk::new(Default::default());
 
         let mut x = 0;
         let mut y = 0;
         let mut z = 0;
 
         for i in iter {
-            unsafe { (*data.as_mut_ptr())[x][y][z] = i };
+            chunk.data[x][y][z] = i;
             z += 1;
             if z >= Z {
                 z = 0;
@@ -81,8 +109,77 @@ impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> FromIterator<
         assert_eq!(y, 0);
         assert_eq!(z, 0);
 
-        RawStaticChunk {
-            data: unsafe { data.assume_init() },
+        chunk
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct RawDynamicChunk<T: Voxel> {
+    data: Box<[T]>,
+    dim_x: usize,
+    dim_y: usize,
+    dim_z: usize,
+}
+
+impl<T: Voxel> RawDynamicChunk<T> {
+    pub fn new(dim_x: usize, dim_y: usize, dim_z: usize, v: T) -> Self {
+        let vec = vec![v; dim_x * dim_y * dim_z];
+        RawDynamicChunk {
+            data: vec.into_boxed_slice(),
+            dim_x,
+            dim_y,
+            dim_z,
+        }
+    }
+
+    pub fn dim_x(&self) -> usize {
+        self.dim_x
+    }
+
+    pub fn dim_y(&self) -> usize {
+        self.dim_y
+    }
+
+    pub fn dim_z(&self) -> usize {
+        self.dim_z
+    }
+
+    pub fn at<'a>(&'a self, x: usize, y: usize, z: usize) -> &'a T {
+        &self.data[z + self.dim_z * (y + self.dim_y * x)]
+    }
+
+    pub fn at_mut<'a>(&'a mut self, x: usize, y: usize, z: usize) -> &'a mut T {
+        &mut self.data[z + self.dim_z * (y + self.dim_y * x)]
+    }
+}
+
+pub struct RawDynamicChunkIter<'a, T: Voxel> {
+    chunk: &'a RawDynamicChunk<T>,
+    index: usize,
+}
+
+impl<'a, T: Voxel> IntoIterator for &'a RawDynamicChunk<T> {
+    type Item = T;
+    type IntoIter = RawDynamicChunkIter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        RawDynamicChunkIter {
+            chunk: self,
+            index: 0,
+        }
+    }
+}
+
+impl<'a, T: Voxel> Iterator for RawDynamicChunkIter<'a, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        if self.index < self.chunk.dim_x() * self.chunk.dim_y() * self.chunk.dim_z() {
+            let result = self.chunk.data[self.index];
+            self.index += 1;
+            Some(result)
+        } else {
+            None
         }
     }
 }
@@ -92,15 +189,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn chunk_into_from_iter() {
-        let chunk1 = RawStaticChunk::<i32, 3, 8, 5> {
-            data: [[[42; 5]; 8]; 3],
-        };
+    fn rawchunk_test1() {
+        let chunk1 = RawStaticChunk::<i32, 3, 8, 5>::new(42);
 
         let chunk1_iter = chunk1.into_iter();
 
         let chunk2 = RawStaticChunk::from_iter(chunk1_iter);
 
         assert_eq!(chunk1, chunk2);
+    }
+
+    #[test]
+    fn rawchunk_test2() {
+        let chunk1 = RawDynamicChunk::<i32>::new(3, 8, 5, 42);
+        let chunk1_iter = chunk1.into_iter();
+
+        for v in chunk1_iter {
+            assert_eq!(v, 42);
+        }
     }
 }

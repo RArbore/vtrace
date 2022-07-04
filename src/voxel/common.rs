@@ -12,7 +12,7 @@
  * along with vtrace-rs. If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub trait Voxel: PartialEq + Eq + Copy {}
+pub trait Voxel: PartialEq + Eq + Copy + Default {}
 
 pub trait VoxelFormat<'a, T>: IntoIterator + FromIterator<T> {
     fn at_mut(x: i32, y: i32, z: i32) -> Option<&'a mut T>;
