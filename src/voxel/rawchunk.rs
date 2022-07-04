@@ -32,7 +32,7 @@ pub struct RawStaticChunkIter<'a, T: Voxel, const X: usize, const Y: usize, cons
     index: usize,
 }
 
-impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> IntoIterator
+impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> IntoVoxelIterator
     for &'a RawStaticChunk<T, X, Y, Z>
 {
     type Item = T;
@@ -62,17 +62,33 @@ impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> Iterator
     }
 }
 
-impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> FromIterator<T>
+impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> VoxelIterator<T>
+    for RawStaticChunkIter<'a, T, X, Y, Z>
+{
+    fn dim_x(&self) -> (i32, i32) {
+        self.chunk.dim_x()
+    }
+
+    fn dim_y(&self) -> (i32, i32) {
+        self.chunk.dim_y()
+    }
+
+    fn dim_z(&self) -> (i32, i32) {
+        self.chunk.dim_z()
+    }
+}
+
+impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> FromVoxelIterator<T>
     for RawStaticChunk<T, X, Y, Z>
 {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+    fn from_iter<I: IntoVoxelIterator<Item = T>>(iter: I) -> Self {
         let mut chunk = RawStaticChunk::new(Default::default());
 
         let mut x = 0;
         let mut y = 0;
         let mut z = 0;
 
-        for i in iter {
+        for i in iter.into_iter() {
             chunk.data[x][y][z] = i;
             z += 1;
             if z >= Z {
@@ -156,7 +172,7 @@ pub struct RawDynamicChunkIter<'a, T: Voxel> {
     index: usize,
 }
 
-impl<'a, T: Voxel> IntoIterator for &'a RawDynamicChunk<T> {
+impl<'a, T: Voxel> IntoVoxelIterator for &'a RawDynamicChunk<T> {
     type Item = T;
     type IntoIter = RawDynamicChunkIter<'a, T>;
 
@@ -179,6 +195,43 @@ impl<'a, T: Voxel> Iterator for RawDynamicChunkIter<'a, T> {
         } else {
             None
         }
+    }
+}
+
+impl<'a, T: Voxel> VoxelIterator<T> for RawDynamicChunkIter<'a, T> {
+    fn dim_x(&self) -> (i32, i32) {
+        self.chunk.dim_x()
+    }
+
+    fn dim_y(&self) -> (i32, i32) {
+        self.chunk.dim_y()
+    }
+
+    fn dim_z(&self) -> (i32, i32) {
+        self.chunk.dim_z()
+    }
+}
+
+impl<'a, T: Voxel> FromVoxelIterator<T> for RawDynamicChunk<T> {
+    fn from_iter<I: IntoVoxelIterator<Item = T>>(into_iter: I) -> Self {
+        let iter = into_iter.into_iter();
+
+        let dim_x = iter.dim_x().1 as usize;
+        let dim_y = iter.dim_y().1 as usize;
+        let dim_z = iter.dim_z().1 as usize;
+
+        let mut chunk = RawDynamicChunk::new(dim_x, dim_y, dim_z, Default::default());
+
+        let mut index = 0;
+
+        for i in iter {
+            chunk.data[index] = i;
+            index += 1;
+        }
+
+        assert_eq!(index, dim_x * dim_y * dim_z);
+
+        chunk
     }
 }
 
@@ -226,11 +279,11 @@ mod tests {
     fn rawchunk_test1() {
         let chunk1 = RawStaticChunk::<i32, 3, 8, 5>::new(42);
 
-        let chunk1_iter = chunk1.into_iter();
+        let chunk2 = RawDynamicChunk::from_iter(&chunk1);
 
-        let chunk2 = RawStaticChunk::from_iter(chunk1_iter);
-
-        assert_eq!(chunk1, chunk2);
+        for (v1, v2) in chunk1.into_iter().zip(chunk2.into_iter()) {
+            assert_eq!(v1, v2);
+        }
     }
 
     #[test]

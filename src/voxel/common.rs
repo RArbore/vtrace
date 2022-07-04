@@ -31,4 +31,23 @@ pub fn contains<V: Voxel, T: VoxelFormat<V>>(voxels: &T, x: i32, y: i32, z: i32)
         && z < voxels.dim_z().1
 }
 
+pub trait VoxelIterator<T: Voxel>: Iterator<Item = T> {
+    fn dim_x(&self) -> (i32, i32);
+    fn dim_y(&self) -> (i32, i32);
+    fn dim_z(&self) -> (i32, i32);
+}
+
+pub trait IntoVoxelIterator {
+    type Item: Voxel;
+    type IntoIter: VoxelIterator<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter;
+}
+
+pub trait FromVoxelIterator<A: Voxel> {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoVoxelIterator<Item = A>;
+}
+
 impl Voxel for i32 {}
