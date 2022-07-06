@@ -30,8 +30,10 @@ use vulkano::image::view::*;
 use vulkano::image::*;
 use vulkano::instance::*;
 use vulkano::memory::pool::*;
+use vulkano::pipeline::graphics::color_blend::*;
 use vulkano::pipeline::graphics::depth_stencil::*;
 use vulkano::pipeline::graphics::input_assembly::*;
+use vulkano::pipeline::graphics::rasterization::*;
 use vulkano::pipeline::graphics::vertex_input::*;
 use vulkano::pipeline::graphics::viewport::*;
 use vulkano::pipeline::*;
@@ -380,6 +382,7 @@ impl Renderer {
         viewport: Viewport,
     ) -> Arc<GraphicsPipeline> {
         GraphicsPipeline::start()
+            .rasterization_state(RasterizationState::new().cull_mode(CullMode::Front))
             .vertex_input_state(
                 BuffersDefinition::new()
                     .vertex::<GPUVertex>()
@@ -388,6 +391,7 @@ impl Renderer {
             .vertex_shader(vert_shader.entry_point("main").unwrap(), ())
             .input_assembly_state(InputAssemblyState::new())
             .viewport_state(ViewportState::viewport_fixed_scissor_irrelevant([viewport]))
+            .color_blend_state(ColorBlendState::new(1).blend_alpha())
             .fragment_shader(frag_shader.entry_point("main").unwrap(), ())
             .depth_stencil_state(DepthStencilState::simple_depth_test())
             .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
