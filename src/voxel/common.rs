@@ -50,4 +50,5 @@ pub trait FromVoxelIterator<A: Voxel> {
         T: IntoVoxelIterator<Item = A>;
 }
 
+impl Voxel for u8 {}
 impl Voxel for i32 {}

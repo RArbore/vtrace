@@ -12,10 +12,29 @@
  * along with vtrace-rs. If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub mod common;
-pub mod magica_voxel;
-pub mod rawchunk;
+use super::common::*;
+use super::rawchunk::*;
 
-pub use common::*;
-pub use magica_voxel::*;
-pub use rawchunk::*;
+pub fn load(filepath: &str) -> Vec<RawDynamicChunk<u8>> {
+    let dot_vox_data = dot_vox::load(filepath).unwrap();
+
+    let mut chunks = vec![];
+    for model in dot_vox_data.models {
+        let mut chunk = RawDynamicChunk::new(
+            model.size.x as usize,
+            model.size.y as usize,
+            model.size.z as usize,
+            0,
+        );
+
+        for voxel in model.voxels {
+            *chunk
+                .at_mut(voxel.x as i32, voxel.y as i32, voxel.z as i32)
+                .unwrap() = voxel.i;
+        }
+
+        chunks.push(chunk);
+    }
+
+    chunks
+}
