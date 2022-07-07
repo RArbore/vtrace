@@ -146,6 +146,14 @@ impl Renderer {
         }
     }
 
+    fn get_device_features() -> Features {
+        Features {
+            descriptor_binding_partially_bound: true,
+            runtime_descriptor_array: true,
+            ..Features::none()
+        }
+    }
+
     fn create_instance() -> Arc<Instance> {
         Instance::new(InstanceCreateInfo {
             enabled_extensions: required_extensions(),
@@ -162,6 +170,8 @@ impl Renderer {
             .filter(|&p| {
                 p.supported_extensions()
                     .is_superset_of(&Self::get_device_extensions())
+                    && p.supported_features()
+                        .is_superset_of(&Self::get_device_features())
             })
             .filter_map(|p| {
                 p.queue_families()
@@ -195,6 +205,7 @@ impl Renderer {
                 enabled_extensions: physical
                     .required_extensions()
                     .union(&Self::get_device_extensions()),
+                enabled_features: Self::get_device_features(),
                 ..Default::default()
             },
         )

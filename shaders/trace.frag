@@ -40,5 +40,5 @@ void main()
     vec3 ray_pos = world_position.xyz;
     vec3 ray_dir = normalize((inverse(centered_camera) * inverse_projection * screen_position).xyz);
 
-    color = model_id % 2 == 0 ? vec4(vec3(length(ray_pos - cam_pos) / 100.0), 0.3) : vec4(abs(ray_dir), 0.3);
+    color = model_id % 2 == 0 ? vec4(vec3(length(ray_pos - cam_pos) / 100.0), 1.0) : vec4(abs(ray_dir), 1.0);
 }
