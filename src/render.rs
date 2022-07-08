@@ -23,6 +23,9 @@ use std::time::*;
 use vulkano::buffer::cpu_pool::*;
 use vulkano::buffer::*;
 use vulkano::command_buffer::*;
+use vulkano::descriptor_set::layout::*;
+use vulkano::descriptor_set::persistent::*;
+use vulkano::descriptor_set::*;
 use vulkano::device::physical::*;
 use vulkano::device::*;
 use vulkano::format::*;
@@ -36,6 +39,7 @@ use vulkano::pipeline::graphics::input_assembly::*;
 use vulkano::pipeline::graphics::rasterization::*;
 use vulkano::pipeline::graphics::vertex_input::*;
 use vulkano::pipeline::graphics::viewport::*;
+use vulkano::pipeline::layout::*;
 use vulkano::pipeline::*;
 use vulkano::render_pass::*;
 use vulkano::sampler::*;
@@ -103,6 +107,7 @@ pub struct Renderer {
     framebuffers: Vec<Arc<Framebuffer>>,
     viewport: Viewport,
 
+    graphics_pipeline_layout: Arc<PipelineLayout>,
     graphics_pipeline: Arc<GraphicsPipeline>,
     command_buffers: Vec<Arc<PrimaryAutoCommandBuffer>>,
 
@@ -111,6 +116,8 @@ pub struct Renderer {
 
     textures: Vec<(Arc<ImmutableImage>, Arc<ImageView<ImmutableImage>>)>,
     sampler: Arc<Sampler>,
+
+    descriptor_set: Arc<PersistentDescriptorSet>,
 
     keystate: [bool; NUM_KEYS],
     last_keystate: [bool; NUM_KEYS],
@@ -153,6 +160,7 @@ impl Renderer {
     fn get_device_features() -> Features {
         Features {
             descriptor_binding_partially_bound: true,
+            descriptor_binding_variable_descriptor_count: true,
             runtime_descriptor_array: true,
             ..Features::none()
         }
@@ -389,12 +397,51 @@ impl Renderer {
         }
     }
 
+    fn create_graphics_pipeline_layout(
+        device: Arc<Device>,
+        frag_shader: Arc<ShaderModule>,
+    ) -> Arc<PipelineLayout> {
+        let mut layout_create_infos: Vec<_> = DescriptorSetLayoutCreateInfo::from_requirements(
+            frag_shader
+                .entry_point("main")
+                .unwrap()
+                .descriptor_requirements(),
+        );
+
+        let binding = layout_create_infos[0].bindings.get_mut(&0).unwrap();
+        binding.variable_descriptor_count = true;
+        binding.descriptor_count = 1;
+
+        let set_layouts = layout_create_infos
+            .into_iter()
+            .map(|desc| Ok(DescriptorSetLayout::new(device.clone(), desc.clone())?))
+            .collect::<Result<Vec<_>, DescriptorSetLayoutCreationError>>()
+            .unwrap();
+
+        PipelineLayout::new(
+            device.clone(),
+            PipelineLayoutCreateInfo {
+                set_layouts,
+                push_constant_ranges: frag_shader
+                    .entry_point("main")
+                    .unwrap()
+                    .push_constant_requirements()
+                    .cloned()
+                    .into_iter()
+                    .collect(),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+    }
+
     fn create_graphics_pipeline(
         device: Arc<Device>,
         vert_shader: Arc<ShaderModule>,
         frag_shader: Arc<ShaderModule>,
         render_pass: Arc<RenderPass>,
         viewport: Viewport,
+        layout: Arc<PipelineLayout>,
     ) -> Arc<GraphicsPipeline> {
         GraphicsPipeline::start()
             .rasterization_state(RasterizationState::new().cull_mode(CullMode::Front))
@@ -410,7 +457,7 @@ impl Renderer {
             .fragment_shader(frag_shader.entry_point("main").unwrap(), ())
             .depth_stencil_state(DepthStencilState::simple_depth_test())
             .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
-            .build(device.clone())
+            .with_pipeline_layout(device.clone(), layout)
             .unwrap()
     }
 
@@ -421,6 +468,7 @@ impl Renderer {
         cube_instance_buffer: Arc<CpuBufferPoolChunk<GPUInstance, Arc<StdMemoryPool>>>,
         framebuffers: Vec<Arc<Framebuffer>>,
         graphics_pipeline: Arc<GraphicsPipeline>,
+        descriptor_set: Arc<PersistentDescriptorSet>,
         perspective: &Matrix4<f32>,
         camera: &Matrix4<f32>,
     ) -> Vec<Arc<PrimaryAutoCommandBuffer>> {
@@ -445,6 +493,12 @@ impl Renderer {
                     )
                     .unwrap()
                     .bind_pipeline_graphics(graphics_pipeline.clone())
+                    .bind_descriptor_sets(
+                        PipelineBindPoint::Graphics,
+                        graphics_pipeline.layout().clone(),
+                        0,
+                        descriptor_set.clone(),
+                    )
                     .bind_vertex_buffers(
                         0,
                         (cube_vertex_buffer.clone(), cube_instance_buffer.clone()),
@@ -514,31 +568,33 @@ impl Renderer {
         let perspective = Self::create_perspective(surface.clone());
         let camera = Self::create_camera(&world.camera_position, &world.get_camera_direction());
 
+        let graphics_pipeline_layout =
+            Self::create_graphics_pipeline_layout(device.clone(), frag_shader.clone());
         let graphics_pipeline = Self::create_graphics_pipeline(
             device.clone(),
             vert_shader.clone(),
             frag_shader.clone(),
             render_pass.clone(),
             viewport.clone(),
-        );
-        let command_buffers = Self::create_command_buffers(
-            device.clone(),
-            queue.clone(),
-            cube_vertex_buffer.clone(),
-            cube_instance_buffer.chunk(vec![]).unwrap(),
-            framebuffers.clone(),
-            graphics_pipeline.clone(),
-            &perspective,
-            &camera,
+            graphics_pipeline_layout.clone(),
         );
 
         let mut textures = vec![];
 
-        let contents: Vec<u8> = [0xFFu8, 0x00u8, 0xFFu8, 0xFFu8]
-            .into_iter()
-            .cycle()
-            .take(16 * 16 * 16 * 4)
-            .collect();
+        let mut contents: Vec<u8> = vec![0x00; 16 * 16 * 16 * 4];
+        let mut i = 0;
+        for x in 0..16 {
+            for y in 0..16 {
+                for z in 0..16 {
+                    let s = (x + y + z) % 2;
+                    contents[i] = 0xFF * s;
+                    contents[i + 1] = 0xFF * s;
+                    contents[i + 2] = 0xFF * s;
+                    contents[i + 3] = 0xFF;
+                    i += 4;
+                }
+            }
+        }
         let (image, image_future) = ImmutableImage::from_iter(
             contents,
             ImageDimensions::Dim3d {
@@ -553,7 +609,7 @@ impl Renderer {
         .unwrap();
         let image_view = ImageView::new_default(image.clone()).unwrap();
 
-        textures.push((image, image_view));
+        textures.push((image.clone(), image_view.clone()));
 
         let sampler = Sampler::new(
             device.clone(),
@@ -562,6 +618,30 @@ impl Renderer {
             },
         )
         .unwrap();
+
+        let layout = graphics_pipeline.layout().set_layouts().get(0).unwrap();
+        let descriptor_set = PersistentDescriptorSet::new_variable(
+            layout.clone(),
+            1,
+            [WriteDescriptorSet::image_view_sampler_array(
+                0,
+                0,
+                [(image_view.clone() as _, sampler.clone())],
+            )],
+        )
+        .unwrap();
+
+        let command_buffers = Self::create_command_buffers(
+            device.clone(),
+            queue.clone(),
+            cube_vertex_buffer.clone(),
+            cube_instance_buffer.chunk(vec![]).unwrap(),
+            framebuffers.clone(),
+            graphics_pipeline.clone(),
+            descriptor_set.clone(),
+            &perspective,
+            &camera,
+        );
 
         cube_vertex_buffer_future.flush().unwrap();
         image_future.flush().unwrap();
@@ -581,12 +661,14 @@ impl Renderer {
             render_pass,
             framebuffers,
             viewport,
+            graphics_pipeline_layout,
             graphics_pipeline,
             command_buffers,
             perspective,
             camera,
             textures,
             sampler,
+            descriptor_set,
             keystate: [false; NUM_KEYS],
             last_keystate: [false; NUM_KEYS],
             mouse_buttons: [false; NUM_BUTTONS],
@@ -726,6 +808,7 @@ impl Renderer {
                                 self.frag_shader.clone(),
                                 self.render_pass.clone(),
                                 self.viewport.clone(),
+                                self.graphics_pipeline_layout.clone(),
                             );
                             self.graphics_pipeline = graphics_pipeline;
 
@@ -749,6 +832,7 @@ impl Renderer {
                         self.cube_instance_buffer.chunk(instances).unwrap(),
                         self.framebuffers.clone(),
                         self.graphics_pipeline.clone(),
+                        self.descriptor_set.clone(),
                         &self.perspective,
                         &self.camera,
                     );

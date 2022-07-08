@@ -14,14 +14,19 @@
 
 #version 460
 
+#extension GL_EXT_nonuniform_qualifier : enable
+
 layout (location = 0) in vec4 screen_position;
 layout (location = 1) in vec4 world_position;
-layout (location = 2) in flat uint model_id;
+layout (location = 2) in vec4 model_position;
+layout (location = 3) in flat uint model_id;
 
 layout (push_constant) uniform PushConstants {
     mat4 projection;
     mat4 camera;
 } push;
+
+layout(set = 0, binding = 0) uniform sampler3D tex[];
 
 layout (location = 0) out vec4 color;
 
@@ -40,5 +45,6 @@ void main()
     vec3 ray_pos = world_position.xyz;
     vec3 ray_dir = normalize((inverse(centered_camera) * inverse_projection * screen_position).xyz);
 
-    color = model_id % 2 == 0 ? vec4(vec3(length(ray_pos - cam_pos) / 100.0), 1.0) : vec4(abs(ray_dir), 1.0);
+    //color = model_id % 2 == 0 ? vec4(vec3(length(ray_pos - cam_pos) / 100.0), 1.0) : vec4(abs(ray_dir), 1.0);
+    color = texture(tex[0], model_position.xyz * 0.5 + 0.5);
 }
