@@ -38,6 +38,7 @@ use vulkano::pipeline::graphics::vertex_input::*;
 use vulkano::pipeline::graphics::viewport::*;
 use vulkano::pipeline::*;
 use vulkano::render_pass::*;
+use vulkano::sampler::*;
 use vulkano::shader::*;
 use vulkano::swapchain::*;
 use vulkano::sync::*;
@@ -107,6 +108,9 @@ pub struct Renderer {
 
     perspective: Matrix4<f32>,
     camera: Matrix4<f32>,
+
+    textures: Vec<(Arc<ImmutableImage>, Arc<ImageView<ImmutableImage>>)>,
+    sampler: Arc<Sampler>,
 
     keystate: [bool; NUM_KEYS],
     last_keystate: [bool; NUM_KEYS],
@@ -528,7 +532,39 @@ impl Renderer {
             &camera,
         );
 
+        let mut textures = vec![];
+
+        let contents: Vec<u8> = [0xFFu8, 0x00u8, 0xFFu8, 0xFFu8]
+            .into_iter()
+            .cycle()
+            .take(16 * 16 * 16 * 4)
+            .collect();
+        let (image, image_future) = ImmutableImage::from_iter(
+            contents,
+            ImageDimensions::Dim3d {
+                width: 16,
+                height: 16,
+                depth: 16,
+            },
+            MipmapsCount::One,
+            Format::R8G8B8A8_SRGB,
+            queue.clone(),
+        )
+        .unwrap();
+        let image_view = ImageView::new_default(image.clone()).unwrap();
+
+        textures.push((image, image_view));
+
+        let sampler = Sampler::new(
+            device.clone(),
+            SamplerCreateInfo {
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
         cube_vertex_buffer_future.flush().unwrap();
+        image_future.flush().unwrap();
 
         Renderer {
             event_loop,
@@ -549,6 +585,8 @@ impl Renderer {
             command_buffers,
             perspective,
             camera,
+            textures,
+            sampler,
             keystate: [false; NUM_KEYS],
             last_keystate: [false; NUM_KEYS],
             mouse_buttons: [false; NUM_BUTTONS],
