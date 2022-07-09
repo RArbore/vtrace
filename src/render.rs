@@ -53,6 +53,7 @@ use winit::dpi::*;
 use winit::event_loop::*;
 use winit::window::*;
 
+use crate::voxel::*;
 use crate::world::*;
 
 #[repr(C)]
@@ -115,6 +116,7 @@ pub struct Renderer {
     camera: Matrix4<f32>,
 
     textures: Vec<(Arc<ImmutableImage>, Arc<ImageView<ImmutableImage>>)>,
+    pending_texture_futures: Vec<CommandBufferExecFuture<NowFuture, PrimaryAutoCommandBuffer>>,
     sampler: Arc<Sampler>,
 
     descriptor_set: Arc<PersistentDescriptorSet>,
@@ -579,39 +581,6 @@ impl Renderer {
             graphics_pipeline_layout.clone(),
         );
 
-        let mut textures = vec![];
-
-        let mut contents: Vec<u8> = vec![0x00; 16 * 16 * 16 * 4];
-        let mut i = 0;
-        for x in 0..16 {
-            for y in 0..16 {
-                for z in 0..16 {
-                    let s = (x + y + z) % 2;
-                    let t = (x / 2 + y / 2 + z / 2) % 2;
-                    contents[i] = 0xFF * s;
-                    contents[i + 1] = 0xFF * (1 - s);
-                    contents[i + 2] = 0xFF * s;
-                    contents[i + 3] = 0xFF * t;
-                    i += 4;
-                }
-            }
-        }
-        let (image, image_future) = ImmutableImage::from_iter(
-            contents,
-            ImageDimensions::Dim3d {
-                width: 16,
-                height: 16,
-                depth: 16,
-            },
-            MipmapsCount::One,
-            Format::R8G8B8A8_SRGB,
-            queue.clone(),
-        )
-        .unwrap();
-        let image_view = ImageView::new_default(image.clone()).unwrap();
-
-        textures.push((image.clone(), image_view.clone()));
-
         let sampler = Sampler::new(
             device.clone(),
             SamplerCreateInfo {
@@ -621,16 +590,9 @@ impl Renderer {
         .unwrap();
 
         let layout = graphics_pipeline.layout().set_layouts().get(0).unwrap();
-        let descriptor_set = PersistentDescriptorSet::new_variable(
-            layout.clone(),
-            1,
-            [WriteDescriptorSet::image_view_sampler_array(
-                0,
-                0,
-                [(image_view.clone() as _, sampler.clone())],
-            )],
-        )
-        .unwrap();
+        let descriptor_set =
+            PersistentDescriptorSet::new_variable(layout.clone(), 0, [WriteDescriptorSet::none(0)])
+                .unwrap();
 
         let command_buffers = Self::create_command_buffers(
             device.clone(),
@@ -645,7 +607,6 @@ impl Renderer {
         );
 
         cube_vertex_buffer_future.flush().unwrap();
-        image_future.flush().unwrap();
 
         Renderer {
             event_loop,
@@ -667,7 +628,8 @@ impl Renderer {
             command_buffers,
             perspective,
             camera,
-            textures,
+            textures: vec![],
+            pending_texture_futures: vec![],
             sampler,
             descriptor_set,
             keystate: [false; NUM_KEYS],
@@ -677,6 +639,46 @@ impl Renderer {
             mouse_pos: (0.0, 0.0),
             last_mouse_pos: (0.0, 0.0),
         }
+    }
+
+    pub fn add_texture<T: VoxelFormat<Color>>(&mut self, texture: T) {
+        let (image, image_future) = ImmutableImage::from_iter(
+            texture.into_iter(),
+            ImageDimensions::Dim3d {
+                width: 16,
+                height: 16,
+                depth: 16,
+            },
+            MipmapsCount::One,
+            Format::R8G8B8A8_SRGB,
+            self.queue.clone(),
+        )
+        .unwrap();
+        let image_view = ImageView::new_default(image.clone()).unwrap();
+
+        self.textures.push((image.clone(), image_view.clone()));
+        self.pending_texture_futures.push(image_future);
+    }
+
+    pub fn update_descriptor(&mut self) {
+        let layout = self
+            .graphics_pipeline
+            .layout()
+            .set_layouts()
+            .get(0)
+            .unwrap();
+        self.descriptor_set = PersistentDescriptorSet::new_variable(
+            layout.clone(),
+            self.textures.len() as u32,
+            [WriteDescriptorSet::image_view_sampler_array(
+                0,
+                0,
+                self.textures
+                    .iter()
+                    .map(|(_, view)| (view.clone() as _, self.sampler.clone())),
+            )],
+        )
+        .unwrap();
     }
 
     pub fn render_loop(mut self, mut world: WorldState) {

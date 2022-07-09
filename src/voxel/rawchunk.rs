@@ -27,16 +27,16 @@ impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> RawStaticChunk<T,
     }
 }
 
-pub struct RawStaticChunkIter<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> {
-    chunk: &'a RawStaticChunk<T, X, Y, Z>,
+pub struct RawStaticChunkIter<T: Voxel, const X: usize, const Y: usize, const Z: usize> {
+    chunk: RawStaticChunk<T, X, Y, Z>,
     index: usize,
 }
 
-impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> IntoVoxelIterator
-    for &'a RawStaticChunk<T, X, Y, Z>
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> IntoVoxelIterator
+    for RawStaticChunk<T, X, Y, Z>
 {
     type Item = T;
-    type IntoIter = RawStaticChunkIter<'a, T, X, Y, Z>;
+    type IntoIter = RawStaticChunkIter<T, X, Y, Z>;
 
     fn into_iter(self) -> Self::IntoIter {
         RawStaticChunkIter {
@@ -46,8 +46,8 @@ impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> IntoVoxelIter
     }
 }
 
-impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> Iterator
-    for RawStaticChunkIter<'a, T, X, Y, Z>
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> Iterator
+    for RawStaticChunkIter<T, X, Y, Z>
 {
     type Item = T;
 
@@ -62,8 +62,16 @@ impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> Iterator
     }
 }
 
-impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> VoxelIterator<T>
-    for RawStaticChunkIter<'a, T, X, Y, Z>
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> ExactSizeIterator
+    for RawStaticChunkIter<T, X, Y, Z>
+{
+    fn len(&self) -> usize {
+        self.dim_x().1 as usize * self.dim_y().1 as usize * self.dim_z().1 as usize
+    }
+}
+
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> VoxelIterator<T>
+    for RawStaticChunkIter<T, X, Y, Z>
 {
     fn dim_x(&self) -> (i32, i32) {
         self.chunk.dim_x()
@@ -78,7 +86,7 @@ impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> VoxelIterator
     }
 }
 
-impl<'a, T: Voxel, const X: usize, const Y: usize, const Z: usize> FromVoxelIterator<T>
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> FromVoxelIterator<T>
     for RawStaticChunk<T, X, Y, Z>
 {
     fn from_iter<I: IntoVoxelIterator<Item = T>>(iter: I) -> Self {
@@ -167,14 +175,14 @@ impl<T: Voxel> RawDynamicChunk<T> {
     }
 }
 
-pub struct RawDynamicChunkIter<'a, T: Voxel> {
-    chunk: &'a RawDynamicChunk<T>,
+pub struct RawDynamicChunkIter<T: Voxel> {
+    chunk: RawDynamicChunk<T>,
     index: usize,
 }
 
-impl<'a, T: Voxel> IntoVoxelIterator for &'a RawDynamicChunk<T> {
+impl<T: Voxel> IntoVoxelIterator for RawDynamicChunk<T> {
     type Item = T;
-    type IntoIter = RawDynamicChunkIter<'a, T>;
+    type IntoIter = RawDynamicChunkIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
         RawDynamicChunkIter {
@@ -184,7 +192,7 @@ impl<'a, T: Voxel> IntoVoxelIterator for &'a RawDynamicChunk<T> {
     }
 }
 
-impl<'a, T: Voxel> Iterator for RawDynamicChunkIter<'a, T> {
+impl<T: Voxel> Iterator for RawDynamicChunkIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
@@ -198,7 +206,13 @@ impl<'a, T: Voxel> Iterator for RawDynamicChunkIter<'a, T> {
     }
 }
 
-impl<'a, T: Voxel> VoxelIterator<T> for RawDynamicChunkIter<'a, T> {
+impl<T: Voxel> ExactSizeIterator for RawDynamicChunkIter<T> {
+    fn len(&self) -> usize {
+        self.dim_x().1 as usize * self.dim_y().1 as usize * self.dim_z().1 as usize
+    }
+}
+
+impl<T: Voxel> VoxelIterator<T> for RawDynamicChunkIter<T> {
     fn dim_x(&self) -> (i32, i32) {
         self.chunk.dim_x()
     }
@@ -279,7 +293,7 @@ mod tests {
     fn rawchunk_test1() {
         let chunk1 = RawStaticChunk::<i32, 3, 8, 5>::new(42);
 
-        let chunk2 = RawDynamicChunk::from_iter(&chunk1);
+        let chunk2 = RawDynamicChunk::from_iter(chunk1);
 
         for (v1, v2) in chunk1.into_iter().zip(chunk2.into_iter()) {
             assert_eq!(v1, v2);

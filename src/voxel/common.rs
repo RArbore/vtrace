@@ -12,9 +12,9 @@
  * along with vtrace-rs. If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub trait Voxel: PartialEq + Eq + Copy + Default {}
+pub trait Voxel: PartialEq + Eq + Copy + Default + bytemuck::Pod {}
 
-pub trait VoxelFormat<T: Voxel> {
+pub trait VoxelFormat<T: Voxel>: IntoVoxelIterator<Item = T> + FromVoxelIterator<T> {
     fn dim_x(&self) -> (i32, i32);
     fn dim_y(&self) -> (i32, i32);
     fn dim_z(&self) -> (i32, i32);
@@ -31,7 +31,7 @@ pub fn contains<V: Voxel, T: VoxelFormat<V>>(voxels: &T, x: i32, y: i32, z: i32)
         && z < voxels.dim_z().1
 }
 
-pub trait VoxelIterator<T: Voxel>: Iterator<Item = T> {
+pub trait VoxelIterator<T: Voxel>: ExactSizeIterator<Item = T> {
     fn dim_x(&self) -> (i32, i32);
     fn dim_y(&self) -> (i32, i32);
     fn dim_z(&self) -> (i32, i32);
@@ -50,5 +50,21 @@ pub trait FromVoxelIterator<A: Voxel> {
         T: IntoVoxelIterator<Item = A>;
 }
 
+#[repr(C)]
+#[derive(PartialEq, Eq, Clone, Copy, Default, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct Color {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+}
+
+impl Color {
+    pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Color { r, g, b, a }
+    }
+}
+
 impl Voxel for u8 {}
 impl Voxel for i32 {}
+impl Voxel for Color {}

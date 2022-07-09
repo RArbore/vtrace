@@ -16,11 +16,29 @@
 #![allow(unused_variables)]
 
 mod render;
-mod world;
 mod voxel;
+mod world;
+
+use voxel::common::*;
 
 fn main() {
     let world = world::WorldState::new();
-    let renderer = render::Renderer::new(&world);
+    let mut renderer = render::Renderer::new(&world);
+
+    let mut test_texture =
+        voxel::RawDynamicChunk::new(16, 16, 16, voxel::Color::new(0x00, 0x00, 0x00, 0x00));
+    for x in 0..16 {
+        for y in 0..16 {
+            for z in 0..16 {
+                let s = (x + y + z) % 2;
+                let t = (x / 2 + y / 2 + z / 2) % 2;
+                *test_texture.at_mut(x as i32, y as i32, z as i32).unwrap() =
+                    Color::new(0xFF * s, 0xFF * (1 - s), 0xFF * s, 0xFF * t);
+            }
+        }
+    }
+    renderer.add_texture(test_texture);
+    renderer.update_descriptor();
+
     renderer.render_loop(world);
 }
