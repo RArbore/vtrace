@@ -19,7 +19,7 @@ use winit::event::*;
 
 use crate::render::*;
 
-const MOVE_SPEED: f32 = 50.0;
+const MOVE_SPEED: f32 = 0.005;
 const SENSITIVITY: f32 = 0.003;
 const PI: f32 = 3.14159265358979323846;
 
@@ -64,45 +64,41 @@ impl WorldState {
     ) {
         if keystate[VirtualKeyCode::W as usize] {
             self.camera_position =
-                self.camera_position + self.get_horizontal_camera_direction() * dt * MOVE_SPEED;
+                self.camera_position + self.get_horizontal_camera_direction() * MOVE_SPEED;
         }
         if keystate[VirtualKeyCode::S as usize] {
             self.camera_position =
-                self.camera_position - self.get_horizontal_camera_direction() * dt * MOVE_SPEED;
+                self.camera_position - self.get_horizontal_camera_direction() * MOVE_SPEED;
         }
         if keystate[VirtualKeyCode::A as usize] {
             self.camera_position = self.camera_position
-                - cross(self.get_horizontal_camera_direction(), vec3(0.0, 1.0, 0.0))
-                    * dt
-                    * MOVE_SPEED;
+                - cross(self.get_horizontal_camera_direction(), vec3(0.0, 1.0, 0.0)) * MOVE_SPEED;
         }
         if keystate[VirtualKeyCode::D as usize] {
             self.camera_position = self.camera_position
-                + cross(self.get_horizontal_camera_direction(), vec3(0.0, 1.0, 0.0))
-                    * dt
-                    * MOVE_SPEED;
+                + cross(self.get_horizontal_camera_direction(), vec3(0.0, 1.0, 0.0)) * MOVE_SPEED;
         }
         if keystate[VirtualKeyCode::Space as usize] {
-            self.camera_position = self.camera_position - vec3(0.0, 1.0, 0.0) * dt * MOVE_SPEED;
+            self.camera_position = self.camera_position - vec3(0.0, 1.0, 0.0) * MOVE_SPEED;
         }
         if keystate[VirtualKeyCode::LShift as usize] {
-            self.camera_position = self.camera_position + vec3(0.0, 1.0, 0.0) * dt * MOVE_SPEED;
+            self.camera_position = self.camera_position + vec3(0.0, 1.0, 0.0) * MOVE_SPEED;
         }
 
         let mut dmx = 0.0;
         let mut dmy = 0.0;
 
         if keystate[VirtualKeyCode::Left as usize] {
-            dmx -= MOVE_SPEED * dt;
+            dmx -= SENSITIVITY;
         }
         if keystate[VirtualKeyCode::Right as usize] {
-            dmx += MOVE_SPEED * dt;
+            dmx += SENSITIVITY;
         }
         if keystate[VirtualKeyCode::Up as usize] {
-            dmy -= MOVE_SPEED * dt;
+            dmy -= SENSITIVITY;
         }
         if keystate[VirtualKeyCode::Down as usize] {
-            dmy += MOVE_SPEED * dt;
+            dmy += SENSITIVITY;
         }
 
         if cursor_moved && mouse_buttons[b2u(MouseButton::Left)] {

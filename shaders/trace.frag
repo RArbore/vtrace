@@ -31,7 +31,15 @@ layout(set = 0, binding = 0) uniform sampler3D tex[];
 
 layout (location = 0) out vec4 color;
 
+layout (depth_greater) out float gl_FragDepth;
+
 void main() {
+    // Since we write to the depth buffer with custom logic, we "statically"
+    // write to it. According to the GLSL specification, this means that we
+    // must write to it in all branches. Thus, we just re-write the "default"
+    // value at the beginning.
+    gl_FragDepth = screen_position.z / screen_position.w;
+
     mat4 inverse_projection = inverse(push.projection);
     mat4 inverse_camera = inverse(push.camera);
     
@@ -63,4 +71,5 @@ void main() {
     }
     
     color = vec4(0.0);
+    gl_FragDepth = 1.0;
 }
