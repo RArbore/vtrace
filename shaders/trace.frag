@@ -20,6 +20,7 @@ layout (location = 0) in vec4 screen_position;
 layout (location = 1) in vec4 world_position;
 layout (location = 2) in vec4 model_position;
 layout (location = 3) in flat uint model_id;
+layout (location = 4) in mat4 model_matrix;
 
 layout (push_constant) uniform PushConstants {
     mat4 projection;
@@ -30,8 +31,7 @@ layout(set = 0, binding = 0) uniform sampler3D tex[];
 
 layout (location = 0) out vec4 color;
 
-void main() 
-{
+void main() {
     mat4 inverse_projection = inverse(push.projection);
     mat4 inverse_camera = inverse(push.camera);
     
@@ -42,9 +42,25 @@ void main()
     centered_camera[3][1] = 0.0;
     centered_camera[3][2] = 0.0;
     
-    vec3 ray_pos = world_position.xyz;
     vec3 ray_dir = normalize((inverse(centered_camera) * inverse_projection * screen_position).xyz);
 
-    //color = model_id % 2 == 0 ? vec4(vec3(length(ray_pos - cam_pos) / 100.0), 1.0) : vec4(abs(ray_dir), 1.0);
-    color = texture(tex[0], model_position.xyz * 0.5 + 0.5);
+    vec3 model_ray_dir = (inverse(model_matrix) * vec4(ray_dir, 0.0)).xyz;
+    vec3 model_ray_pos = ((model_position.xyz + 1.0) / 2.0) * textureSize(tex[0], 0);
+
+    vec3 model_ray_dir_sign = sign(model_ray_dir);
+    vec3 model_ray_dir_abs = abs(model_ray_dir);
+
+    while (all(equal(clamp(model_ray_pos, vec3(0), vec3(textureSize(tex[0], 0))), model_ray_pos))) {
+	vec3 model_axis_dist = fract(-model_ray_pos * model_ray_dir_sign) + 0.000001;
+	vec3 model_ray_dist = model_axis_dist / model_ray_dir_abs;
+	float model_nearest_ray_dist = min(model_ray_dist.x, min(model_ray_dist.y, model_ray_dist.z));
+	model_ray_pos += model_ray_dir * model_nearest_ray_dist;
+	vec4 texSample = texture(tex[0], model_ray_pos / vec3(textureSize(tex[0], 0)));
+	if (texSample.w > 0.0) {
+	    color = texSample;
+	    return;
+	}
+    }
+    
+    color = vec4(0.0);
 }

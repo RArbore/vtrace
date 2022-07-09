@@ -587,10 +587,11 @@ impl Renderer {
             for y in 0..16 {
                 for z in 0..16 {
                     let s = (x + y + z) % 2;
+                    let t = (x / 2 + y / 2 + z / 2) % 2;
                     contents[i] = 0xFF * s;
-                    contents[i + 1] = 0xFF * s;
+                    contents[i + 1] = 0xFF * (1 - s);
                     contents[i + 2] = 0xFF * s;
-                    contents[i + 3] = 0xFF;
+                    contents[i + 3] = 0xFF * t;
                     i += 4;
                 }
             }
