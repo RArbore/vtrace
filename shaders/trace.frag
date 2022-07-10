@@ -53,23 +53,22 @@ void main() {
     vec3 ray_dir = normalize((inverse(centered_camera) * inverse_projection * screen_position).xyz);
 
     vec3 model_ray_dir = (inverse(model_matrix) * vec4(ray_dir, 0.0)).xyz;
-    vec3 model_ray_pos = ((model_position.xyz + 1.0) / 2.0) * textureSize(tex[0], 0);
+    vec3 model_ray_pos = ((model_position.xyz + 1.0) / 2.0) * textureSize(tex[model_id], 0);
 
     vec3 model_ray_dir_sign = sign(model_ray_dir);
     vec3 model_ray_dir_abs = abs(model_ray_dir);
 
-    while (all(equal(clamp(model_ray_pos, vec3(0), vec3(textureSize(tex[0], 0))), model_ray_pos))) {
+    while (all(equal(clamp(model_ray_pos, vec3(0), vec3(textureSize(tex[model_id], 0))), model_ray_pos))) {
 	vec3 model_axis_dist = fract(-model_ray_pos * model_ray_dir_sign) + 0.000001;
 	vec3 model_ray_dist = model_axis_dist / model_ray_dir_abs;
 	float model_nearest_ray_dist = min(model_ray_dist.x, min(model_ray_dist.y, model_ray_dist.z));
 	model_ray_pos += model_ray_dir * model_nearest_ray_dist;
-	vec4 texSample = texture(tex[0], model_ray_pos / vec3(textureSize(tex[0], 0)));
+	vec4 texSample = texture(tex[model_id], model_ray_pos / vec3(textureSize(tex[model_id], 0)));
 	if (texSample.w > 0.0) {
 	    color = texSample;
 	    return;
 	}
     }
     
-    color = vec4(0.0);
-    gl_FragDepth = 1.0;
+    discard;
 }

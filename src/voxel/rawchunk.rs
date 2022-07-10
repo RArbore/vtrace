@@ -295,8 +295,8 @@ mod tests {
 
         let chunk2 = RawDynamicChunk::from_iter(chunk1);
 
-        for (v1, v2) in chunk1.into_iter().zip(chunk2.into_iter()) {
-            assert_eq!(v1, v2);
+        for v2 in chunk2.into_iter() {
+            assert_eq!(42, v2);
         }
     }
 

@@ -412,7 +412,7 @@ impl Renderer {
 
         let binding = layout_create_infos[0].bindings.get_mut(&0).unwrap();
         binding.variable_descriptor_count = true;
-        binding.descriptor_count = 1;
+        binding.descriptor_count = 4096;
 
         let set_layouts = layout_create_infos
             .into_iter()
@@ -525,6 +525,28 @@ impl Renderer {
             .collect::<Vec<_>>()
     }
 
+    fn create_debug_texture(
+        queue: Arc<Queue>,
+        color: u32,
+    ) -> (Arc<ImmutableImage>, Arc<ImageView<ImmutableImage>>) {
+        let (image, image_future) = ImmutableImage::from_iter(
+            [color] as [u32; 1],
+            ImageDimensions::Dim3d {
+                width: 1,
+                height: 1,
+                depth: 1,
+            },
+            MipmapsCount::One,
+            Format::R8G8B8A8_SRGB,
+            queue.clone(),
+        )
+        .unwrap();
+        let image_view = ImageView::new_default(image.clone()).unwrap();
+
+        image_future.flush().unwrap();
+        (image, image_view)
+    }
+
     fn create_perspective(surface: Arc<Surface<Window>>) -> Matrix4<f32> {
         let size = Self::get_size(surface);
         perspective(
@@ -589,10 +611,19 @@ impl Renderer {
         )
         .unwrap();
 
+        let textures = vec![Self::create_debug_texture(queue.clone(), 0xFF808080)];
+
         let layout = graphics_pipeline.layout().set_layouts().get(0).unwrap();
-        let descriptor_set =
-            PersistentDescriptorSet::new_variable(layout.clone(), 0, [WriteDescriptorSet::none(0)])
-                .unwrap();
+        let descriptor_set = PersistentDescriptorSet::new_variable(
+            layout.clone(),
+            1,
+            [WriteDescriptorSet::image_view_sampler_array(
+                0,
+                0,
+                [(textures.first().unwrap().1.clone() as _, sampler.clone())],
+            )],
+        )
+        .unwrap();
 
         let command_buffers = Self::create_command_buffers(
             device.clone(),
@@ -628,7 +659,7 @@ impl Renderer {
             command_buffers,
             perspective,
             camera,
-            textures: vec![],
+            textures,
             pending_texture_futures: vec![],
             sampler,
             descriptor_set,
@@ -642,12 +673,19 @@ impl Renderer {
     }
 
     pub fn add_texture<T: VoxelFormat<Color>>(&mut self, texture: T) {
+        let dim_x = texture.dim_x();
+        let dim_y = texture.dim_y();
+        let dim_z = texture.dim_z();
+        assert!(dim_x.1 > dim_x.0);
+        assert!(dim_y.1 > dim_y.0);
+        assert!(dim_z.1 > dim_z.0);
+        let iter = texture.into_iter();
         let (image, image_future) = ImmutableImage::from_iter(
-            texture.into_iter(),
+            iter,
             ImageDimensions::Dim3d {
-                width: 16,
-                height: 16,
-                depth: 16,
+                width: (dim_x.1 - dim_x.0) as u32,
+                height: (dim_y.1 - dim_y.0) as u32,
+                depth: (dim_z.1 - dim_z.0) as u32,
             },
             MipmapsCount::One,
             Format::R8G8B8A8_SRGB,
@@ -657,7 +695,6 @@ impl Renderer {
         let image_view = ImageView::new_default(image.clone()).unwrap();
 
         self.textures.push((image.clone(), image_view.clone()));
-        self.pending_texture_futures.push(image_future);
     }
 
     pub fn update_descriptor(&mut self) {
@@ -692,7 +729,7 @@ impl Renderer {
         let mut num_frames_in_sec = 0;
 
         self.event_loop.run(move |event, _, control_flow| {
-            let instances: Vec<GPUInstance> = (-100..100)
+            let instances: Vec<GPUInstance> = (-100..=100)
                 .map(|x| GPUInstance {
                     model: [
                         1.0,
@@ -710,7 +747,7 @@ impl Renderer {
                         0.0,
                         0.0,
                         0.0,
-                        unsafe { std::mem::transmute(x + 100) },
+                        unsafe { std::mem::transmute((x + 100) % 2) },
                     ],
                 })
                 .collect();
