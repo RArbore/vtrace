@@ -15,7 +15,7 @@
 use super::common::*;
 use super::rawchunk::*;
 
-pub fn load(filepath: &str) -> Vec<RawDynamicChunk<u8>> {
+pub fn load(filepath: &str) -> Vec<RawDynamicChunk<Color>> {
     let dot_vox_data = dot_vox::load(filepath).unwrap();
 
     let mut chunks = vec![];
@@ -24,13 +24,13 @@ pub fn load(filepath: &str) -> Vec<RawDynamicChunk<u8>> {
             model.size.x as usize,
             model.size.y as usize,
             model.size.z as usize,
-            0,
+            Color::from_uint(0),
         );
 
         for voxel in model.voxels {
             *chunk
                 .at_mut(voxel.x as i32, voxel.y as i32, voxel.z as i32)
-                .unwrap() = voxel.i;
+                .unwrap() = Color::from_uint(dot_vox_data.palette[voxel.i as usize]);
         }
 
         chunks.push(chunk);

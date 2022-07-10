@@ -63,6 +63,15 @@ impl Color {
     pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
         Color { r, g, b, a }
     }
+
+    pub fn from_uint(x: u32) -> Self {
+        Color {
+            r: ((x & 0xFF000000) >> 24) as u8,
+            g: ((x & 0x00FF0000) >> 16) as u8,
+            b: ((x & 0x0000FF00) >> 8) as u8,
+            a: (x & 0x000000FF) as u8,
+        }
+    }
 }
 
 impl Voxel for u8 {}

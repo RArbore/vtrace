@@ -37,6 +37,7 @@ fn main() {
             }
         }
     }
+
     renderer.add_texture(test_texture);
     renderer.update_descriptor();
 
