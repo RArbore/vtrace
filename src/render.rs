@@ -747,7 +747,7 @@ impl Renderer {
                         0.0,
                         0.0,
                         0.0,
-                        unsafe { std::mem::transmute((x + 100) % 2) },
+                        unsafe { std::mem::transmute((x + 100) % 2 + 1) },
                     ],
                 })
                 .collect();
