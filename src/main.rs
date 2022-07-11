@@ -22,6 +22,8 @@ mod world;
 use voxel::common::*;
 
 fn main() {
+    let mut texture = voxel::load("assets/AncientTemple.vox");
+
     let world = world::WorldState::new();
     let mut renderer = render::Renderer::new(&world);
 
@@ -53,6 +55,7 @@ fn main() {
 
     renderer.add_texture(test_texture1);
     renderer.add_texture(test_texture2);
+    renderer.add_texture(texture.remove(0));
     renderer.update_descriptor();
 
     renderer.render_loop(world);

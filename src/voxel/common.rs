@@ -66,10 +66,10 @@ impl Color {
 
     pub fn from_uint(x: u32) -> Self {
         Color {
-            r: ((x & 0xFF000000) >> 24) as u8,
-            g: ((x & 0x00FF0000) >> 16) as u8,
-            b: ((x & 0x0000FF00) >> 8) as u8,
-            a: (x & 0x000000FF) as u8,
+            r: (x & 0x000000FF) as u8,
+            g: ((x & 0x0000FF00) >> 8) as u8,
+            b: ((x & 0x00FF0000) >> 16) as u8,
+            a: ((x & 0xFF000000) >> 24) as u8,
         }
     }
 }
