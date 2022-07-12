@@ -28,5 +28,30 @@ fn main() {
     renderer.add_texture(texture.remove(0));
     renderer.update_descriptor();
 
+    let instances: Vec<render::GPUInstance> = (0..1000)
+        .map(|i| render::GPUInstance {
+            model: [
+                1.0,
+                0.0,
+                0.0,
+                (i % 10) as f32 * 4.0,
+                0.0,
+                1.0,
+                0.0,
+                (i / 10 % 10) as f32 * 4.0,
+                0.0,
+                0.0,
+                1.0,
+                (i / 10 / 10 % 10) as f32 * 4.0,
+                0.0,
+                0.0,
+                0.0,
+                unsafe { std::mem::transmute(1) },
+            ],
+        })
+        .collect();
+
+    renderer.update_instances(instances);
+
     renderer.render_loop(world);
 }

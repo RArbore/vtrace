@@ -66,9 +66,10 @@ vulkano::impl_vertex!(GPUVertex, position);
 
 #[repr(C)]
 #[derive(Default, Copy, Clone, Zeroable, Pod)]
-struct GPUInstance {
-    model: [f32; 16],
+pub struct GPUInstance {
+    pub model: [f32; 16],
 }
+
 vulkano::impl_vertex!(GPUInstance, model);
 
 mod vs {
@@ -120,6 +121,8 @@ pub struct Renderer {
     sampler: Arc<Sampler>,
 
     descriptor_set: Arc<PersistentDescriptorSet>,
+
+    instances_chunk: Arc<CpuBufferPoolChunk<GPUInstance, Arc<StdMemoryPool>>>,
 
     keystate: [bool; NUM_KEYS],
     last_keystate: [bool; NUM_KEYS],
@@ -625,11 +628,13 @@ impl Renderer {
         )
         .unwrap();
 
+        let instances_chunk = cube_instance_buffer.chunk(vec![]).unwrap();
+
         let command_buffers = Self::create_command_buffers(
             device.clone(),
             queue.clone(),
             cube_vertex_buffer.clone(),
-            cube_instance_buffer.chunk(vec![]).unwrap(),
+            instances_chunk.clone(),
             framebuffers.clone(),
             graphics_pipeline.clone(),
             descriptor_set.clone(),
@@ -663,6 +668,7 @@ impl Renderer {
             pending_texture_futures: vec![],
             sampler,
             descriptor_set,
+            instances_chunk,
             keystate: [false; NUM_KEYS],
             last_keystate: [false; NUM_KEYS],
             mouse_buttons: [false; NUM_BUTTONS],
@@ -718,6 +724,10 @@ impl Renderer {
         .unwrap();
     }
 
+    pub fn update_instances(&mut self, instances: Vec<GPUInstance>) {
+        self.instances_chunk = self.cube_instance_buffer.chunk(instances).unwrap();
+    }
+
     pub fn render_loop(mut self, mut world: WorldState) {
         let mut fences: Vec<Option<Arc<FenceSignalFuture<_>>>> = vec![None; self.images.len()];
 
@@ -729,29 +739,6 @@ impl Renderer {
         let mut num_frames_in_sec = 0;
 
         self.event_loop.run(move |event, _, control_flow| {
-            let instances: Vec<GPUInstance> = (-100..=100)
-                .map(|x| GPUInstance {
-                    model: [
-                        1.0,
-                        0.0,
-                        0.0,
-                        x as f32 * 4.0,
-                        0.0,
-                        1.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        1.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        unsafe { std::mem::transmute(1) },
-                    ],
-                })
-                .collect();
-
             let dt = Instant::now();
 
             let mut cursor_moved = false;
@@ -869,7 +856,7 @@ impl Renderer {
                         self.device.clone(),
                         self.queue.clone(),
                         self.cube_vertex_buffer.clone(),
-                        self.cube_instance_buffer.chunk(instances).unwrap(),
+                        self.instances_chunk.clone(),
                         self.framebuffers.clone(),
                         self.graphics_pipeline.clone(),
                         self.descriptor_set.clone(),

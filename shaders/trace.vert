@@ -25,14 +25,16 @@ layout (push_constant) uniform PushConstants {
 layout (location = 0) out vec4 screen_position;
 layout (location = 1) out vec4 world_position;
 layout (location = 2) out vec4 model_position;
-layout (location = 3) out flat uint model_id;
-layout (location = 4) out mat4 model_matrix;
+layout (location = 3) out flat uint object_id;
+layout (location = 4) out flat uint model_id;
+layout (location = 5) out flat mat4 model_matrix;
 
 void main() {
     // To decrease the model instance size from 17 to 16 bytes, store
     // the model id in the bottom right entry in the model matrix.
     // For an arbitrary scale/rotation/translate transformation matrix,
     // this entry will always be 1.
+    object_id = gl_InstanceIndex;
     model_id = floatBitsToInt(model[3][3]);
     mat4 recovered_model = transpose(model);
     recovered_model[3][3] = 1.0;

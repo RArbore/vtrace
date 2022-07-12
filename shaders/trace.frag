@@ -19,8 +19,9 @@
 layout (location = 0) in vec4 screen_position;
 layout (location = 1) in vec4 world_position;
 layout (location = 2) in vec4 model_position;
-layout (location = 3) in flat uint model_id;
-layout (location = 4) in mat4 model_matrix;
+layout (location = 3) in flat uint object_id;
+layout (location = 4) in flat uint model_id;
+layout (location = 5) in flat mat4 model_matrix;
 
 layout (push_constant) uniform PushConstants {
     mat4 projection;
@@ -33,7 +34,7 @@ layout (location = 0) out vec4 color;
 
 layout (depth_greater) out float gl_FragDepth;
 
-#define LOD_SCALE 0.1
+#define LOD_SCALE 0.0
 #define LOD_MAX 4
 
 void main() {
