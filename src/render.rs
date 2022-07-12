@@ -687,7 +687,7 @@ impl Renderer {
                 height: (dim_y.1 - dim_y.0) as u32,
                 depth: (dim_z.1 - dim_z.0) as u32,
             },
-            MipmapsCount::One,
+            MipmapsCount::Log2,
             Format::R8G8B8A8_SRGB,
             self.queue.clone(),
         )
@@ -747,7 +747,7 @@ impl Renderer {
                         0.0,
                         0.0,
                         0.0,
-                        unsafe { std::mem::transmute((x + 100) % 3 + 1) },
+                        unsafe { std::mem::transmute(1) },
                     ],
                 })
                 .collect();

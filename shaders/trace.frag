@@ -33,6 +33,9 @@ layout (location = 0) out vec4 color;
 
 layout (depth_greater) out float gl_FragDepth;
 
+#define LOD_SCALE 0.1
+#define LOD_MAX 4
+
 void main() {
     // Since we write to the depth buffer with custom logic, we "statically"
     // write to it. According to the GLSL specification, this means that we
@@ -44,6 +47,7 @@ void main() {
     mat4 inverse_camera = inverse(push.camera);
     
     vec3 cam_pos = (inverse_camera * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    vec3 ray_pos = (inverse_camera * inverse_projection * screen_position).xyz;
 
     mat4 centered_camera = push.camera;
     centered_camera[3][0] = 0.0;
@@ -52,7 +56,9 @@ void main() {
     
     vec3 ray_dir = normalize((inverse(centered_camera) * inverse_projection * screen_position).xyz);
 
-    ivec3 i_model_size = textureSize(tex[model_id], 0);
+    int lod = min(int(LOD_SCALE * length(cam_pos - ray_pos)), LOD_MAX);
+
+    ivec3 i_model_size = textureSize(tex[model_id], lod);
     vec3 model_size = vec3(i_model_size);
     vec3 model_ray_dir = (inverse(model_matrix) * vec4(ray_dir, 0.0)).xyz;
     vec3 model_ray_pos = ((model_position.xyz + 1.0) / 2.0) * model_size;

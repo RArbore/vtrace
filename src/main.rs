@@ -19,42 +19,12 @@ mod render;
 mod voxel;
 mod world;
 
-use voxel::common::*;
-
 fn main() {
     let mut texture = voxel::load("assets/AncientTemple.vox");
 
     let world = world::WorldState::new();
     let mut renderer = render::Renderer::new(&world);
 
-    let mut test_texture1 =
-        voxel::RawDynamicChunk::new(32, 32, 32, voxel::Color::new(0x00, 0x00, 0x00, 0x00));
-    for x in 0..32 {
-        for y in 0..32 {
-            for z in 0..32 {
-                let s = (x + y + z) % 2;
-                let t = (x / 2 + y / 2 + z / 2) % 2;
-                *test_texture1.at_mut(x as i32, y as i32, z as i32).unwrap() =
-                    Color::new(0xFF * s, 0xFF * (1 - s), 0xFF * s, 0xFF * t);
-            }
-        }
-    }
-
-    let mut test_texture2 =
-        voxel::RawDynamicChunk::new(32, 32, 32, voxel::Color::new(0x00, 0x00, 0x00, 0x00));
-    for x in 0..32 {
-        for y in 0..32 {
-            for z in 0..32 {
-                let s = (x + y + z) % 2;
-                let t = (x / 2 + y / 2 + z / 2) % 2;
-                *test_texture2.at_mut(x as i32, y as i32, z as i32).unwrap() =
-                    Color::new(0xFF * (1 - s), 0xFF * (1 - s), 0xFF * s, 0xFF * (1 - t));
-            }
-        }
-    }
-
-    renderer.add_texture(test_texture1);
-    renderer.add_texture(test_texture2);
     renderer.add_texture(texture.remove(0));
     renderer.update_descriptor();
 
