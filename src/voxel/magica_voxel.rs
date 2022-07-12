@@ -29,7 +29,11 @@ pub fn load(filepath: &str) -> Vec<RawDynamicChunk<Color>> {
 
         for voxel in model.voxels {
             *chunk
-                .at_mut(voxel.x as i32, voxel.y as i32, voxel.z as i32)
+                .at_mut(
+                    voxel.x as i32,
+                    model.size.y as i32 - voxel.z as i32 - 1,
+                    voxel.y as i32,
+                )
                 .unwrap() = Color::from_uint(dot_vox_data.palette[voxel.i as usize]);
         }
 
