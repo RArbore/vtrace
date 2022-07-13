@@ -560,8 +560,17 @@ impl Renderer {
         )
     }
 
-    fn create_camera(position: &Vec3, direction: &Vec3) -> Matrix4<f32> {
-        look_at(*position, *position + *direction, vec3(0.0, 1.0, 0.0))
+    fn create_camera(position: &Vec3, direction: &Vec3, frame_num: usize) -> Matrix4<f32> {
+        let offset = Vec3::new(
+            (frame_num >> 0 & 1) as f32 * 0.0002 - 0.0001,
+            (frame_num >> 1 & 1) as f32 * 0.0002 - 0.0001,
+            (frame_num >> 2 & 1) as f32 * 0.0002 - 0.0001,
+        );
+        look_at(
+            *position,
+            *position + *direction + offset,
+            vec3(0.0, 1.0, 0.0),
+        )
     }
 
     pub fn new(world: &WorldState) -> Renderer {
@@ -593,7 +602,7 @@ impl Renderer {
         let viewport = Self::create_viewport(surface.clone());
 
         let perspective = Self::create_perspective(surface.clone());
-        let camera = Self::create_camera(&world.camera_position, &world.get_camera_direction());
+        let camera = Self::create_camera(&world.camera_position, &world.get_camera_direction(), 0);
 
         let graphics_pipeline_layout =
             Self::create_graphics_pipeline_layout(device.clone(), frag_shader.clone());
@@ -737,6 +746,7 @@ impl Renderer {
 
         let mut before_time = Instant::now();
         let mut num_frames_in_sec = 0;
+        let mut frame_num = 0;
 
         self.event_loop.run(move |event, _, control_flow| {
             let dt = Instant::now();
@@ -848,8 +858,11 @@ impl Renderer {
                         recreate_swapchain = false;
                     }
 
-                    let camera =
-                        Self::create_camera(&world.camera_position, &world.get_camera_direction());
+                    let camera = Self::create_camera(
+                        &world.camera_position,
+                        &world.get_camera_direction(),
+                        frame_num,
+                    );
                     self.camera = camera;
 
                     let command_buffers = Self::create_command_buffers(
@@ -933,6 +946,8 @@ impl Renderer {
                 &self.last_mouse_pos,
                 cursor_moved,
             );
+
+            frame_num += 1;
         });
     }
 }
