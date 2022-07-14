@@ -28,9 +28,11 @@ layout (push_constant) uniform PushConstants {
     mat4 camera;
 } push;
 
-layout(set = 0, binding = 0) uniform sampler3D tex[];
+layout(set = 0, binding = 0) uniform sampler2D history_read;
+layout(set = 0, binding = 1) uniform sampler3D tex[];
 
 layout (location = 0) out vec4 color;
+layout (location = 1) out vec4 history_write;
 
 layout (depth_greater) out float gl_FragDepth;
 
@@ -75,7 +77,8 @@ void main() {
 	vec4 texSample = texture(tex[model_id], model_ray_voxel / model_size);
 
 	if (texSample.w > 0.0) {
-	    color = texSample;
+	    color = texture(history_read, screen_position.xy * 0.5 + 0.5);
+	    history_write = texSample;
 	    return;
 	}
 	

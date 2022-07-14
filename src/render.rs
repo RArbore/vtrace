@@ -422,9 +422,12 @@ impl Renderer {
                 .descriptor_requirements(),
         );
 
-        let binding = layout_create_infos[0].bindings.get_mut(&0).unwrap();
-        binding.variable_descriptor_count = true;
-        binding.descriptor_count = 4096;
+        let binding0 = layout_create_infos[0].bindings.get_mut(&0).unwrap();
+        binding0.descriptor_count = 1;
+
+        let binding1 = layout_create_infos[0].bindings.get_mut(&1).unwrap();
+        binding1.variable_descriptor_count = true;
+        binding1.descriptor_count = 4096;
 
         let set_layouts = layout_create_infos
             .into_iter()
@@ -548,7 +551,11 @@ impl Renderer {
                 device,
                 Self::get_size(surface).into(),
                 swapchain.image_format(),
-                ImageUsage::transient_color_attachment(),
+                ImageUsage {
+                    color_attachment: true,
+                    sampled: true,
+                    ..ImageUsage::none()
+                },
             )
             .unwrap(),
         )
@@ -575,6 +582,30 @@ impl Renderer {
 
         image_future.flush().unwrap();
         (image, image_view)
+    }
+
+    fn create_descriptor_set(
+        graphics_pipeline: Arc<GraphicsPipeline>,
+        textures: &Vec<(Arc<ImmutableImage>, Arc<ImageView<ImmutableImage>>)>,
+        sampler: Arc<Sampler>,
+        history: Arc<ImageView<AttachmentImage>>,
+    ) -> Arc<PersistentDescriptorSet> {
+        let layout = graphics_pipeline.layout().set_layouts().get(0).unwrap();
+        PersistentDescriptorSet::new_variable(
+            layout.clone(),
+            textures.len() as u32,
+            [
+                WriteDescriptorSet::image_view_sampler(0, history.clone(), sampler.clone()),
+                WriteDescriptorSet::image_view_sampler_array(
+                    1,
+                    0,
+                    textures
+                        .iter()
+                        .map(|(_, view)| (view.clone() as _, sampler.clone())),
+                ),
+            ],
+        )
+        .unwrap()
     }
 
     fn create_perspective(surface: Arc<Surface<Window>>) -> Matrix4<f32> {
@@ -660,16 +691,12 @@ impl Renderer {
         let textures = vec![Self::create_debug_texture(queue.clone(), 0xFF808080)];
 
         let layout = graphics_pipeline.layout().set_layouts().get(0).unwrap();
-        let descriptor_set = PersistentDescriptorSet::new_variable(
-            layout.clone(),
-            1,
-            [WriteDescriptorSet::image_view_sampler_array(
-                0,
-                0,
-                [(textures.first().unwrap().1.clone() as _, sampler.clone())],
-            )],
-        )
-        .unwrap();
+        let descriptor_set = Self::create_descriptor_set(
+            graphics_pipeline.clone(),
+            &textures,
+            sampler.clone(),
+            history.clone(),
+        );
 
         let instances_chunk = cube_instance_buffer.chunk(vec![]).unwrap();
 
@@ -748,24 +775,12 @@ impl Renderer {
     }
 
     pub fn update_descriptor(&mut self) {
-        let layout = self
-            .graphics_pipeline
-            .layout()
-            .set_layouts()
-            .get(0)
-            .unwrap();
-        self.descriptor_set = PersistentDescriptorSet::new_variable(
-            layout.clone(),
-            self.textures.len() as u32,
-            [WriteDescriptorSet::image_view_sampler_array(
-                0,
-                0,
-                self.textures
-                    .iter()
-                    .map(|(_, view)| (view.clone() as _, self.sampler.clone())),
-            )],
-        )
-        .unwrap();
+        self.descriptor_set = Self::create_descriptor_set(
+            self.graphics_pipeline.clone(),
+            &self.textures,
+            self.sampler.clone(),
+            self.history.clone(),
+        );
     }
 
     pub fn update_instances(&mut self, instances: Vec<GPUInstance>) {
@@ -867,6 +882,13 @@ impl Renderer {
                         if window_resized {
                             self.viewport.dimensions = new_dimensions.into();
 
+                            let history = Self::create_history_image(
+                                self.device.clone(),
+                                self.surface.clone(),
+                                self.swapchain.clone(),
+                            );
+                            self.history = history;
+
                             let framebuffers = Self::create_framebuffers(
                                 self.device.clone(),
                                 images.clone(),
@@ -884,12 +906,6 @@ impl Renderer {
                                 self.graphics_pipeline_layout.clone(),
                             );
                             self.graphics_pipeline = graphics_pipeline;
-
-                            let history = Self::create_history_image(
-                                self.device.clone(),
-                                self.surface.clone(),
-                                self.swapchain.clone(),
-                            );
 
                             let perspective = Self::create_perspective(self.surface.clone());
                             self.perspective = perspective;
