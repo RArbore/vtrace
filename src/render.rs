@@ -113,7 +113,8 @@ pub struct Renderer {
     graphics_pipeline: Arc<GraphicsPipeline>,
     command_buffers: Vec<Arc<PrimaryAutoCommandBuffer>>,
 
-    history: Arc<ImageView<AttachmentImage>>,
+    history_read: Arc<ImageView<StorageImage>>,
+    history_write: Arc<ImageView<StorageImage>>,
 
     perspective: Matrix4<f32>,
     camera: Matrix4<f32>,
@@ -379,7 +380,7 @@ impl Renderer {
         device: Arc<Device>,
         images: Vec<Arc<SwapchainImage<Window>>>,
         render_pass: Arc<RenderPass>,
-        history: Arc<ImageView<AttachmentImage>>,
+        history: Arc<ImageView<StorageImage>>,
     ) -> Vec<Arc<Framebuffer>> {
         let dimensions = images[0].dimensions().width_height();
         let depth_buffer = ImageView::new_default(
@@ -488,6 +489,8 @@ impl Renderer {
         descriptor_set: Arc<PersistentDescriptorSet>,
         perspective: &Matrix4<f32>,
         camera: &Matrix4<f32>,
+        history_read: Arc<ImageView<StorageImage>>,
+        history_write: Arc<ImageView<StorageImage>>,
     ) -> Vec<Arc<PrimaryAutoCommandBuffer>> {
         framebuffers
             .iter()
@@ -534,6 +537,31 @@ impl Renderer {
                     )
                     .unwrap()
                     .end_render_pass()
+                    /*.unwrap()
+                    .copy_image(
+                        history_write.image().clone(),
+                        [0, 0, 0],
+                        0,
+                        0,
+                        history_read.image().clone(),
+                        [0, 0, 0],
+                        0,
+                        0,
+                        {
+                            let dims = history_write.image().dimensions();
+                            if let ImageDimensions::Dim2d {
+                                width: w,
+                                height: h,
+                                array_layers: _,
+                            } = dims
+                            {
+                                [w, h, 1]
+                            } else {
+                                [0, 0, 0]
+                            }
+                        },
+                        1,
+                    )*/
                     .unwrap();
 
                 Arc::new(builder.build().unwrap())
@@ -541,25 +569,55 @@ impl Renderer {
             .collect::<Vec<_>>()
     }
 
-    fn create_history_image(
+    fn create_history_images(
         device: Arc<Device>,
+        queue: Arc<Queue>,
         surface: Arc<Surface<Window>>,
         swapchain: Arc<Swapchain<Window>>,
-    ) -> Arc<ImageView<AttachmentImage>> {
-        ImageView::new_default(
-            AttachmentImage::with_usage(
-                device,
-                Self::get_size(surface).into(),
-                swapchain.image_format(),
-                ImageUsage {
-                    color_attachment: true,
-                    sampled: true,
-                    ..ImageUsage::none()
-                },
+    ) -> (Arc<ImageView<StorageImage>>, Arc<ImageView<StorageImage>>) {
+        let size = Self::get_size(surface.clone());
+        (
+            ImageView::new_default(
+                StorageImage::with_usage(
+                    device.clone(),
+                    ImageDimensions::Dim2d {
+                        width: size.width,
+                        height: size.height,
+                        array_layers: 1,
+                    },
+                    swapchain.image_format(),
+                    ImageUsage {
+                        sampled: true,
+                        transfer_destination: true,
+                        ..ImageUsage::none()
+                    },
+                    ImageCreateFlags::none(),
+                    Some(queue.family()),
+                )
+                .unwrap(),
+            )
+            .unwrap(),
+            ImageView::new_default(
+                StorageImage::with_usage(
+                    device.clone(),
+                    ImageDimensions::Dim2d {
+                        width: size.width,
+                        height: size.height,
+                        array_layers: 1,
+                    },
+                    swapchain.image_format(),
+                    ImageUsage {
+                        color_attachment: true,
+                        transfer_source: true,
+                        ..ImageUsage::none()
+                    },
+                    ImageCreateFlags::none(),
+                    Some(queue.family()),
+                )
+                .unwrap(),
             )
             .unwrap(),
         )
-        .unwrap()
     }
 
     fn create_debug_texture(
@@ -588,7 +646,7 @@ impl Renderer {
         graphics_pipeline: Arc<GraphicsPipeline>,
         textures: &Vec<(Arc<ImmutableImage>, Arc<ImageView<ImmutableImage>>)>,
         sampler: Arc<Sampler>,
-        history: Arc<ImageView<AttachmentImage>>,
+        history: Arc<ImageView<StorageImage>>,
     ) -> Arc<PersistentDescriptorSet> {
         let layout = graphics_pipeline.layout().set_layouts().get(0).unwrap();
         PersistentDescriptorSet::new_variable(
@@ -654,15 +712,19 @@ impl Renderer {
             cube_instance_buffer,
         ) = Self::create_shaders_and_buffers(device.clone(), queue.clone());
 
-        let history =
-            Self::create_history_image(device.clone(), surface.clone(), swapchain.clone());
+        let (history_read, history_write) = Self::create_history_images(
+            device.clone(),
+            queue.clone(),
+            surface.clone(),
+            swapchain.clone(),
+        );
 
         let render_pass = Self::create_render_pass(device.clone(), swapchain.clone());
         let framebuffers = Self::create_framebuffers(
             device.clone(),
             images.clone(),
             render_pass.clone(),
-            history.clone(),
+            history_write.clone(),
         );
         let viewport = Self::create_viewport(surface.clone());
 
@@ -695,7 +757,7 @@ impl Renderer {
             graphics_pipeline.clone(),
             &textures,
             sampler.clone(),
-            history.clone(),
+            history_read.clone(),
         );
 
         let instances_chunk = cube_instance_buffer.chunk(vec![]).unwrap();
@@ -710,6 +772,8 @@ impl Renderer {
             descriptor_set.clone(),
             &perspective,
             &camera,
+            history_read.clone(),
+            history_write.clone(),
         );
 
         cube_vertex_buffer_future.flush().unwrap();
@@ -732,7 +796,8 @@ impl Renderer {
             graphics_pipeline_layout,
             graphics_pipeline,
             command_buffers,
-            history,
+            history_read,
+            history_write,
             perspective,
             camera,
             textures,
@@ -779,7 +844,7 @@ impl Renderer {
             self.graphics_pipeline.clone(),
             &self.textures,
             self.sampler.clone(),
-            self.history.clone(),
+            self.history_read.clone(),
         );
     }
 
@@ -882,18 +947,20 @@ impl Renderer {
                         if window_resized {
                             self.viewport.dimensions = new_dimensions.into();
 
-                            let history = Self::create_history_image(
+                            let (history_read, history_write) = Self::create_history_images(
                                 self.device.clone(),
+                                self.queue.clone(),
                                 self.surface.clone(),
                                 self.swapchain.clone(),
                             );
-                            self.history = history;
+                            self.history_read = history_read;
+                            self.history_write = history_write;
 
                             let framebuffers = Self::create_framebuffers(
                                 self.device.clone(),
                                 images.clone(),
                                 self.render_pass.clone(),
-                                self.history.clone(),
+                                self.history_write.clone(),
                             );
                             self.framebuffers = framebuffers;
 
@@ -933,6 +1000,8 @@ impl Renderer {
                         self.descriptor_set.clone(),
                         &self.perspective,
                         &self.camera,
+                        self.history_read.clone(),
+                        self.history_write.clone(),
                     );
                     self.command_buffers = command_buffers;
 
