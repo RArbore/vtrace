@@ -77,7 +77,7 @@ void main() {
 	vec4 texSample = texture(tex[model_id], model_ray_voxel / model_size);
 
 	if (texSample.w > 0.0) {
-	    color = texture(history_read, screen_position.xy * 0.5 + 0.5);
+	    color = screen_position.x < 0.0 ? texSample : texture(history_read, screen_position.xy * 0.5 + 0.5);
 	    history_write = texSample;
 	    return;
 	}

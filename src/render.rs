@@ -106,15 +106,14 @@ pub struct Renderer {
     cube_instance_buffer: CpuBufferPool<GPUInstance>,
 
     render_pass: Arc<RenderPass>,
-    framebuffers: Vec<Arc<Framebuffer>>,
+    framebuffers: [Vec<Arc<Framebuffer>>; 2],
     viewport: Viewport,
 
     graphics_pipeline_layout: Arc<PipelineLayout>,
     graphics_pipeline: Arc<GraphicsPipeline>,
     command_buffers: Vec<Arc<PrimaryAutoCommandBuffer>>,
 
-    history_read: Arc<ImageView<StorageImage>>,
-    history_write: Arc<ImageView<StorageImage>>,
+    history: [Arc<ImageView<StorageImage>>; 2],
 
     perspective: Matrix4<f32>,
     camera: Matrix4<f32>,
@@ -123,7 +122,7 @@ pub struct Renderer {
     pending_texture_futures: Vec<CommandBufferExecFuture<NowFuture, PrimaryAutoCommandBuffer>>,
     sampler: Arc<Sampler>,
 
-    descriptor_set: Arc<PersistentDescriptorSet>,
+    descriptor_set: [Arc<PersistentDescriptorSet>; 2],
 
     instances_chunk: Arc<CpuBufferPoolChunk<GPUInstance, Arc<StdMemoryPool>>>,
 
@@ -489,8 +488,6 @@ impl Renderer {
         descriptor_set: Arc<PersistentDescriptorSet>,
         perspective: &Matrix4<f32>,
         camera: &Matrix4<f32>,
-        history_read: Arc<ImageView<StorageImage>>,
-        history_write: Arc<ImageView<StorageImage>>,
     ) -> Vec<Arc<PrimaryAutoCommandBuffer>> {
         framebuffers
             .iter()
@@ -537,31 +534,6 @@ impl Renderer {
                     )
                     .unwrap()
                     .end_render_pass()
-                    /*.unwrap()
-                    .copy_image(
-                        history_write.image().clone(),
-                        [0, 0, 0],
-                        0,
-                        0,
-                        history_read.image().clone(),
-                        [0, 0, 0],
-                        0,
-                        0,
-                        {
-                            let dims = history_write.image().dimensions();
-                            if let ImageDimensions::Dim2d {
-                                width: w,
-                                height: h,
-                                array_layers: _,
-                            } = dims
-                            {
-                                [w, h, 1]
-                            } else {
-                                [0, 0, 0]
-                            }
-                        },
-                        1,
-                    )*/
                     .unwrap();
 
                 Arc::new(builder.build().unwrap())
@@ -574,50 +546,28 @@ impl Renderer {
         queue: Arc<Queue>,
         surface: Arc<Surface<Window>>,
         swapchain: Arc<Swapchain<Window>>,
-    ) -> (Arc<ImageView<StorageImage>>, Arc<ImageView<StorageImage>>) {
+    ) -> Arc<ImageView<StorageImage>> {
         let size = Self::get_size(surface.clone());
-        (
-            ImageView::new_default(
-                StorageImage::with_usage(
-                    device.clone(),
-                    ImageDimensions::Dim2d {
-                        width: size.width,
-                        height: size.height,
-                        array_layers: 1,
-                    },
-                    swapchain.image_format(),
-                    ImageUsage {
-                        sampled: true,
-                        transfer_destination: true,
-                        ..ImageUsage::none()
-                    },
-                    ImageCreateFlags::none(),
-                    Some(queue.family()),
-                )
-                .unwrap(),
-            )
-            .unwrap(),
-            ImageView::new_default(
-                StorageImage::with_usage(
-                    device.clone(),
-                    ImageDimensions::Dim2d {
-                        width: size.width,
-                        height: size.height,
-                        array_layers: 1,
-                    },
-                    swapchain.image_format(),
-                    ImageUsage {
-                        color_attachment: true,
-                        transfer_source: true,
-                        ..ImageUsage::none()
-                    },
-                    ImageCreateFlags::none(),
-                    Some(queue.family()),
-                )
-                .unwrap(),
+        ImageView::new_default(
+            StorageImage::with_usage(
+                device.clone(),
+                ImageDimensions::Dim2d {
+                    width: size.width,
+                    height: size.height,
+                    array_layers: 1,
+                },
+                swapchain.image_format(),
+                ImageUsage {
+                    sampled: true,
+                    color_attachment: true,
+                    ..ImageUsage::none()
+                },
+                ImageCreateFlags::none(),
+                Some(queue.family()),
             )
             .unwrap(),
         )
+        .unwrap()
     }
 
     fn create_debug_texture(
@@ -712,20 +662,36 @@ impl Renderer {
             cube_instance_buffer,
         ) = Self::create_shaders_and_buffers(device.clone(), queue.clone());
 
-        let (history_read, history_write) = Self::create_history_images(
-            device.clone(),
-            queue.clone(),
-            surface.clone(),
-            swapchain.clone(),
-        );
+        let history = [
+            Self::create_history_images(
+                device.clone(),
+                queue.clone(),
+                surface.clone(),
+                swapchain.clone(),
+            ),
+            Self::create_history_images(
+                device.clone(),
+                queue.clone(),
+                surface.clone(),
+                swapchain.clone(),
+            ),
+        ];
 
         let render_pass = Self::create_render_pass(device.clone(), swapchain.clone());
-        let framebuffers = Self::create_framebuffers(
-            device.clone(),
-            images.clone(),
-            render_pass.clone(),
-            history_write.clone(),
-        );
+        let framebuffers = [
+            Self::create_framebuffers(
+                device.clone(),
+                images.clone(),
+                render_pass.clone(),
+                history[0].clone(),
+            ),
+            Self::create_framebuffers(
+                device.clone(),
+                images.clone(),
+                render_pass.clone(),
+                history[1].clone(),
+            ),
+        ];
         let viewport = Self::create_viewport(surface.clone());
 
         let perspective = Self::create_perspective(surface.clone());
@@ -753,12 +719,20 @@ impl Renderer {
         let textures = vec![Self::create_debug_texture(queue.clone(), 0xFF808080)];
 
         let layout = graphics_pipeline.layout().set_layouts().get(0).unwrap();
-        let descriptor_set = Self::create_descriptor_set(
-            graphics_pipeline.clone(),
-            &textures,
-            sampler.clone(),
-            history_read.clone(),
-        );
+        let descriptor_set = [
+            Self::create_descriptor_set(
+                graphics_pipeline.clone(),
+                &textures,
+                sampler.clone(),
+                history[1].clone(),
+            ),
+            Self::create_descriptor_set(
+                graphics_pipeline.clone(),
+                &textures,
+                sampler.clone(),
+                history[0].clone(),
+            ),
+        ];
 
         let instances_chunk = cube_instance_buffer.chunk(vec![]).unwrap();
 
@@ -767,13 +741,11 @@ impl Renderer {
             queue.clone(),
             cube_vertex_buffer.clone(),
             instances_chunk.clone(),
-            framebuffers.clone(),
+            framebuffers[0].clone(),
             graphics_pipeline.clone(),
-            descriptor_set.clone(),
+            descriptor_set[0].clone(),
             &perspective,
             &camera,
-            history_read.clone(),
-            history_write.clone(),
         );
 
         cube_vertex_buffer_future.flush().unwrap();
@@ -796,8 +768,7 @@ impl Renderer {
             graphics_pipeline_layout,
             graphics_pipeline,
             command_buffers,
-            history_read,
-            history_write,
+            history,
             perspective,
             camera,
             textures,
@@ -840,12 +811,20 @@ impl Renderer {
     }
 
     pub fn update_descriptor(&mut self) {
-        self.descriptor_set = Self::create_descriptor_set(
-            self.graphics_pipeline.clone(),
-            &self.textures,
-            self.sampler.clone(),
-            self.history_read.clone(),
-        );
+        self.descriptor_set = [
+            Self::create_descriptor_set(
+                self.graphics_pipeline.clone(),
+                &self.textures,
+                self.sampler.clone(),
+                self.history[1].clone(),
+            ),
+            Self::create_descriptor_set(
+                self.graphics_pipeline.clone(),
+                &self.textures,
+                self.sampler.clone(),
+                self.history[0].clone(),
+            ),
+        ];
     }
 
     pub fn update_instances(&mut self, instances: Vec<GPUInstance>) {
@@ -947,21 +926,36 @@ impl Renderer {
                         if window_resized {
                             self.viewport.dimensions = new_dimensions.into();
 
-                            let (history_read, history_write) = Self::create_history_images(
-                                self.device.clone(),
-                                self.queue.clone(),
-                                self.surface.clone(),
-                                self.swapchain.clone(),
-                            );
-                            self.history_read = history_read;
-                            self.history_write = history_write;
+                            let history = [
+                                Self::create_history_images(
+                                    self.device.clone(),
+                                    self.queue.clone(),
+                                    self.surface.clone(),
+                                    self.swapchain.clone(),
+                                ),
+                                Self::create_history_images(
+                                    self.device.clone(),
+                                    self.queue.clone(),
+                                    self.surface.clone(),
+                                    self.swapchain.clone(),
+                                ),
+                            ];
+                            self.history = history;
 
-                            let framebuffers = Self::create_framebuffers(
-                                self.device.clone(),
-                                images.clone(),
-                                self.render_pass.clone(),
-                                self.history_write.clone(),
-                            );
+                            let framebuffers = [
+                                Self::create_framebuffers(
+                                    self.device.clone(),
+                                    images.clone(),
+                                    self.render_pass.clone(),
+                                    self.history[0].clone(),
+                                ),
+                                Self::create_framebuffers(
+                                    self.device.clone(),
+                                    images.clone(),
+                                    self.render_pass.clone(),
+                                    self.history[1].clone(),
+                                ),
+                            ];
                             self.framebuffers = framebuffers;
 
                             let graphics_pipeline = Self::create_graphics_pipeline(
@@ -995,13 +989,11 @@ impl Renderer {
                         self.queue.clone(),
                         self.cube_vertex_buffer.clone(),
                         self.instances_chunk.clone(),
-                        self.framebuffers.clone(),
+                        self.framebuffers[frame_num % 2].clone(),
                         self.graphics_pipeline.clone(),
-                        self.descriptor_set.clone(),
+                        self.descriptor_set[frame_num % 2].clone(),
                         &self.perspective,
                         &self.camera,
-                        self.history_read.clone(),
-                        self.history_write.clone(),
                     );
                     self.command_buffers = command_buffers;
 
@@ -1057,6 +1049,7 @@ impl Renderer {
 
                     previous_fence_i = image_i;
                     num_frames_in_sec += 1;
+                    frame_num += 1;
                 }
                 _ => (),
             }
@@ -1077,8 +1070,6 @@ impl Renderer {
                 &self.last_mouse_pos,
                 cursor_moved,
             );
-
-            frame_num += 1;
         });
     }
 }
