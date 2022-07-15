@@ -113,7 +113,7 @@ pub struct Renderer {
     graphics_pipeline: Arc<GraphicsPipeline>,
     command_buffers: Vec<Arc<PrimaryAutoCommandBuffer>>,
 
-    history: [Arc<ImageView<StorageImage>>; 2],
+    history: [Arc<ImageView<AttachmentImage>>; 2],
 
     perspective: Matrix4<f32>,
     camera: Matrix4<f32>,
@@ -379,7 +379,7 @@ impl Renderer {
         device: Arc<Device>,
         images: Vec<Arc<SwapchainImage<Window>>>,
         render_pass: Arc<RenderPass>,
-        history: Arc<ImageView<StorageImage>>,
+        history: Arc<ImageView<AttachmentImage>>,
     ) -> Vec<Arc<Framebuffer>> {
         let dimensions = images[0].dimensions().width_height();
         let depth_buffer = ImageView::new_default(
@@ -546,24 +546,13 @@ impl Renderer {
         queue: Arc<Queue>,
         surface: Arc<Surface<Window>>,
         swapchain: Arc<Swapchain<Window>>,
-    ) -> Arc<ImageView<StorageImage>> {
+    ) -> Arc<ImageView<AttachmentImage>> {
         let size = Self::get_size(surface.clone());
         ImageView::new_default(
-            StorageImage::with_usage(
+            AttachmentImage::sampled(
                 device.clone(),
-                ImageDimensions::Dim2d {
-                    width: size.width,
-                    height: size.height,
-                    array_layers: 1,
-                },
+                [size.width, size.height],
                 swapchain.image_format(),
-                ImageUsage {
-                    sampled: true,
-                    color_attachment: true,
-                    ..ImageUsage::none()
-                },
-                ImageCreateFlags::none(),
-                Some(queue.family()),
             )
             .unwrap(),
         )
@@ -596,7 +585,7 @@ impl Renderer {
         graphics_pipeline: Arc<GraphicsPipeline>,
         textures: &Vec<(Arc<ImmutableImage>, Arc<ImageView<ImmutableImage>>)>,
         sampler: Arc<Sampler>,
-        history: Arc<ImageView<StorageImage>>,
+        history: Arc<ImageView<AttachmentImage>>,
     ) -> Arc<PersistentDescriptorSet> {
         let layout = graphics_pipeline.layout().set_layouts().get(0).unwrap();
         PersistentDescriptorSet::new_variable(
