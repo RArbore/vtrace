@@ -561,14 +561,16 @@ impl Renderer {
 
     fn create_debug_texture(
         queue: Arc<Queue>,
-        color: u32,
+        color: (u32, u32),
     ) -> (Arc<ImmutableImage>, Arc<ImageView<ImmutableImage>>) {
         let (image, image_future) = ImmutableImage::from_iter(
-            [color] as [u32; 1],
+            [
+                color.0, color.1, color.1, color.0, color.1, color.0, color.0, color.1,
+            ] as [u32; 8],
             ImageDimensions::Dim3d {
-                width: 1,
-                height: 1,
-                depth: 1,
+                width: 2,
+                height: 2,
+                depth: 2,
             },
             MipmapsCount::One,
             Format::R8G8B8A8_SRGB,
@@ -705,7 +707,10 @@ impl Renderer {
         )
         .unwrap();
 
-        let textures = vec![Self::create_debug_texture(queue.clone(), 0xFF808080)];
+        let textures = vec![Self::create_debug_texture(
+            queue.clone(),
+            (0xFFFF00FF, 0xFF000000),
+        )];
 
         let layout = graphics_pipeline.layout().set_layouts().get(0).unwrap();
         let descriptor_set = [
