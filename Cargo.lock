@@ -42,6 +42,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ash"
+version = "0.37.0+1.3.209"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "006ca68e0f2b03f22d6fa9f2860f85aed430d257fec20f8879b2145e7c7ae1a6"
+dependencies = [
+ "libloading",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1544,6 +1553,7 @@ dependencies = [
 name = "vtrace"
 version = "0.1.0"
 dependencies = [
+ "ash 0.37.0+1.3.209",
  "bytemuck",
  "dot_vox",
  "glm",
@@ -1560,7 +1570,7 @@ version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3663883d6bf6e3d34c891432fe5ce5829ad75f0cc2e43b3d079340385c2d81e0"
 dependencies = [
- "ash",
+ "ash 0.36.0+1.3.206",
  "bytemuck",
  "crossbeam-queue",
  "half",

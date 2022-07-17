@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ash = "0.37.0"
 bytemuck = "1.9.1"
 dot_vox = "4.1.0"
 glm = "0.2.3"
