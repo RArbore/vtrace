@@ -17,6 +17,7 @@
 
 mod render;
 mod voxel;
+mod vulkan;
 mod world;
 
 fn main() {

@@ -25,6 +25,7 @@ use winit::event_loop::*;
 use winit::window::*;
 
 use crate::voxel::*;
+use crate::vulkan::*;
 use crate::world::*;
 
 #[repr(C)]
@@ -55,6 +56,8 @@ pub struct Renderer {
     event_loop: EventLoop<()>,
     window: Window,
 
+    vulkan: VulkanManager,
+
     keystate: [bool; NUM_KEYS],
     last_keystate: [bool; NUM_KEYS],
     mouse_buttons: [bool; NUM_BUTTONS],
@@ -64,7 +67,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(world: &WorldState) -> Renderer {
+    pub fn new(world: &WorldState) -> Self {
         let event_loop = EventLoop::new();
 
         let window = WindowBuilder::new()
@@ -73,9 +76,12 @@ impl Renderer {
             .build(&event_loop)
             .expect("ERROR: Failed to create window");
 
+        let vulkan = unsafe { VulkanManager::new() };
+
         Renderer {
             event_loop,
             window,
+            vulkan,
             keystate: [false; NUM_KEYS],
             last_keystate: [false; NUM_KEYS],
             mouse_buttons: [false; NUM_BUTTONS],
