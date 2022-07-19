@@ -1,15 +1,15 @@
 /*
- * This file is part of vtrace-rs.
- * vtrace-rs is free software: you can redistribute it and/or modify
+ * This file is part of vtrace.
+ * vtrace is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * any later version.
- * vtrace-rs is distributed in the hope that it will be useful,
+ * vtrace is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License
- * along with vtrace-rs. If not, see <https://www.gnu.org/licenses/>.
+ * along with vtrace. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "render.h"
@@ -23,7 +23,7 @@ void init(void) {
 
     glbl.window_width = 800;
     glbl.window_height = 600;
-    glbl.window = glfwCreateWindow(glbl.window_width, glbl.window_height, "vtrace-rs", NULL, NULL);
+    glbl.window = glfwCreateWindow(glbl.window_width, glbl.window_height, "vtrace", NULL, NULL);
 }
 
 void cleanup(void) {
