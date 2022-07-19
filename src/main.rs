@@ -17,13 +17,12 @@
 
 mod render;
 mod voxel;
-mod vulkan;
 mod world;
 
 fn main() {
     let mut texture = voxel::load("assets/AncientTemple.vox");
 
-    let world = world::WorldState::new();
+    let mut world = world::WorldState::new();
     let mut renderer = render::Renderer::new(&world);
 
     renderer.add_texture(texture.remove(0));
@@ -54,5 +53,5 @@ fn main() {
 
     renderer.update_instances(instances);
 
-    renderer.render_loop(world);
+    while renderer.render_tick(&mut world) {}
 }

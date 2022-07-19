@@ -51,17 +51,8 @@ impl WorldState {
         vec3(cos(self.camera_theta), 0.0, sin(self.camera_theta))
     }
 
-    pub fn update(
-        &mut self,
-        dt: f32,
-        keystate: &[bool; NUM_KEYS],
-        last_keystate: &[bool; NUM_KEYS],
-        mouse_buttons: &[bool; NUM_BUTTONS],
-        last_mouse_buttons: &[bool; NUM_BUTTONS],
-        mouse_pos: &(f64, f64),
-        last_mouse_pos: &(f64, f64),
-        cursor_moved: bool,
-    ) {
+    pub fn update(&mut self, dt: f32) {
+        /*
         if keystate[VirtualKeyCode::W as usize] {
             self.camera_position =
                 self.camera_position + self.get_horizontal_camera_direction() * MOVE_SPEED;
@@ -101,13 +92,9 @@ impl WorldState {
             dmy += SENSITIVITY;
         }
 
-        if cursor_moved && mouse_buttons[b2u(MouseButton::Left)] {
-            dmx += SENSITIVITY * (mouse_pos.0 - last_mouse_pos.0) as f32;
-            dmy += SENSITIVITY * (mouse_pos.1 - last_mouse_pos.1) as f32;
-        }
-
         self.camera_theta += dmx;
         self.camera_phi -= dmy;
         self.camera_phi = clamp(self.camera_phi, 0.01, PI * 0.99);
+        */
     }
 }
