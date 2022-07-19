@@ -38,6 +38,7 @@ pub struct GPUInstance {
 extern "C" {
     fn init();
     fn render_tick() -> i32;
+    fn cleanup();
 }
 
 pub struct Renderer {}
@@ -56,5 +57,11 @@ impl Renderer {
 
     pub fn render_tick(&mut self, world: &mut WorldState) -> bool {
         unsafe { render_tick() == 0 }
+    }
+}
+
+impl Drop for Renderer {
+    fn drop(&mut self) {
+        unsafe { cleanup() };
     }
 }

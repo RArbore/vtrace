@@ -21,8 +21,8 @@ void init(void) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    glbl.window_width = 800;
-    glbl.window_height = 600;
+    glbl.window_width = 1000;
+    glbl.window_height = 1000;
     glbl.window = glfwCreateWindow(glbl.window_width, glbl.window_height, "vtrace", NULL, NULL);
 }
 
@@ -33,7 +33,6 @@ void cleanup(void) {
 
 int32_t render_tick(void) {
     if (glfwWindowShouldClose(glbl.window)) {
-	cleanup();
 	return -1;
     }
 
