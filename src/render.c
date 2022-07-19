@@ -12,11 +12,19 @@
  * along with vtrace. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+
 #include "render.h"
+
+#define PROPAGATE(result)			\
+    {						\
+	VkResult eval = result;			\
+	if (eval != VK_SUCCESS) return eval;	\
+    }
 
 static renderer glbl;
 
-void init(void) {
+VkResult init(void) {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
@@ -24,9 +32,41 @@ void init(void) {
     glbl.window_width = 1000;
     glbl.window_height = 1000;
     glbl.window = glfwCreateWindow(glbl.window_width, glbl.window_height, "vtrace", NULL, NULL);
+
+    PROPAGATE(create_instance());
+
+    return VK_SUCCESS;
+}
+
+VkResult create_instance(void) {
+    VkApplicationInfo app_info = {0};
+    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.pApplicationName = "vtrace";
+    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.pEngineName = "Custom";
+    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.apiVersion = VK_API_VERSION_1_0;
+
+    VkInstanceCreateInfo create_info = {0};
+    create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    create_info.pApplicationInfo = &app_info;
+    
+    uint32_t glfw_extension_count = 0;
+    const char** glfw_extensions;
+    glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
+
+    create_info.enabledExtensionCount = glfw_extension_count;
+    create_info.ppEnabledExtensionNames = glfw_extensions;
+    create_info.enabledLayerCount = 0;
+
+    PROPAGATE(vkCreateInstance(&create_info, NULL, &glbl.instance));
+
+    return VK_SUCCESS;
 }
 
 void cleanup(void) {
+    vkDestroyInstance(glbl.instance, NULL);
+    
     glfwDestroyWindow(glbl.window);
     glfwTerminate();
 }

@@ -22,9 +22,13 @@ typedef struct renderer {
     uint32_t window_width;
     uint32_t window_height;
     GLFWwindow* window;
+
+    VkInstance instance;
 } renderer;
 
-void init(void);
+VkResult init(void);
+
+VkResult create_instance(void);
 
 void cleanup(void);
 
