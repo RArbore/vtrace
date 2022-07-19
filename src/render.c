@@ -28,7 +28,7 @@ static const char* validation_layers[] = {
     "VK_LAYER_KHRONOS_validation"
 };
 
-VkResult init(int32_t enable_validation_layers) {
+VkResult init(void) {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
@@ -37,12 +37,12 @@ VkResult init(int32_t enable_validation_layers) {
     glbl.window_height = 1000;
     glbl.window = glfwCreateWindow(glbl.window_width, glbl.window_height, "vtrace", NULL, NULL);
 
-    PROPAGATE(create_instance(enable_validation_layers));
+    PROPAGATE(create_instance());
 
     return VK_SUCCESS;
 }
 
-VkResult create_instance(int32_t enable_validation_layers) {
+VkResult create_instance(void) {
     VkApplicationInfo app_info = {0};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = "vtrace";
@@ -60,15 +60,14 @@ VkResult create_instance(int32_t enable_validation_layers) {
     glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
     create_info.enabledExtensionCount = glfw_extension_count;
     create_info.ppEnabledExtensionNames = glfw_extensions;
-
-    if (enable_validation_layers) {
-	create_info.enabledLayerCount = sizeof(validation_layers) / sizeof(const char*);
-	create_info.ppEnabledLayerNames = validation_layers;
-    }
-    else {
-	create_info.enabledLayerCount = 0;
-    }
-
+    
+#ifndef RELEASE
+    create_info.enabledLayerCount = sizeof(validation_layers) / sizeof(const char*);
+    create_info.ppEnabledLayerNames = validation_layers;
+#else
+    create_info.enabledLayerCount = 0;
+#endif
+    
     PROPAGATE(vkCreateInstance(&create_info, NULL, &glbl.instance));
 
     return VK_SUCCESS;

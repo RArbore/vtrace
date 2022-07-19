@@ -36,7 +36,7 @@ pub struct GPUInstance {
 }
 
 extern "C" {
-    fn init(enable_validation_layers: i32) -> i32;
+    fn init() -> i32;
     fn render_tick() -> i32;
     fn cleanup();
 }
@@ -45,7 +45,7 @@ pub struct Renderer {}
 
 impl Renderer {
     pub fn new(world: &WorldState) -> Self {
-        let code = unsafe { init(1) };
+        let code = unsafe { init() };
         if code != 0 {
             panic!(
                 "ERROR: Vulkan initialization failed with error code {}",

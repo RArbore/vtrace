@@ -18,11 +18,13 @@ use std::process::Command;
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
+    let profile = env::var("PROFILE").unwrap().to_uppercase();
 
     Command::new("cc")
         .args(&[
             "-march=native",
             "-static",
+            format!("-D{}", profile).as_str(),
             "-c",
             "src/render.c",
             "-o",

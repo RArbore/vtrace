@@ -26,9 +26,9 @@ typedef struct renderer {
     VkInstance instance;
 } renderer;
 
-VkResult init(int32_t enable_validation_layers);
+VkResult init(void);
 
-VkResult create_instance(int32_t enable_validation_layers);
+VkResult create_instance(void);
 
 void cleanup(void);
 
