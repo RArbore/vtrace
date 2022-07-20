@@ -16,19 +16,31 @@
 
 #include "render.h"
 
-#define PROPAGATE(result)			\
-    {						\
-	VkResult eval = result;			\
-	if (eval != VK_SUCCESS) return eval;	\
-    }
-
 static renderer glbl;
 
 static const char* validation_layers[] = {
     "VK_LAYER_KHRONOS_validation"
 };
 
-VkResult init(void) {
+static const result SUCCESS = {.vk = VK_SUCCESS, .custom = 0};
+static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .custom = 1};
+
+#define PROPAGATE(res)							\
+    {									\
+	result eval = res;						\
+	if (eval.vk != SUCCESS.vk || eval.custom != SUCCESS.custom) return eval; \
+    }
+
+#define PROPAGATE_VK(res)						\
+    {									\
+	VkResult eval = res;						\
+	if (eval != SUCCESS.vk) {					\
+	    result ret = {.vk = eval, .custom = 0};			\
+	    return ret;							\
+	}								\
+    }
+
+result init(void) {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
@@ -38,11 +50,12 @@ VkResult init(void) {
     glbl.window = glfwCreateWindow(glbl.window_width, glbl.window_height, "vtrace", NULL, NULL);
 
     PROPAGATE(create_instance());
+    PROPAGATE(create_physical());
 
-    return VK_SUCCESS;
+    return SUCCESS;
 }
 
-VkResult create_instance(void) {
+result create_instance(void) {
     VkApplicationInfo app_info = {0};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = "vtrace";
@@ -68,9 +81,77 @@ VkResult create_instance(void) {
     create_info.enabledLayerCount = 0;
 #endif
     
-    PROPAGATE(vkCreateInstance(&create_info, NULL, &glbl.instance));
+    PROPAGATE_VK(vkCreateInstance(&create_info, NULL, &glbl.instance));
 
-    return VK_SUCCESS;
+    return SUCCESS;
+}
+
+result create_physical(void) {
+    uint32_t device_count = 0;
+    vkEnumeratePhysicalDevices(glbl.instance, &device_count, NULL);
+    if (device_count == 0) {
+	fprintf(stderr, "ERROR: No physical devices available");
+	return CUSTOM_ERROR;
+    }
+
+    const uint32_t MAX_PHYSICAL_QUERIED = 8;
+    VkPhysicalDevice possible[MAX_PHYSICAL_QUERIED];
+    device_count = device_count < MAX_PHYSICAL_QUERIED ? device_count : MAX_PHYSICAL_QUERIED;
+    VkResult queried_all = vkEnumeratePhysicalDevices(glbl.instance, &device_count, possible);
+    if (queried_all != VK_SUCCESS) {
+	fprintf(stderr, "WARNING: There are more than %u possible physical devices, just considering the first %u", MAX_PHYSICAL_QUERIED, MAX_PHYSICAL_QUERIED);
+    }
+    device_count = device_count < MAX_PHYSICAL_QUERIED ? device_count : MAX_PHYSICAL_QUERIED;
+
+    int32_t best_physical = -1;
+    int32_t best_score = 0;
+    for (uint32_t new_physical = 0; new_physical < device_count; ++new_physical) {
+	int32_t new_score = physical_score(possible[new_physical]);
+	if (new_score > best_score) {
+	    best_score = new_score;
+	    best_physical = new_physical;
+	}
+    }
+
+    if (best_physical == -1) {
+	fprintf(stderr, "ERROR: No physical device is suitable");
+	return CUSTOM_ERROR;
+    }
+    glbl.physical = possible[best_physical];
+
+    VkPhysicalDeviceProperties device_properties;
+    vkGetPhysicalDeviceProperties(glbl.physical, &device_properties);
+    printf("INFO: Using device \"%s\"\n", device_properties.deviceName);
+
+    return SUCCESS;
+}
+
+int32_t physical_score(VkPhysicalDevice physical) {
+    VkPhysicalDeviceProperties device_properties;
+    vkGetPhysicalDeviceProperties(physical, &device_properties);
+
+    int32_t device_type_score = 0;
+    switch (device_properties.deviceType) {
+    case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+	device_type_score = 0;
+	break;
+    case VK_PHYSICAL_DEVICE_TYPE_CPU:
+	device_type_score = 1;
+	break;
+    case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+	device_type_score = 2;
+	break;
+    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+	device_type_score = 3;
+	break;
+    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+	device_type_score = 4;
+	break;
+    default:
+	device_type_score = 0;
+    }
+
+    return device_type_score;
 }
 
 void cleanup(void) {

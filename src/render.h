@@ -24,11 +24,21 @@ typedef struct renderer {
     GLFWwindow* window;
 
     VkInstance instance;
+    VkPhysicalDevice physical;
 } renderer;
 
-VkResult init(void);
+typedef struct result {
+    VkResult vk;
+    int32_t custom;
+} result;
 
-VkResult create_instance(void);
+result init(void);
+
+result create_instance(void);
+
+result create_physical(void);
+
+int32_t physical_score(VkPhysicalDevice physical);
 
 void cleanup(void);
 
