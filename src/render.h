@@ -32,6 +32,8 @@ typedef struct result {
     int32_t custom;
 } result;
 
+uint64_t entry(void);
+
 result init(void);
 
 result create_instance(void);
@@ -39,6 +41,8 @@ result create_instance(void);
 result create_physical(void);
 
 int32_t physical_score(VkPhysicalDevice physical);
+
+result physical_check_queue_family(VkPhysicalDevice physical, uint32_t* queue_family, VkQueueFlagBits bits);
 
 void cleanup(void);
 

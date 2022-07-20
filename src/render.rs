@@ -36,7 +36,7 @@ pub struct GPUInstance {
 }
 
 extern "C" {
-    fn init() -> i32;
+    fn entry() -> u64;
     fn render_tick() -> i32;
     fn cleanup();
 }
@@ -45,11 +45,13 @@ pub struct Renderer {}
 
 impl Renderer {
     pub fn new(world: &WorldState) -> Self {
-        let code = unsafe { init() };
+        let code = unsafe { entry() };
+        let vulkan_code = (code >> 32) & 0xFFFFFFFF;
+        let custom_code = code & 0xFFFFFFFF;
         if code != 0 {
             panic!(
-                "ERROR: Vulkan initialization failed with error code {}",
-                code
+                "ERROR: Vulkan initialization failed with vulkan error code {} and custom error code {}",
+                vulkan_code, custom_code
             );
         }
         Renderer {}

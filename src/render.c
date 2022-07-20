@@ -25,10 +25,14 @@ static const char* validation_layers[] = {
 static const result SUCCESS = {.vk = VK_SUCCESS, .custom = 0};
 static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .custom = 1};
 
+static const uint32_t MAX_VK_ENUMERATIONS = 8;
+
+#define IS_SUCCESS(res) (res.vk == SUCCESS.vk && res.custom == SUCCESS.custom)
+
 #define PROPAGATE(res)							\
     {									\
 	result eval = res;						\
-	if (eval.vk != SUCCESS.vk || eval.custom != SUCCESS.custom) return eval; \
+	if (!IS_SUCCESS(eval)) return eval;				\
     }
 
 #define PROPAGATE_VK(res)						\
@@ -39,6 +43,11 @@ static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .custom = 1};
 	    return ret;							\
 	}								\
     }
+
+uint64_t entry(void) {
+    result res = init();
+    return ((uint64_t) res.vk << 32) | (uint64_t) res.custom;
+}
 
 result init(void) {
     glfwInit();
@@ -90,18 +99,17 @@ result create_physical(void) {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(glbl.instance, &device_count, NULL);
     if (device_count == 0) {
-	fprintf(stderr, "ERROR: No physical devices available");
+	fprintf(stderr, "ERROR: No physical devices available\n");
 	return CUSTOM_ERROR;
     }
 
-    const uint32_t MAX_PHYSICAL_QUERIED = 8;
-    VkPhysicalDevice possible[MAX_PHYSICAL_QUERIED];
-    device_count = device_count < MAX_PHYSICAL_QUERIED ? device_count : MAX_PHYSICAL_QUERIED;
+    VkPhysicalDevice possible[MAX_VK_ENUMERATIONS];
+    device_count = device_count < MAX_VK_ENUMERATIONS ? device_count : MAX_VK_ENUMERATIONS;
     VkResult queried_all = vkEnumeratePhysicalDevices(glbl.instance, &device_count, possible);
     if (queried_all != VK_SUCCESS) {
-	fprintf(stderr, "WARNING: There are more than %u possible physical devices, just considering the first %u", MAX_PHYSICAL_QUERIED, MAX_PHYSICAL_QUERIED);
+	fprintf(stderr, "WARNING: There are more than %u possible physical devices, just considering the first %u\n", MAX_VK_ENUMERATIONS, MAX_VK_ENUMERATIONS);
     }
-    device_count = device_count < MAX_PHYSICAL_QUERIED ? device_count : MAX_PHYSICAL_QUERIED;
+    device_count = device_count < MAX_VK_ENUMERATIONS ? device_count : MAX_VK_ENUMERATIONS;
 
     int32_t best_physical = -1;
     int32_t best_score = 0;
@@ -114,7 +122,7 @@ result create_physical(void) {
     }
 
     if (best_physical == -1) {
-	fprintf(stderr, "ERROR: No physical device is suitable");
+	fprintf(stderr, "ERROR: No physical device is suitable\n");
 	return CUSTOM_ERROR;
     }
     glbl.physical = possible[best_physical];
@@ -151,7 +159,35 @@ int32_t physical_score(VkPhysicalDevice physical) {
 	device_type_score = 0;
     }
 
+    result queue_check = physical_check_queue_family(physical, NULL, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
+    if (!IS_SUCCESS(queue_check)) {
+	return -1;
+    }
+
     return device_type_score;
+}
+
+result physical_check_queue_family(VkPhysicalDevice physical, uint32_t* queue_family, VkQueueFlagBits bits) {
+    uint32_t queue_family_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(physical, &queue_family_count, NULL);
+    if (queue_family_count == 0) {
+	fprintf(stderr, "ERROR: No queue families available\n");
+	return CUSTOM_ERROR;
+    }
+
+    VkQueueFamilyProperties possible[MAX_VK_ENUMERATIONS];
+    queue_family_count = queue_family_count < MAX_VK_ENUMERATIONS ? queue_family_count : MAX_VK_ENUMERATIONS;
+    vkGetPhysicalDeviceQueueFamilyProperties(physical, &queue_family_count, possible);
+    queue_family_count = queue_family_count < MAX_VK_ENUMERATIONS ? queue_family_count : MAX_VK_ENUMERATIONS;
+
+    for (uint32_t queue_family_index = 0; queue_family_index < queue_family_count; ++queue_family_index) {
+	if ((possible[queue_family_index].queueFlags & bits) == bits) {
+	    if (queue_family) *queue_family = queue_family_index;
+	    return SUCCESS;
+	}
+    }
+
+    return CUSTOM_ERROR;
 }
 
 void cleanup(void) {
