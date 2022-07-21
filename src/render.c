@@ -12,6 +12,8 @@
  * along with vtrace. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 
 #include "render.h"
@@ -20,6 +22,10 @@ static renderer glbl;
 
 static const char* validation_layers[] = {
     "VK_LAYER_KHRONOS_validation"
+};
+
+static const char* device_extensions[] = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
 static const result SUCCESS = {.vk = VK_SUCCESS, .custom = 0};
@@ -86,7 +92,7 @@ result create_instance(void) {
     create_info.ppEnabledExtensionNames = glfw_extensions;
     
 #ifndef RELEASE
-    create_info.enabledLayerCount = sizeof(validation_layers) / sizeof(const char*);
+    create_info.enabledLayerCount = sizeof(validation_layers) / sizeof(validation_layers[0]);
     create_info.ppEnabledLayerNames = validation_layers;
 #else
     create_info.enabledLayerCount = 0;
@@ -171,6 +177,11 @@ int32_t physical_score(VkPhysicalDevice physical) {
 	return -1;
     }
 
+    result extension_check = physical_check_extensions(physical);
+    if (!IS_SUCCESS(extension_check)) {
+	return -1;
+    }
+
     return device_type_score;
 }
 
@@ -178,7 +189,6 @@ result physical_check_queue_family(VkPhysicalDevice physical, uint32_t* queue_fa
     uint32_t queue_family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physical, &queue_family_count, NULL);
     if (queue_family_count == 0) {
-	fprintf(stderr, "ERROR: No queue families available\n");
 	return CUSTOM_ERROR;
     }
 
@@ -199,6 +209,34 @@ result physical_check_queue_family(VkPhysicalDevice physical, uint32_t* queue_fa
     }
 
     return CUSTOM_ERROR;
+}
+
+result physical_check_extensions(VkPhysicalDevice physical) {
+    uint32_t extension_count = 0;
+    vkEnumerateDeviceExtensionProperties(physical, NULL, &extension_count, NULL);
+
+    VkExtensionProperties* available_extensions = malloc(extension_count * sizeof(VkExtensionProperties));
+    vkEnumerateDeviceExtensionProperties(physical, NULL, &extension_count, available_extensions);
+
+    uint32_t required_extension_index;
+    for (required_extension_index = 0; required_extension_index < sizeof(device_extensions) / sizeof(device_extensions[0]); ++required_extension_index) {
+	uint32_t available_extension_index;
+	for (available_extension_index = 0; available_extension_index < extension_count; ++available_extension_index) {
+	    if (!strcmp(available_extensions[available_extension_index].extensionName, device_extensions[required_extension_index])) {
+		break;
+	    }
+	}
+	if (available_extension_index >= extension_count) {
+	    break;
+	}
+    }
+    free(available_extensions);
+    if (required_extension_index < sizeof(device_extensions) / sizeof(device_extensions[0])) {
+	return CUSTOM_ERROR;
+    }
+    else {
+	return SUCCESS;
+    }
 }
 
 result create_device(void) {

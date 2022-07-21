@@ -46,13 +46,8 @@ pub struct Renderer {}
 impl Renderer {
     pub fn new(world: &WorldState) -> Self {
         let code = unsafe { entry() };
-        let vulkan_code = (code >> 32) & 0xFFFFFFFF;
-        let custom_code = code & 0xFFFFFFFF;
         if code != 0 {
-            panic!(
-                "ERROR: Vulkan initialization failed with vulkan error code {} and custom error code {}",
-                vulkan_code, custom_code
-            );
+            panic!("ERROR: Vulkan initialization failed",);
         }
         Renderer {}
     }

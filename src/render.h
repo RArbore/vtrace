@@ -49,6 +49,8 @@ int32_t physical_score(VkPhysicalDevice physical);
 
 result physical_check_queue_family(VkPhysicalDevice physical, uint32_t* queue_family, VkQueueFlagBits bits);
 
+result physical_check_extensions(VkPhysicalDevice physical);
+
 result create_device(void);
 
 void cleanup(void);
