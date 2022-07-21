@@ -319,6 +319,14 @@ result create_swapchain(void) {
     create_info.oldSwapchain = VK_NULL_HANDLE;
 
     PROPAGATE_VK(vkCreateSwapchainKHR(glbl.device, &create_info, NULL, &glbl.swapchain));
+
+    free(glbl.swapchain_images);
+    vkGetSwapchainImagesKHR(glbl.device, glbl.swapchain, &image_count, NULL);
+    glbl.swapchain_images = malloc(image_count * sizeof(VkImage));
+    vkGetSwapchainImagesKHR(glbl.device, glbl.swapchain, &image_count, glbl.swapchain_images);
+
+    glbl.swapchain_format = surface_format.format;
+    glbl.swapchain_extent = swap_extent;
     
     return SUCCESS;
 }
@@ -368,6 +376,7 @@ result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* 
 }
 
 void cleanup(void) {
+    free(glbl.swapchain_images);
     vkDestroySwapchainKHR(glbl.device, glbl.swapchain, NULL);
     vkDestroyDevice(glbl.device, NULL);
     vkDestroySurfaceKHR(glbl.instance, glbl.surface, NULL);

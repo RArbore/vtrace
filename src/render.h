@@ -31,6 +31,9 @@ typedef struct renderer {
     VkDevice device;
     VkQueue queue;
     VkSwapchainKHR swapchain;
+    VkImage* swapchain_images;
+    VkFormat swapchain_format;
+    VkExtent2D swapchain_extent;
 } renderer;
 
 typedef struct swapchain_support {
