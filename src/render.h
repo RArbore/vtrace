@@ -25,6 +25,8 @@ typedef struct renderer {
 
     VkInstance instance;
     VkPhysicalDevice physical;
+    VkDevice device;
+    VkQueue queue;
 } renderer;
 
 typedef struct result {
@@ -43,6 +45,8 @@ result create_physical(void);
 int32_t physical_score(VkPhysicalDevice physical);
 
 result physical_check_queue_family(VkPhysicalDevice physical, uint32_t* queue_family, VkQueueFlagBits bits);
+
+result create_device(void);
 
 void cleanup(void);
 

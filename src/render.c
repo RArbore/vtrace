@@ -60,6 +60,7 @@ result init(void) {
 
     PROPAGATE(create_instance());
     PROPAGATE(create_physical());
+    PROPAGATE(create_device());
 
     return SUCCESS;
 }
@@ -190,7 +191,34 @@ result physical_check_queue_family(VkPhysicalDevice physical, uint32_t* queue_fa
     return CUSTOM_ERROR;
 }
 
+result create_device(void) {
+    uint32_t queue_family;
+    PROPAGATE(physical_check_queue_family(glbl.physical, &queue_family, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT));
+
+    float queue_priority = 1.0f;
+
+    VkDeviceQueueCreateInfo queue_create_info = {0};
+    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queue_create_info.queueFamilyIndex = queue_family;
+    queue_create_info.queueCount = 1;
+    queue_create_info.pQueuePriorities = &queue_priority;
+
+    VkPhysicalDeviceFeatures device_features = {0};
+
+    VkDeviceCreateInfo device_create_info = {0};
+    device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    device_create_info.pQueueCreateInfos = &queue_create_info;
+    device_create_info.queueCreateInfoCount = 1;
+    device_create_info.pEnabledFeatures = &device_features;
+
+    PROPAGATE_VK(vkCreateDevice(glbl.physical, &device_create_info, NULL, &glbl.device));
+    vkGetDeviceQueue(glbl.device, queue_family, 0, &glbl.queue);
+    
+    return SUCCESS;
+}
+
 void cleanup(void) {
+    vkDestroyDevice(glbl.device, NULL);
     vkDestroyInstance(glbl.instance, NULL);
     
     glfwDestroyWindow(glbl.window);
