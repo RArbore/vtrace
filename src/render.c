@@ -327,6 +327,29 @@ result create_swapchain(void) {
 
     glbl.swapchain_format = surface_format.format;
     glbl.swapchain_extent = swap_extent;
+
+    free(glbl.swapchain_image_views);
+    glbl.swapchain_image_views = malloc(image_count * sizeof(VkImageView));
+
+    VkImageViewCreateInfo image_view_create_info = {0};
+    image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    image_view_create_info.format = glbl.swapchain_format;
+    image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    image_view_create_info.subresourceRange.baseMipLevel = 0;
+    image_view_create_info.subresourceRange.levelCount = 1;
+    image_view_create_info.subresourceRange.baseArrayLayer = 0;
+    image_view_create_info.subresourceRange.layerCount = 1;
+    for (uint32_t image_index = 0; image_index < image_count; ++image_index) {
+	image_view_create_info.image = glbl.swapchain_images[image_index];
+	PROPAGATE_VK(vkCreateImageView(glbl.device, &image_view_create_info, NULL, &glbl.swapchain_image_views[image_index]));
+    }
+
+    glbl.swapchain_image_count = image_count;
     
     return SUCCESS;
 }
@@ -376,6 +399,10 @@ result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* 
 }
 
 void cleanup(void) {
+    for (uint32_t image_index = 0; image_index < glbl.swapchain_image_count; ++image_index) {
+	vkDestroyImageView(glbl.device, glbl.swapchain_image_views[image_index], NULL);
+    }
+    free(glbl.swapchain_image_views);
     free(glbl.swapchain_images);
     vkDestroySwapchainKHR(glbl.device, glbl.swapchain, NULL);
     vkDestroyDevice(glbl.device, NULL);
