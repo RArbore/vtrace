@@ -258,6 +258,8 @@ result create_device(void) {
     device_create_info.pQueueCreateInfos = &queue_create_info;
     device_create_info.queueCreateInfoCount = 1;
     device_create_info.pEnabledFeatures = &device_features;
+    device_create_info.enabledExtensionCount = sizeof(device_extensions) / sizeof(device_extensions[0]);
+    device_create_info.ppEnabledExtensionNames = device_extensions;
 
     PROPAGATE_VK(vkCreateDevice(glbl.physical, &device_create_info, NULL, &glbl.device));
     vkGetDeviceQueue(glbl.device, queue_family, 0, &glbl.queue);
