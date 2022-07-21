@@ -18,6 +18,8 @@
 
 #include <GLFW/glfw3.h>
 
+#define MAX_VK_ENUMERATIONS 16
+
 typedef struct renderer {
     uint32_t window_width;
     uint32_t window_height;
@@ -29,6 +31,14 @@ typedef struct renderer {
     VkDevice device;
     VkQueue queue;
 } renderer;
+
+typedef struct swapchain_support {
+    VkSurfaceCapabilitiesKHR capabilities;
+    VkSurfaceFormatKHR formats[MAX_VK_ENUMERATIONS];
+    VkPresentModeKHR present_modes[MAX_VK_ENUMERATIONS];
+    uint32_t num_formats;
+    uint32_t num_present_modes;
+} swapchain_support;
 
 typedef struct result {
     VkResult vk;
@@ -50,6 +60,8 @@ int32_t physical_score(VkPhysicalDevice physical);
 result physical_check_queue_family(VkPhysicalDevice physical, uint32_t* queue_family, VkQueueFlagBits bits);
 
 result physical_check_extensions(VkPhysicalDevice physical);
+
+result physical_check_swapchain_support(VkPhysicalDevice physical, swapchain_support* support);
 
 result create_device(void);
 

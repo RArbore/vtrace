@@ -31,8 +31,6 @@ static const char* device_extensions[] = {
 static const result SUCCESS = {.vk = VK_SUCCESS, .custom = 0};
 static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .custom = 1};
 
-static const uint32_t MAX_VK_ENUMERATIONS = 8;
-
 #define IS_SUCCESS(res) (res.vk == SUCCESS.vk && res.custom == SUCCESS.custom)
 
 #define PROPAGATE(res)							\
@@ -182,6 +180,12 @@ int32_t physical_score(VkPhysicalDevice physical) {
 	return -1;
     }
 
+    swapchain_support support;
+    result support_check = physical_check_swapchain_support(physical, &support);
+    if (!IS_SUCCESS(support_check) || support.num_formats == 0 || support.num_present_modes == 0) {
+	return -1;
+    }
+
     return device_type_score;
 }
 
@@ -237,6 +241,22 @@ result physical_check_extensions(VkPhysicalDevice physical) {
     else {
 	return SUCCESS;
     }
+}
+
+result physical_check_swapchain_support(VkPhysicalDevice physical, swapchain_support* support) {
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, glbl.surface, &support->capabilities);
+
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical, glbl.surface, &support->num_formats, NULL);
+    support->num_formats = support->num_formats < MAX_VK_ENUMERATIONS ? support->num_formats : MAX_VK_ENUMERATIONS;
+    PROPAGATE_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(physical, glbl.surface, &support->num_formats, support->formats));
+    support->num_formats = support->num_formats < MAX_VK_ENUMERATIONS ? support->num_formats : MAX_VK_ENUMERATIONS;
+
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical, glbl.surface, &support->num_present_modes, NULL);
+    support->num_present_modes = support->num_present_modes < MAX_VK_ENUMERATIONS ? support->num_present_modes : MAX_VK_ENUMERATIONS;
+    PROPAGATE_VK(vkGetPhysicalDeviceSurfacePresentModesKHR(physical, glbl.surface, &support->num_present_modes, support->present_modes));
+    support->num_present_modes = support->num_present_modes < MAX_VK_ENUMERATIONS ? support->num_present_modes : MAX_VK_ENUMERATIONS;
+
+    return SUCCESS;
 }
 
 result create_device(void) {
