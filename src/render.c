@@ -59,6 +59,7 @@ result init(void) {
     glbl.window = glfwCreateWindow(glbl.window_width, glbl.window_height, "vtrace", NULL, NULL);
 
     PROPAGATE(create_instance());
+    PROPAGATE(create_surface());
     PROPAGATE(create_physical());
     PROPAGATE(create_device());
 
@@ -93,6 +94,11 @@ result create_instance(void) {
     
     PROPAGATE_VK(vkCreateInstance(&create_info, NULL, &glbl.instance));
 
+    return SUCCESS;
+}
+
+result create_surface(void) {
+    PROPAGATE_VK(glfwCreateWindowSurface(glbl.instance, glbl.window, NULL, &glbl.surface));
     return SUCCESS;
 }
 
@@ -183,8 +189,12 @@ result physical_check_queue_family(VkPhysicalDevice physical, uint32_t* queue_fa
 
     for (uint32_t queue_family_index = 0; queue_family_index < queue_family_count; ++queue_family_index) {
 	if ((possible[queue_family_index].queueFlags & bits) == bits) {
-	    if (queue_family) *queue_family = queue_family_index;
-	    return SUCCESS;
+	    VkBool32 present_support = VK_FALSE;
+	    vkGetPhysicalDeviceSurfaceSupportKHR(physical, queue_family_index, glbl.surface, &present_support);
+	    if (present_support == VK_TRUE) {
+		if (queue_family) *queue_family = queue_family_index;
+		return SUCCESS;
+	    }
 	}
     }
 
@@ -219,6 +229,7 @@ result create_device(void) {
 
 void cleanup(void) {
     vkDestroyDevice(glbl.device, NULL);
+    vkDestroySurfaceKHR(glbl.instance, glbl.surface, NULL);
     vkDestroyInstance(glbl.instance, NULL);
     
     glfwDestroyWindow(glbl.window);

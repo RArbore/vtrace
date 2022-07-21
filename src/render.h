@@ -24,6 +24,7 @@ typedef struct renderer {
     GLFWwindow* window;
 
     VkInstance instance;
+    VkSurfaceKHR surface;
     VkPhysicalDevice physical;
     VkDevice device;
     VkQueue queue;
@@ -39,6 +40,8 @@ uint64_t entry(void);
 result init(void);
 
 result create_instance(void);
+
+result create_surface(void);
 
 result create_physical(void);
 
