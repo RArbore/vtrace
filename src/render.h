@@ -30,6 +30,7 @@ typedef struct renderer {
     VkPhysicalDevice physical;
     VkDevice device;
     VkQueue queue;
+    VkSwapchainKHR swapchain;
 } renderer;
 
 typedef struct swapchain_support {
@@ -64,6 +65,10 @@ result physical_check_extensions(VkPhysicalDevice physical);
 result physical_check_swapchain_support(VkPhysicalDevice physical, swapchain_support* support);
 
 result create_device(void);
+
+result create_swapchain(void);
+
+result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* surface_format, VkPresentModeKHR* present_mode, VkExtent2D* swap_extent);
 
 void cleanup(void);
 
