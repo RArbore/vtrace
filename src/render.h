@@ -20,6 +20,44 @@
 
 #define MAX_VK_ENUMERATIONS 16
 
+#define IS_SUCCESS(res) (res.vk == SUCCESS.vk && res.custom == SUCCESS.custom)
+
+#define PROPAGATE(res)							\
+    {									\
+	result eval = res;						\
+	if (!IS_SUCCESS(eval)) return eval;				\
+    }
+
+#define PROPAGATE_VK(res)						\
+    {									\
+	VkResult eval = res;						\
+	if (eval != SUCCESS.vk) {					\
+	    result ret = {.vk = eval, .custom = 0};			\
+	    return ret;							\
+	}								\
+    }
+
+#define PROPAGATE_CLEAN(res)						\
+    {									\
+    result PROPAGATE_CLEANUP_RETURN_VALUE_RESERVED = res;		\
+    if (!IS_SUCCESS(eval)) {
+
+#define PROPAGATE_END()					\
+    return PROPAGATE_CLEANUP_RETURN_VALUE_RESEREVED;	\
+    }							\
+    }
+
+#define PROPAGATE_VK_CLEAN(res)						\
+    {									\
+    VkResult PROPAGATE_CLEANUP_EVAL_VALUE_RESERVED = res;		\
+    if (PROPAGATE_CLEANUP_EVAL_VALUE_RESERVED != SUCCESS.vk) {
+
+#define PROPAGATE_VK_END()						\
+    result PROPAGATE_CLEANUP_RETURN_VALUE_RESERVED = {.vk = PROPAGATE_CLEANUP_EVAL_VALUE_RESERVED, .custom = 0}; \
+    return PROPAGATE_CLEANUP_RETURN_VALUE_RESERVED;			\
+    }									\
+    }
+
 typedef struct renderer {
     uint32_t window_width;
     uint32_t window_height;
@@ -74,6 +112,10 @@ result create_device(void);
 result create_swapchain(void);
 
 result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* surface_format, VkPresentModeKHR* present_mode, VkExtent2D* swap_extent);
+
+result create_shader_module(VkShaderModule* module, const char* shader);
+
+result create_graphics_pipeline(void);
 
 void cleanup(void);
 

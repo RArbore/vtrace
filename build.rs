@@ -39,10 +39,22 @@ fn main() {
         .status()
         .unwrap();
 
+    Command::new("glslc")
+        .args(&["shaders/test.vert", "-o", "shaders/test.vert.spv"])
+        .status()
+        .unwrap();
+
+    Command::new("glslc")
+        .args(&["shaders/test.frag", "-o", "shaders/test.frag.spv"])
+        .status()
+        .unwrap();
+
     println!("cargo:rustc-link-search=native={}", out_dir);
     println!("cargo:rustc-link-lib=static=render");
     println!("cargo:rustc-link-lib=dylib=glfw");
     println!("cargo:rustc-link-lib=dylib=vulkan");
     println!("cargo:rerun-if-changed=render.c");
     println!("cargo:rerun-if-changed=render.h");
+    println!("cargo:rerun-if-changed=test.vert");
+    println!("cargo:rerun-if-changed=test.frag");
 }

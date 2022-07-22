@@ -31,23 +31,6 @@ static const char* device_extensions[] = {
 static const result SUCCESS = {.vk = VK_SUCCESS, .custom = 0};
 static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .custom = 1};
 
-#define IS_SUCCESS(res) (res.vk == SUCCESS.vk && res.custom == SUCCESS.custom)
-
-#define PROPAGATE(res)							\
-    {									\
-	result eval = res;						\
-	if (!IS_SUCCESS(eval)) return eval;				\
-    }
-
-#define PROPAGATE_VK(res)						\
-    {									\
-	VkResult eval = res;						\
-	if (eval != SUCCESS.vk) {					\
-	    result ret = {.vk = eval, .custom = 0};			\
-	    return ret;							\
-	}								\
-    }
-
 uint64_t entry(void) {
     result res = init();
     return ((uint64_t) res.vk << 32) | (uint64_t) res.custom;
@@ -67,6 +50,7 @@ result init(void) {
     PROPAGATE(create_physical());
     PROPAGATE(create_device());
     PROPAGATE(create_swapchain());
+    PROPAGATE(create_graphics_pipeline());
 
     return SUCCESS;
 }
@@ -398,6 +382,65 @@ result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* 
     return SUCCESS;
 }
 
+result create_shader_module(VkShaderModule* module, const char* shader_path) {
+    FILE* shader_file = fopen(shader_path, "r");
+
+    if (!shader_file) {
+	fprintf(stderr, "ERROR: Couldn't open shader file at %s\n", shader_path);
+	return CUSTOM_ERROR;
+    }
+
+    if (fseek(shader_file, 0, SEEK_END)) {
+	fprintf(stderr, "ERROR: Couldn't query size of file using fseek\n");
+	fclose(shader_file);
+	return CUSTOM_ERROR;
+    }
+
+    int64_t shader_file_size = ftell(shader_file);
+
+    if (fseek(shader_file, 0, SEEK_SET)) {
+	fprintf(stderr, "ERROR: Couldn't move back to the beginning of shader file\n");
+	fclose(shader_file);
+	return CUSTOM_ERROR;
+    }
+
+    char* shader_file_contents = malloc((shader_file_size + 1) * sizeof(char));
+    size_t bytes_read = fread(shader_file_contents, sizeof(char), shader_file_size, shader_file);
+    shader_file_contents[bytes_read] = '\0';
+    if (bytes_read != (size_t) shader_file_size) {
+	fprintf(stderr, "ERROR: Bytes read from file is not the same amount allocated\n");
+	free(shader_file_contents);
+	fclose(shader_file);
+	return CUSTOM_ERROR;
+    }
+
+    fclose(shader_file);
+
+    VkShaderModuleCreateInfo create_info = {0};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.codeSize = bytes_read;
+    create_info.pCode = (uint32_t*) shader_file_contents;
+
+    PROPAGATE_VK_CLEAN(vkCreateShaderModule(glbl.device, &create_info, NULL, module));
+    free(shader_file_contents);
+    PROPAGATE_VK_END();
+
+    free(shader_file_contents);
+
+    return SUCCESS;
+}
+
+result create_graphics_pipeline(void) {
+    VkShaderModule vertex_shader, fragment_shader;
+    PROPAGATE(create_shader_module(&vertex_shader, "shaders/test.vert.spv"));
+    PROPAGATE(create_shader_module(&fragment_shader, "shaders/test.frag.spv"));
+
+    vkDestroyShaderModule(glbl.device, vertex_shader, NULL);
+    vkDestroyShaderModule(glbl.device, fragment_shader, NULL);
+    
+    return SUCCESS;
+}
+
 void cleanup(void) {
     for (uint32_t image_index = 0; image_index < glbl.swapchain_image_count; ++image_index) {
 	vkDestroyImageView(glbl.device, glbl.swapchain_image_views[image_index], NULL);
@@ -405,6 +448,7 @@ void cleanup(void) {
     free(glbl.swapchain_image_views);
     free(glbl.swapchain_images);
     vkDestroySwapchainKHR(glbl.device, glbl.swapchain, NULL);
+
     vkDestroyDevice(glbl.device, NULL);
     vkDestroySurfaceKHR(glbl.instance, glbl.surface, NULL);
     vkDestroyInstance(glbl.instance, NULL);
