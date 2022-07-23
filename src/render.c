@@ -435,6 +435,26 @@ result create_graphics_pipeline(void) {
     PROPAGATE(create_shader_module(&vertex_shader, "shaders/test.vert.spv"));
     PROPAGATE(create_shader_module(&fragment_shader, "shaders/test.frag.spv"));
 
+    VkPipelineShaderStageCreateInfo vertex_shader_stage_create_info = {0};
+    vertex_shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertex_shader_stage_create_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertex_shader_stage_create_info.module = vertex_shader;
+    vertex_shader_stage_create_info.pName = "main";
+
+    VkPipelineShaderStageCreateInfo fragment_shader_stage_create_info = {0};
+    fragment_shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragment_shader_stage_create_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragment_shader_stage_create_info.module = fragment_shader;
+    fragment_shader_stage_create_info.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shader_stage_create_infos[] = {vertex_shader_stage_create_info, fragment_shader_stage_create_info};
+
+    VkDynamicState pipeline_dynamic_states[] = {VK_DYNAMIC_STATE_VIEWPORT};
+    VkPipelineDynamicStateCreateInfo pipeline_dynamic_state_create_info = {0};
+    pipeline_dynamic_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    pipeline_dynamic_state_create_info.dynamicStateCount = 1;
+    pipeline_dynamic_state_create_info.pDynamicStates = pipeline_dynamic_states;
+
     vkDestroyShaderModule(glbl.device, vertex_shader, NULL);
     vkDestroyShaderModule(glbl.device, fragment_shader, NULL);
     
