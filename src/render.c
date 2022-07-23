@@ -455,6 +455,29 @@ result create_graphics_pipeline(void) {
     pipeline_dynamic_state_create_info.dynamicStateCount = 1;
     pipeline_dynamic_state_create_info.pDynamicStates = pipeline_dynamic_states;
 
+    VkPipelineVertexInputStateCreateInfo vertex_input_create_info = {0};
+    vertex_input_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+    VkPipelineInputAssemblyStateCreateInfo input_assembly_create_info = {0};
+    input_assembly_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    input_assembly_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    input_assembly_create_info.primitiveRestartEnable = VK_FALSE;
+
+    VkPipelineViewportStateCreateInfo viewport_state_create_info = {0};
+    viewport_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport_state_create_info.viewportCount = 1;
+    viewport_state_create_info.scissorCount = 1;
+
+    VkPipelineRasterizationStateCreateInfo rasterization_state_create_info = {0};
+    rasterization_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization_state_create_info.depthClampEnable = VK_FALSE;
+    rasterization_state_create_info.rasterizerDiscardEnable = VK_FALSE;
+    rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization_state_create_info.lineWidth = 1.0f;
+    rasterization_state_create_info.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization_state_create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+    
     vkDestroyShaderModule(glbl.device, vertex_shader, NULL);
     vkDestroyShaderModule(glbl.device, fragment_shader, NULL);
     
