@@ -477,6 +477,28 @@ result create_graphics_pipeline(void) {
     rasterization_state_create_info.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterization_state_create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+
+    VkPipelineColorBlendAttachmentState color_blend_attachment_state = {0};
+    color_blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    color_blend_attachment_state.blendEnable = VK_TRUE;
+    color_blend_attachment_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    color_blend_attachment_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    color_blend_attachment_state.colorBlendOp = VK_BLEND_OP_ADD;
+    color_blend_attachment_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    color_blend_attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    color_blend_attachment_state.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    VkPipelineColorBlendStateCreateInfo color_blending_state_create_info = {0};
+    color_blending_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    color_blending_state_create_info.logicOpEnable = VK_FALSE;
+    color_blending_state_create_info.logicOp = VK_LOGIC_OP_COPY;
+    color_blending_state_create_info.attachmentCount = 1;
+    color_blending_state_create_info.pAttachments = &color_blend_attachment_state;
+
+    VkPipelineLayoutCreateInfo pipeline_layout_create_info = {0};
+    pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+
+    PROPAGATE_VK(vkCreatePipelineLayout(glbl.device, &pipeline_layout_create_info, NULL, &glbl.graphics_pipeline_layout));
     
     vkDestroyShaderModule(glbl.device, vertex_shader, NULL);
     vkDestroyShaderModule(glbl.device, fragment_shader, NULL);
@@ -485,6 +507,8 @@ result create_graphics_pipeline(void) {
 }
 
 void cleanup(void) {
+    vkDestroyPipelineLayout(glbl.device, glbl.graphics_pipeline_layout, NULL);
+
     for (uint32_t image_index = 0; image_index < glbl.swapchain_image_count; ++image_index) {
 	vkDestroyImageView(glbl.device, glbl.swapchain_image_views[image_index], NULL);
     }
