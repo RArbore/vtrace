@@ -449,10 +449,10 @@ result create_graphics_pipeline(void) {
 
     VkPipelineShaderStageCreateInfo shader_stage_create_infos[] = {vertex_shader_stage_create_info, fragment_shader_stage_create_info};
 
-    VkDynamicState pipeline_dynamic_states[] = {VK_DYNAMIC_STATE_VIEWPORT};
+    VkDynamicState pipeline_dynamic_states[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
     VkPipelineDynamicStateCreateInfo pipeline_dynamic_state_create_info = {0};
     pipeline_dynamic_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    pipeline_dynamic_state_create_info.dynamicStateCount = 1;
+    pipeline_dynamic_state_create_info.dynamicStateCount = 2;
     pipeline_dynamic_state_create_info.pDynamicStates = pipeline_dynamic_states;
 
     VkPipelineVertexInputStateCreateInfo vertex_input_create_info = {0};
@@ -499,7 +499,51 @@ result create_graphics_pipeline(void) {
     pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
     PROPAGATE_VK(vkCreatePipelineLayout(glbl.device, &pipeline_layout_create_info, NULL, &glbl.graphics_pipeline_layout));
-    
+
+    VkAttachmentDescription color_attachment = {0};
+    color_attachment.format = glbl.swapchain_format;
+    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference color_attachment_reference = {0};
+    color_attachment_reference.attachment = 0;
+    color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass = {0};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &color_attachment_reference;
+
+    VkRenderPassCreateInfo render_pass_create_info = {0};
+    render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    render_pass_create_info.attachmentCount = 1;
+    render_pass_create_info.pAttachments = &color_attachment;
+    render_pass_create_info.subpassCount = 1;
+    render_pass_create_info.pSubpasses = &subpass;
+
+    PROPAGATE_VK(vkCreateRenderPass(glbl.device, &render_pass_create_info, NULL, &glbl.render_pass));
+
+    VkGraphicsPipelineCreateInfo graphics_pipeline_create_info = {0};
+    graphics_pipeline_create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    graphics_pipeline_create_info.stageCount = 2;
+    graphics_pipeline_create_info.pStages = shader_stage_create_infos;
+    graphics_pipeline_create_info.pVertexInputState = &vertex_input_create_info;
+    graphics_pipeline_create_info.pInputAssemblyState = &input_assembly_create_info;
+    graphics_pipeline_create_info.pViewportState = &viewport_state_create_info;
+    graphics_pipeline_create_info.pRasterizationState = &rasterization_state_create_info;
+    graphics_pipeline_create_info.pColorBlendState = &color_blending_state_create_info;
+    graphics_pipeline_create_info.pDynamicState = &pipeline_dynamic_state_create_info;
+    graphics_pipeline_create_info.layout = glbl.graphics_pipeline_layout;
+    graphics_pipeline_create_info.renderPass = glbl.render_pass;
+    graphics_pipeline_create_info.subpass = 0;
+
+    PROPAGATE_VK(vkCreateGraphicsPipelines(glbl.device, VK_NULL_HANDLE, 1, &graphics_pipeline_create_info, NULL, &glbl.graphics_pipeline));
+ 
     vkDestroyShaderModule(glbl.device, vertex_shader, NULL);
     vkDestroyShaderModule(glbl.device, fragment_shader, NULL);
     
@@ -507,6 +551,8 @@ result create_graphics_pipeline(void) {
 }
 
 void cleanup(void) {
+    vkDestroyPipeline(glbl.device, glbl.graphics_pipeline, NULL);
+    vkDestroyRenderPass(glbl.device, glbl.render_pass, NULL);
     vkDestroyPipelineLayout(glbl.device, glbl.graphics_pipeline_layout, NULL);
 
     for (uint32_t image_index = 0; image_index < glbl.swapchain_image_count; ++image_index) {
