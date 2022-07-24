@@ -333,7 +333,7 @@ result create_swapchain(void) {
 	PROPAGATE_VK(vkCreateImageView(glbl.device, &image_view_create_info, NULL, &glbl.swapchain_image_views[image_index]));
     }
 
-    glbl.swapchain_image_count = image_count;
+    glbl.swapchain_size = image_count;
     
     return SUCCESS;
 }
@@ -550,12 +550,37 @@ result create_graphics_pipeline(void) {
     return SUCCESS;
 }
 
+result create_framebuffers(void) {
+    glbl.framebuffers = malloc(glbl.swapchain_size * sizeof(VkFramebuffer));
+
+    VkFramebufferCreateInfo create_info = {0};
+    create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    create_info.renderPass = glbl.render_pass;
+    create_info.attachmentCount = 1;
+    create_info.width = glbl.swapchain_extent.width;
+    create_info.height = glbl.swapchain_extent.height;
+    create_info.layers = 1;
+
+    for (uint32_t i = 0; i < glbl.swapchain_size; ++i) {
+	create_info.pAttachments = &glbl.swapchain_image_views[i];
+	PROPAGATE_VK_CLEAN(vkCreateFramebuffer(glbl.device, &create_info, NULL, &glbl.framebuffers[i]));
+	free(glbl.framebuffers);
+	PROPAGATE_VK_END();
+    }
+
+    return SUCCESS;
+}
+
 void cleanup(void) {
+    for (uint32_t framebuffer_index = 0; framebuffer_index < glbl.swapchain_size; ++framebuffer_index) {
+	vkDestroyFramebuffer(glbl.device, glbl.framebuffers[framebuffer_index], NULL);
+    }
+    
     vkDestroyPipeline(glbl.device, glbl.graphics_pipeline, NULL);
     vkDestroyRenderPass(glbl.device, glbl.render_pass, NULL);
     vkDestroyPipelineLayout(glbl.device, glbl.graphics_pipeline_layout, NULL);
-
-    for (uint32_t image_index = 0; image_index < glbl.swapchain_image_count; ++image_index) {
+    
+    for (uint32_t image_index = 0; image_index < glbl.swapchain_size; ++image_index) {
 	vkDestroyImageView(glbl.device, glbl.swapchain_image_views[image_index], NULL);
     }
     free(glbl.swapchain_image_views);

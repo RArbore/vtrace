@@ -69,14 +69,15 @@ typedef struct renderer {
     VkDevice device;
     VkQueue queue;
     VkSwapchainKHR swapchain;
+    uint32_t swapchain_size;
     VkImage* swapchain_images;
     VkFormat swapchain_format;
     VkExtent2D swapchain_extent;
     VkImageView* swapchain_image_views;
-    uint32_t swapchain_image_count;
     VkPipelineLayout graphics_pipeline_layout;
     VkRenderPass render_pass;
     VkPipeline graphics_pipeline;
+    VkFramebuffer* framebuffers;
 } renderer;
 
 typedef struct swapchain_support {
@@ -119,6 +120,8 @@ result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* 
 result create_shader_module(VkShaderModule* module, const char* shader);
 
 result create_graphics_pipeline(void);
+
+result create_framebuffers(void);
 
 void cleanup(void);
 
