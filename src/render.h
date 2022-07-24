@@ -79,6 +79,7 @@ typedef struct renderer {
     VkPipeline graphics_pipeline;
     VkFramebuffer* framebuffers;
     VkCommandPool command_pool;
+    VkCommandBuffer command_buffer;
 } renderer;
 
 typedef struct swapchain_support {
@@ -125,6 +126,10 @@ result create_graphics_pipeline(void);
 result create_framebuffers(void);
 
 result create_command_pool(void);
+
+result create_command_buffer(void);
+
+result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
 
 void cleanup(void);
 

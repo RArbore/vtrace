@@ -587,6 +587,67 @@ result create_command_pool(void) {
     return SUCCESS;
 }
 
+result create_command_buffer(void) {
+    VkCommandBufferAllocateInfo allocate_info = {0};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.commandPool = glbl.command_pool;
+    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocate_info.commandBufferCount = 1;
+
+    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.command_buffer));
+    
+    return SUCCESS;
+}
+
+result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index) {
+    VkCommandBufferBeginInfo begin_info = {0};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
+
+    VkClearValue clear_color;
+    clear_color.color.float32[0] = 0.0f;
+    clear_color.color.float32[1] = 0.0f;
+    clear_color.color.float32[2] = 0.0f;
+    clear_color.color.float32[3] = 1.0f;
+    
+    VkRenderPassBeginInfo render_pass_begin_info = {0};
+    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_begin_info.renderPass = glbl.render_pass;
+    render_pass_begin_info.framebuffer = glbl.framebuffers[image_index];
+    render_pass_begin_info.renderArea.offset.x = 0;
+    render_pass_begin_info.renderArea.offset.y = 0;
+    render_pass_begin_info.renderArea.extent = glbl.swapchain_extent;
+    render_pass_begin_info.clearValueCount = 1;
+    render_pass_begin_info.pClearValues = &clear_color;
+
+    vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, glbl.graphics_pipeline);
+
+    VkViewport viewport = {0};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float) glbl.swapchain_extent.width;
+    viewport.height = (float) glbl.swapchain_extent.width;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(glbl.command_buffer, 0, 1, &viewport);
+
+    VkRect2D scissor = {0};
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent = glbl.swapchain_extent;
+    vkCmdSetScissor(glbl.command_buffer, 0, 1, &scissor);
+
+    vkCmdDraw(glbl.command_buffer, 3, 1, 0, 0);
+
+    vkCmdEndRenderPass(glbl.command_buffer);
+
+    PROPAGATE_VK(vkEndCommandBuffer(glbl.command_buffer));
+    
+    return SUCCESS;
+}
+
 void cleanup(void) {
     vkDestroyCommandPool(glbl.device, glbl.command_pool, NULL);
     
