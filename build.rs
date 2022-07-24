@@ -24,6 +24,7 @@ fn main() {
         .args(&[
             "-march=native",
             "-static",
+            if profile == "RELEASE" { "-O3" } else { "-g" },
             format!("-D{}", profile).as_str(),
             "-c",
             "src/render.c",

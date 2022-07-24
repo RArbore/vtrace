@@ -51,6 +51,8 @@ result init(void) {
     PROPAGATE(create_device());
     PROPAGATE(create_swapchain());
     PROPAGATE(create_graphics_pipeline());
+    PROPAGATE(create_framebuffers());
+    PROPAGATE(create_command_pool());
 
     return SUCCESS;
 }
@@ -571,7 +573,23 @@ result create_framebuffers(void) {
     return SUCCESS;
 }
 
+result create_command_pool(void) {
+    uint32_t queue_family;
+    PROPAGATE(physical_check_queue_family(glbl.physical, &queue_family, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT));
+
+    VkCommandPoolCreateInfo create_info = {0};
+    create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    create_info.queueFamilyIndex = queue_family;
+
+    PROPAGATE_VK(vkCreateCommandPool(glbl.device, &create_info, NULL, &glbl.command_pool));
+    
+    return SUCCESS;
+}
+
 void cleanup(void) {
+    vkDestroyCommandPool(glbl.device, glbl.command_pool, NULL);
+    
     for (uint32_t framebuffer_index = 0; framebuffer_index < glbl.swapchain_size; ++framebuffer_index) {
 	vkDestroyFramebuffer(glbl.device, glbl.framebuffers[framebuffer_index], NULL);
     }

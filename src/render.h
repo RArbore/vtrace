@@ -78,6 +78,7 @@ typedef struct renderer {
     VkRenderPass render_pass;
     VkPipeline graphics_pipeline;
     VkFramebuffer* framebuffers;
+    VkCommandPool command_pool;
 } renderer;
 
 typedef struct swapchain_support {
@@ -122,6 +123,8 @@ result create_shader_module(VkShaderModule* module, const char* shader);
 result create_graphics_pipeline(void);
 
 result create_framebuffers(void);
+
+result create_command_pool(void);
 
 void cleanup(void);
 
