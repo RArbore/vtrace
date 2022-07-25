@@ -462,8 +462,15 @@ result create_graphics_pipeline(void) {
     pipeline_dynamic_state_create_info.dynamicStateCount = 2;
     pipeline_dynamic_state_create_info.pDynamicStates = pipeline_dynamic_states;
 
+    VkVertexInputBindingDescription vertex_input_binding_description = {0};
+    VkVertexInputAttributeDescription vertex_input_attribute_description = {0};
     VkPipelineVertexInputStateCreateInfo vertex_input_create_info = {0};
+    get_vertex_input_descriptions(&vertex_input_binding_description, &vertex_input_attribute_description);
     vertex_input_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertex_input_create_info.vertexBindingDescriptionCount = 1;
+    vertex_input_create_info.vertexAttributeDescriptionCount = 1;
+    vertex_input_create_info.pVertexBindingDescriptions = &vertex_input_binding_description;
+    vertex_input_create_info.pVertexAttributeDescriptions = &vertex_input_attribute_description;
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly_create_info = {0};
     input_assembly_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -678,6 +685,17 @@ result create_synchronization(void) {
     }
 
     return SUCCESS;
+}
+
+void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description) {
+    vertex_input_binding_description->binding = 0;
+    vertex_input_binding_description->stride = sizeof(gpu_vertex);
+    vertex_input_binding_description->inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    vertex_input_attribute_description->binding = 0;
+    vertex_input_attribute_description->location = 0;
+    vertex_input_attribute_description->format = VK_FORMAT_R32G32_SFLOAT;
+    vertex_input_attribute_description->offset = 0;
 }
 
 void cleanup(void) {

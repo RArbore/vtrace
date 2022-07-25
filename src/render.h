@@ -59,6 +59,10 @@
     }									\
     }
 
+typedef struct gpu_vertex {
+    float pos[3];
+} gpu_vertex;
+
 typedef struct renderer {
     uint32_t window_width;
     uint32_t window_height;
@@ -137,6 +141,8 @@ result create_command_buffers(void);
 result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
 
 result create_synchronization(void);
+
+void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
 void cleanup(void);
 
