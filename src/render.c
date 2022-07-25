@@ -53,7 +53,7 @@ result init(void) {
     PROPAGATE(create_graphics_pipeline());
     PROPAGATE(create_framebuffers());
     PROPAGATE(create_command_pool());
-    PROPAGATE(create_command_buffer());
+    PROPAGATE(create_command_buffers());
     PROPAGATE(create_synchronization());
 
     return SUCCESS;
@@ -599,14 +599,14 @@ result create_command_pool(void) {
     return SUCCESS;
 }
 
-result create_command_buffer(void) {
+result create_command_buffers(void) {
     VkCommandBufferAllocateInfo allocate_info = {0};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocate_info.commandPool = glbl.command_pool;
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocate_info.commandBufferCount = 1;
+    allocate_info.commandBufferCount = FRAMES_IN_FLIGHT;
 
-    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.command_buffer));
+    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, glbl.command_buffer));
     
     return SUCCESS;
 }
@@ -643,19 +643,19 @@ result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_inde
     viewport.height = (float) glbl.swapchain_extent.width;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(glbl.command_buffer, 0, 1, &viewport);
+    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 
     VkRect2D scissor = {0};
     scissor.offset.x = 0;
     scissor.offset.y = 0;
     scissor.extent = glbl.swapchain_extent;
-    vkCmdSetScissor(glbl.command_buffer, 0, 1, &scissor);
+    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-    vkCmdDraw(glbl.command_buffer, 3, 1, 0, 0);
+    vkCmdDraw(command_buffer, 3, 1, 0, 0);
 
-    vkCmdEndRenderPass(glbl.command_buffer);
+    vkCmdEndRenderPass(command_buffer);
 
-    PROPAGATE_VK(vkEndCommandBuffer(glbl.command_buffer));
+    PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
     
     return SUCCESS;
 }
@@ -668,9 +668,11 @@ result create_synchronization(void) {
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.image_available_semaphore));
-    PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.render_finished_semaphore));
-    PROPAGATE_VK(vkCreateFence(glbl.device, &fence_info, NULL, &glbl.frame_in_flight_fence));
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+	PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.image_available_semaphore[i]));
+	PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.render_finished_semaphore[i]));
+	PROPAGATE_VK(vkCreateFence(glbl.device, &fence_info, NULL, &glbl.frame_in_flight_fence[i]));
+    }
 
     return SUCCESS;
 }
@@ -678,9 +680,11 @@ result create_synchronization(void) {
 void cleanup(void) {
     vkDeviceWaitIdle(glbl.device);
 
-    vkDestroySemaphore(glbl.device, glbl.image_available_semaphore, NULL);
-    vkDestroySemaphore(glbl.device, glbl.render_finished_semaphore, NULL);
-    vkDestroyFence(glbl.device, glbl.frame_in_flight_fence, NULL);
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+	vkDestroySemaphore(glbl.device, glbl.image_available_semaphore[i], NULL);
+	vkDestroySemaphore(glbl.device, glbl.render_finished_semaphore[i], NULL);
+	vkDestroyFence(glbl.device, glbl.frame_in_flight_fence[i], NULL);
+    }
     
     vkDestroyCommandPool(glbl.device, glbl.command_pool, NULL);
     
@@ -708,44 +712,48 @@ void cleanup(void) {
 }
 
 int32_t render_tick(void) {
+    static uint32_t current_frame = 0;
+    
     if (glfwWindowShouldClose(glbl.window)) {
 	return -1;
     }
 
     glfwPollEvents();
 
-    vkWaitForFences(glbl.device, 1, &glbl.frame_in_flight_fence, VK_TRUE, UINT64_MAX);
-    vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence);
+    vkWaitForFences(glbl.device, 1, &glbl.frame_in_flight_fence[current_frame], VK_TRUE, UINT64_MAX);
+    vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[current_frame]);
 
     uint32_t image_index;
-    vkAcquireNextImageKHR(glbl.device, glbl.swapchain, UINT64_MAX, glbl.image_available_semaphore, VK_NULL_HANDLE, &image_index);
+    vkAcquireNextImageKHR(glbl.device, glbl.swapchain, UINT64_MAX, glbl.image_available_semaphore[current_frame], VK_NULL_HANDLE, &image_index);
 
-    vkResetCommandBuffer(glbl.command_buffer, 0);
-    record_command_buffer(glbl.command_buffer, image_index);
+    vkResetCommandBuffer(glbl.command_buffer[current_frame], 0);
+    record_command_buffer(glbl.command_buffer[current_frame], image_index);
     
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
     VkSubmitInfo submit_info = {0};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &glbl.image_available_semaphore;
+    submit_info.pWaitSemaphores = &glbl.image_available_semaphore[current_frame];
     submit_info.pWaitDstStageMask = wait_stages;
     submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &glbl.render_finished_semaphore;
+    submit_info.pSignalSemaphores = &glbl.render_finished_semaphore[current_frame];
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &glbl.command_buffer;
+    submit_info.pCommandBuffers = &glbl.command_buffer[current_frame];
 
-    vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.frame_in_flight_fence);
+    vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.frame_in_flight_fence[current_frame]);
 
     VkPresentInfoKHR present_info = {0};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &glbl.render_finished_semaphore;
+    present_info.pWaitSemaphores = &glbl.render_finished_semaphore[current_frame];
     present_info.swapchainCount = 1;
     present_info.pSwapchains = &glbl.swapchain;
     present_info.pImageIndices = &image_index;
 
     vkQueuePresentKHR(glbl.queue, &present_info);
+
+    current_frame = (current_frame + 1) % FRAMES_IN_FLIGHT;
     
     return 0;
 }

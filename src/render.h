@@ -19,6 +19,7 @@
 #include <GLFW/glfw3.h>
 
 #define MAX_VK_ENUMERATIONS 16
+#define FRAMES_IN_FLIGHT 2
 
 #define IS_SUCCESS(res) (res.vk == SUCCESS.vk && res.custom == SUCCESS.custom)
 
@@ -79,10 +80,10 @@ typedef struct renderer {
     VkPipeline graphics_pipeline;
     VkFramebuffer* framebuffers;
     VkCommandPool command_pool;
-    VkCommandBuffer command_buffer;
-    VkSemaphore image_available_semaphore;
-    VkSemaphore render_finished_semaphore;
-    VkFence frame_in_flight_fence;
+    VkCommandBuffer command_buffer[FRAMES_IN_FLIGHT];
+    VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
+    VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
+    VkFence frame_in_flight_fence[FRAMES_IN_FLIGHT];
 } renderer;
 
 typedef struct swapchain_support {
@@ -130,7 +131,7 @@ result create_framebuffers(void);
 
 result create_command_pool(void);
 
-result create_command_buffer(void);
+result create_command_buffers(void);
 
 result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
 
