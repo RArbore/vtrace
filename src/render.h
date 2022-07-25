@@ -62,6 +62,7 @@
 typedef struct renderer {
     uint32_t window_width;
     uint32_t window_height;
+    uint32_t resized;
     GLFWwindow* window;
 
     VkInstance instance;
@@ -138,5 +139,9 @@ result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_inde
 result create_synchronization(void);
 
 void cleanup(void);
+
+void recreate_swapchain(void);
+
+void cleanup_swapchain(void);
 
 int32_t render_tick(void);

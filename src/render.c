@@ -31,6 +31,10 @@ static const char* device_extensions[] = {
 static const result SUCCESS = {.vk = VK_SUCCESS, .custom = 0};
 static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .custom = 1};
 
+static void glfw_framebuffer_resize_callback(__attribute__((unused)) GLFWwindow* window, __attribute__((unused)) int width, __attribute__((unused)) int height) {
+    glbl.resized = 1;
+}
+
 uint64_t entry(void) {
     result res = init();
     return ((uint64_t) res.vk << 32) | (uint64_t) res.custom;
@@ -39,11 +43,12 @@ uint64_t entry(void) {
 result init(void) {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     glbl.window_width = 1000;
     glbl.window_height = 1000;
     glbl.window = glfwCreateWindow(glbl.window_width, glbl.window_height, "vtrace", NULL, NULL);
+    glfwSetFramebufferSizeCallback(glbl.window, glfw_framebuffer_resize_callback);
 
     PROPAGATE(create_instance());
     PROPAGATE(create_surface());
@@ -308,7 +313,6 @@ result create_swapchain(void) {
 
     PROPAGATE_VK(vkCreateSwapchainKHR(glbl.device, &create_info, NULL, &glbl.swapchain));
 
-    free(glbl.swapchain_images);
     vkGetSwapchainImagesKHR(glbl.device, glbl.swapchain, &image_count, NULL);
     glbl.swapchain_images = malloc(image_count * sizeof(VkImage));
     vkGetSwapchainImagesKHR(glbl.device, glbl.swapchain, &image_count, glbl.swapchain_images);
@@ -316,7 +320,6 @@ result create_swapchain(void) {
     glbl.swapchain_format = surface_format.format;
     glbl.swapchain_extent = swap_extent;
 
-    free(glbl.swapchain_image_views);
     glbl.swapchain_image_views = malloc(image_count * sizeof(VkImageView));
 
     VkImageViewCreateInfo image_view_create_info = {0};
@@ -680,6 +683,8 @@ result create_synchronization(void) {
 void cleanup(void) {
     vkDeviceWaitIdle(glbl.device);
 
+    cleanup_swapchain();
+
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
 	vkDestroySemaphore(glbl.device, glbl.image_available_semaphore[i], NULL);
 	vkDestroySemaphore(glbl.device, glbl.render_finished_semaphore[i], NULL);
@@ -687,21 +692,11 @@ void cleanup(void) {
     }
     
     vkDestroyCommandPool(glbl.device, glbl.command_pool, NULL);
-    
-    for (uint32_t framebuffer_index = 0; framebuffer_index < glbl.swapchain_size; ++framebuffer_index) {
-	vkDestroyFramebuffer(glbl.device, glbl.framebuffers[framebuffer_index], NULL);
-    }
-    
+     
     vkDestroyPipeline(glbl.device, glbl.graphics_pipeline, NULL);
-    vkDestroyRenderPass(glbl.device, glbl.render_pass, NULL);
     vkDestroyPipelineLayout(glbl.device, glbl.graphics_pipeline_layout, NULL);
-    
-    for (uint32_t image_index = 0; image_index < glbl.swapchain_size; ++image_index) {
-	vkDestroyImageView(glbl.device, glbl.swapchain_image_views[image_index], NULL);
-    }
-    free(glbl.swapchain_image_views);
-    free(glbl.swapchain_images);
-    vkDestroySwapchainKHR(glbl.device, glbl.swapchain, NULL);
+
+    vkDestroyRenderPass(glbl.device, glbl.render_pass, NULL);
 
     vkDestroyDevice(glbl.device, NULL);
     vkDestroySurfaceKHR(glbl.instance, glbl.surface, NULL);
@@ -709,6 +704,36 @@ void cleanup(void) {
     
     glfwDestroyWindow(glbl.window);
     glfwTerminate();
+}
+
+void recreate_swapchain(void) {
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(glbl.window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(glbl.window, &width, &height);
+        glfwWaitEvents();
+    }
+    
+    vkDeviceWaitIdle(glbl.device);
+
+    cleanup_swapchain();
+
+    create_swapchain();
+    create_framebuffers();
+}
+
+void cleanup_swapchain(void) {
+    for (uint32_t framebuffer_index = 0; framebuffer_index < glbl.swapchain_size; ++framebuffer_index) {
+	vkDestroyFramebuffer(glbl.device, glbl.framebuffers[framebuffer_index], NULL);
+    }
+
+    for (uint32_t image_index = 0; image_index < glbl.swapchain_size; ++image_index) {
+	vkDestroyImageView(glbl.device, glbl.swapchain_image_views[image_index], NULL);
+    }
+
+    free(glbl.swapchain_image_views);
+    free(glbl.swapchain_images);
+    vkDestroySwapchainKHR(glbl.device, glbl.swapchain, NULL);
 }
 
 int32_t render_tick(void) {
@@ -721,10 +746,17 @@ int32_t render_tick(void) {
     glfwPollEvents();
 
     vkWaitForFences(glbl.device, 1, &glbl.frame_in_flight_fence[current_frame], VK_TRUE, UINT64_MAX);
-    vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[current_frame]);
 
     uint32_t image_index;
-    vkAcquireNextImageKHR(glbl.device, glbl.swapchain, UINT64_MAX, glbl.image_available_semaphore[current_frame], VK_NULL_HANDLE, &image_index);
+    VkResult acquire_image_result = vkAcquireNextImageKHR(glbl.device, glbl.swapchain, UINT64_MAX, glbl.image_available_semaphore[current_frame], VK_NULL_HANDLE, &image_index);
+    if (acquire_image_result == VK_ERROR_OUT_OF_DATE_KHR) {
+	recreate_swapchain();
+	return 0;
+    } else if (acquire_image_result != VK_SUCCESS && acquire_image_result != VK_SUBOPTIMAL_KHR) {
+	return -1;
+    }
+
+    vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[current_frame]);
 
     vkResetCommandBuffer(glbl.command_buffer[current_frame], 0);
     record_command_buffer(glbl.command_buffer[current_frame], image_index);
@@ -751,7 +783,14 @@ int32_t render_tick(void) {
     present_info.pSwapchains = &glbl.swapchain;
     present_info.pImageIndices = &image_index;
 
-    vkQueuePresentKHR(glbl.queue, &present_info);
+    VkResult queue_present_result = vkQueuePresentKHR(glbl.queue, &present_info);
+
+    if (queue_present_result == VK_ERROR_OUT_OF_DATE_KHR || queue_present_result == VK_SUBOPTIMAL_KHR || glbl.resized) {
+	glbl.resized = 0;
+	recreate_swapchain();
+    } else if (queue_present_result != VK_SUCCESS) {
+	return -1;
+    }
 
     current_frame = (current_frame + 1) % FRAMES_IN_FLIGHT;
     
