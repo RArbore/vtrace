@@ -53,6 +53,8 @@ result init(void) {
     PROPAGATE(create_graphics_pipeline());
     PROPAGATE(create_framebuffers());
     PROPAGATE(create_command_pool());
+    PROPAGATE(create_command_buffer());
+    PROPAGATE(create_synchronization());
 
     return SUCCESS;
 }
@@ -521,12 +523,22 @@ result create_graphics_pipeline(void) {
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &color_attachment_reference;
 
+    VkSubpassDependency subpass_dependency = {0};
+    subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    subpass_dependency.dstSubpass = 0;
+    subpass_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpass_dependency.srcAccessMask = 0;
+    subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
     VkRenderPassCreateInfo render_pass_create_info = {0};
     render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     render_pass_create_info.attachmentCount = 1;
     render_pass_create_info.pAttachments = &color_attachment;
     render_pass_create_info.subpassCount = 1;
     render_pass_create_info.pSubpasses = &subpass;
+    render_pass_create_info.dependencyCount = 1;
+    render_pass_create_info.pDependencies = &subpass_dependency;
 
     PROPAGATE_VK(vkCreateRenderPass(glbl.device, &render_pass_create_info, NULL, &glbl.render_pass));
 
@@ -648,7 +660,28 @@ result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_inde
     return SUCCESS;
 }
 
+result create_synchronization(void) {
+    VkSemaphoreCreateInfo semaphore_info = {0};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fence_info = {0};
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.image_available_semaphore));
+    PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.render_finished_semaphore));
+    PROPAGATE_VK(vkCreateFence(glbl.device, &fence_info, NULL, &glbl.frame_in_flight_fence));
+
+    return SUCCESS;
+}
+
 void cleanup(void) {
+    vkDeviceWaitIdle(glbl.device);
+
+    vkDestroySemaphore(glbl.device, glbl.image_available_semaphore, NULL);
+    vkDestroySemaphore(glbl.device, glbl.render_finished_semaphore, NULL);
+    vkDestroyFence(glbl.device, glbl.frame_in_flight_fence, NULL);
+    
     vkDestroyCommandPool(glbl.device, glbl.command_pool, NULL);
     
     for (uint32_t framebuffer_index = 0; framebuffer_index < glbl.swapchain_size; ++framebuffer_index) {
@@ -681,5 +714,38 @@ int32_t render_tick(void) {
 
     glfwPollEvents();
 
+    vkWaitForFences(glbl.device, 1, &glbl.frame_in_flight_fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence);
+
+    uint32_t image_index;
+    vkAcquireNextImageKHR(glbl.device, glbl.swapchain, UINT64_MAX, glbl.image_available_semaphore, VK_NULL_HANDLE, &image_index);
+
+    vkResetCommandBuffer(glbl.command_buffer, 0);
+    record_command_buffer(glbl.command_buffer, image_index);
+    
+    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+
+    VkSubmitInfo submit_info = {0};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = &glbl.image_available_semaphore;
+    submit_info.pWaitDstStageMask = wait_stages;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &glbl.render_finished_semaphore;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &glbl.command_buffer;
+
+    vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.frame_in_flight_fence);
+
+    VkPresentInfoKHR present_info = {0};
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &glbl.render_finished_semaphore;
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &glbl.swapchain;
+    present_info.pImageIndices = &image_index;
+
+    vkQueuePresentKHR(glbl.queue, &present_info);
+    
     return 0;
 }

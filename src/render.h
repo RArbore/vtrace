@@ -80,6 +80,9 @@ typedef struct renderer {
     VkFramebuffer* framebuffers;
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
+    VkSemaphore image_available_semaphore;
+    VkSemaphore render_finished_semaphore;
+    VkFence frame_in_flight_fence;
 } renderer;
 
 typedef struct swapchain_support {
@@ -130,6 +133,8 @@ result create_command_pool(void);
 result create_command_buffer(void);
 
 result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
+
+result create_synchronization(void);
 
 void cleanup(void);
 
