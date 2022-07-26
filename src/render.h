@@ -63,6 +63,12 @@ typedef struct gpu_vertex {
     float pos[3];
 } gpu_vertex;
 
+gpu_vertex triangle_vertices[] = {
+    {0.0f, -0.5f, 0.0f},
+    {0.5f, 0.5f, 0.0f},
+    {-0.5f, 0.5f, 0.0f},
+};
+
 typedef struct renderer {
     uint32_t window_width;
     uint32_t window_height;
@@ -86,6 +92,8 @@ typedef struct renderer {
     VkFramebuffer* framebuffers;
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer[FRAMES_IN_FLIGHT];
+    VkBuffer vertex_buffer;
+    VkDeviceMemory vertex_buffer_memory;
     VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
     VkFence frame_in_flight_fence[FRAMES_IN_FLIGHT];
@@ -140,9 +148,13 @@ result create_command_buffers(void);
 
 result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
 
-result create_synchronization(void);
+result create_vertex_buffer(void);
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
+
+result find_memory_type(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t* type);
+
+result create_synchronization(void);
 
 void cleanup(void);
 

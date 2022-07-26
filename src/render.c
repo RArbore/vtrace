@@ -59,6 +59,7 @@ result init(void) {
     PROPAGATE(create_framebuffers());
     PROPAGATE(create_command_pool());
     PROPAGATE(create_command_buffers());
+    PROPAGATE(create_vertex_buffer());
     PROPAGATE(create_synchronization());
 
     return SUCCESS;
@@ -661,6 +662,9 @@ result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_inde
     scissor.extent = glbl.swapchain_extent;
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(command_buffer, 0, 1, &glbl.vertex_buffer, offsets);
+
     vkCmdDraw(command_buffer, 3, 1, 0, 0);
 
     vkCmdEndRenderPass(command_buffer);
@@ -668,6 +672,59 @@ result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_inde
     PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
     
     return SUCCESS;
+}
+
+result create_vertex_buffer(void) {
+    VkBufferCreateInfo create_info = {0};
+    create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    create_info.size = 3 * sizeof(gpu_vertex);
+    create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    PROPAGATE_VK(vkCreateBuffer(glbl.device, &create_info, NULL, &glbl.vertex_buffer));
+
+    VkMemoryRequirements mem_requirements;
+    vkGetBufferMemoryRequirements(glbl.device, glbl.vertex_buffer, &mem_requirements);
+
+    VkMemoryAllocateInfo allocate_info = {0};
+    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocate_info.allocationSize = mem_requirements.size;
+    PROPAGATE(find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &allocate_info.memoryTypeIndex));
+    PROPAGATE_VK(vkAllocateMemory(glbl.device, &allocate_info, NULL, &glbl.vertex_buffer_memory));
+    vkBindBufferMemory(glbl.device, glbl.vertex_buffer, glbl.vertex_buffer_memory, 0);
+
+    void* data;
+    vkMapMemory(glbl.device, glbl.vertex_buffer_memory, 0, create_info.size, 0, &data);
+    memcpy(data, &triangle_vertices[0].pos[0], (size_t) create_info.size);
+    vkUnmapMemory(glbl.device, glbl.vertex_buffer_memory);
+    
+    return SUCCESS;
+}
+
+void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description) {
+    vertex_input_binding_description->binding = 0;
+    vertex_input_binding_description->stride = sizeof(gpu_vertex);
+    vertex_input_binding_description->inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    vertex_input_attribute_description->binding = 0;
+    vertex_input_attribute_description->location = 0;
+    vertex_input_attribute_description->format = VK_FORMAT_R32G32B32_SFLOAT;
+    vertex_input_attribute_description->offset = 0;
+}
+
+result find_memory_type(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t* type) {
+    VkPhysicalDeviceMemoryProperties physical_mem_properties;
+    vkGetPhysicalDeviceMemoryProperties(glbl.physical, &physical_mem_properties);
+
+    for (uint32_t i = 0; i < physical_mem_properties.memoryTypeCount; i++) {
+	if ((filter & (1 << i)) && (physical_mem_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+	    *type = i;
+	    return SUCCESS;
+	}
+    }
+
+    fprintf(stderr, "ERROR: Couldn't find suitable memory type\n");
+    return CUSTOM_ERROR;
 }
 
 result create_synchronization(void) {
@@ -687,17 +744,6 @@ result create_synchronization(void) {
     return SUCCESS;
 }
 
-void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description) {
-    vertex_input_binding_description->binding = 0;
-    vertex_input_binding_description->stride = sizeof(gpu_vertex);
-    vertex_input_binding_description->inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    vertex_input_attribute_description->binding = 0;
-    vertex_input_attribute_description->location = 0;
-    vertex_input_attribute_description->format = VK_FORMAT_R32G32_SFLOAT;
-    vertex_input_attribute_description->offset = 0;
-}
-
 void cleanup(void) {
     vkDeviceWaitIdle(glbl.device);
 
@@ -708,6 +754,9 @@ void cleanup(void) {
 	vkDestroySemaphore(glbl.device, glbl.render_finished_semaphore[i], NULL);
 	vkDestroyFence(glbl.device, glbl.frame_in_flight_fence[i], NULL);
     }
+
+    vkDestroyBuffer(glbl.device, glbl.vertex_buffer, NULL);
+    vkFreeMemory(glbl.device, glbl.vertex_buffer_memory, NULL);
     
     vkDestroyCommandPool(glbl.device, glbl.command_pool, NULL);
      
