@@ -20,6 +20,7 @@
 
 #define MAX_VK_ENUMERATIONS 16
 #define FRAMES_IN_FLIGHT 2
+#define COPY_QUEUE_SIZE 16
 
 #define IS_SUCCESS(res) (res.vk == SUCCESS.vk && res.custom == SUCCESS.custom)
 
@@ -69,6 +70,12 @@ gpu_vertex triangle_vertices[] = {
     {-0.5f, 0.5f, 0.0f},
 };
 
+typedef struct copy_command {
+    VkBuffer src_buffer;
+    VkBuffer dst_buffer;
+    VkBufferCopy copy_region;
+} copy_command;
+
 typedef struct renderer {
     uint32_t window_width;
     uint32_t window_height;
@@ -91,12 +98,19 @@ typedef struct renderer {
     VkPipeline graphics_pipeline;
     VkFramebuffer* framebuffers;
     VkCommandPool command_pool;
-    VkCommandBuffer command_buffer[FRAMES_IN_FLIGHT];
+    VkCommandBuffer graphics_command_buffers[FRAMES_IN_FLIGHT];
+    VkCommandBuffer copy_command_buffers[FRAMES_IN_FLIGHT];
+    VkBuffer staging_vertex_buffer;
+    VkDeviceMemory staging_vertex_buffer_memory;
     VkBuffer vertex_buffer;
     VkDeviceMemory vertex_buffer_memory;
     VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
+    VkSemaphore copy_finished_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
     VkFence frame_in_flight_fence[FRAMES_IN_FLIGHT];
+
+    uint32_t copy_queue_size;
+    copy_command copy_queue[COPY_QUEUE_SIZE];
 } renderer;
 
 typedef struct swapchain_support {
@@ -146,11 +160,17 @@ result create_command_pool(void);
 
 result create_command_buffers(void);
 
-result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
+result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
+
+result record_copy_command_buffer(VkCommandBuffer command_buffer, copy_command* command);
+
+result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer* buffer, VkDeviceMemory* buffer_memory);
 
 result create_vertex_buffer(void);
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
+
+result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region);
 
 result find_memory_type(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t* type);
 

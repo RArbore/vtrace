@@ -617,12 +617,13 @@ result create_command_buffers(void) {
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocate_info.commandBufferCount = FRAMES_IN_FLIGHT;
 
-    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, glbl.command_buffer));
+    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, glbl.graphics_command_buffers));
+    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, glbl.copy_command_buffers));
     
     return SUCCESS;
 }
 
-result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index) {
+result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index) {
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -674,29 +675,55 @@ result record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_inde
     return SUCCESS;
 }
 
-result create_vertex_buffer(void) {
+result record_copy_command_buffer(VkCommandBuffer command_buffer, copy_command* command) {
+    VkCommandBufferBeginInfo begin_info = {0};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
+
+    vkCmdCopyBuffer(command_buffer, command->src_buffer, command->dst_buffer, 1, &command->copy_region);
+    
+    PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
+    
+    return SUCCESS;
+}
+
+result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer* buffer, VkDeviceMemory* buffer_memory) {
     VkBufferCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    create_info.size = 3 * sizeof(gpu_vertex);
-    create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    create_info.size = size;
+    create_info.usage = usage;
     create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    PROPAGATE_VK(vkCreateBuffer(glbl.device, &create_info, NULL, &glbl.vertex_buffer));
+    PROPAGATE_VK(vkCreateBuffer(glbl.device, &create_info, NULL, buffer));
 
     VkMemoryRequirements mem_requirements;
-    vkGetBufferMemoryRequirements(glbl.device, glbl.vertex_buffer, &mem_requirements);
+    vkGetBufferMemoryRequirements(glbl.device, *buffer, &mem_requirements);
 
     VkMemoryAllocateInfo allocate_info = {0};
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocate_info.allocationSize = mem_requirements.size;
-    PROPAGATE(find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &allocate_info.memoryTypeIndex));
-    PROPAGATE_VK(vkAllocateMemory(glbl.device, &allocate_info, NULL, &glbl.vertex_buffer_memory));
-    vkBindBufferMemory(glbl.device, glbl.vertex_buffer, glbl.vertex_buffer_memory, 0);
+    PROPAGATE(find_memory_type(mem_requirements.memoryTypeBits, properties, &allocate_info.memoryTypeIndex));
+    PROPAGATE_VK(vkAllocateMemory(glbl.device, &allocate_info, NULL, buffer_memory));
+    vkBindBufferMemory(glbl.device, *buffer, *buffer_memory, 0);
+
+    return SUCCESS;
+}
+
+result create_vertex_buffer(void) {
+    uint32_t vertex_buffer_size = 3 * sizeof(gpu_vertex);
+    PROPAGATE(create_buffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.vertex_buffer, &glbl.vertex_buffer_memory));
+    PROPAGATE(create_buffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &glbl.staging_vertex_buffer, &glbl.staging_vertex_buffer_memory));
 
     void* data;
-    vkMapMemory(glbl.device, glbl.vertex_buffer_memory, 0, create_info.size, 0, &data);
-    memcpy(data, &triangle_vertices[0].pos[0], (size_t) create_info.size);
-    vkUnmapMemory(glbl.device, glbl.vertex_buffer_memory);
+    vkMapMemory(glbl.device, glbl.staging_vertex_buffer_memory, 0, vertex_buffer_size, 0, &data);
+    memcpy(data, &triangle_vertices[0].pos[0], (size_t) vertex_buffer_size);
+    vkUnmapMemory(glbl.device, glbl.staging_vertex_buffer_memory);
+
+    VkBufferCopy copy_region = {0};
+    copy_region.size = vertex_buffer_size;
+    PROPAGATE(queue_copy_buffer(glbl.vertex_buffer, glbl.staging_vertex_buffer, copy_region));
     
     return SUCCESS;
 }
@@ -710,6 +737,20 @@ void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input
     vertex_input_attribute_description->location = 0;
     vertex_input_attribute_description->format = VK_FORMAT_R32G32B32_SFLOAT;
     vertex_input_attribute_description->offset = 0;
+}
+
+result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region) {
+    if (glbl.copy_queue_size >= COPY_QUEUE_SIZE) {
+	fprintf(stderr, "ERROR: Attempted to queue copy operation, but copy queue is full");
+	return CUSTOM_ERROR;
+    }
+    
+    glbl.copy_queue[glbl.copy_queue_size].src_buffer = src_buffer;
+    glbl.copy_queue[glbl.copy_queue_size].dst_buffer = dst_buffer;
+    glbl.copy_queue[glbl.copy_queue_size].copy_region = copy_region;
+    ++glbl.copy_queue_size;
+
+    return SUCCESS;
 }
 
 result find_memory_type(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t* type) {
@@ -737,6 +778,7 @@ result create_synchronization(void) {
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
 	PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.image_available_semaphore[i]));
+	PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.copy_finished_semaphore[i]));
 	PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.render_finished_semaphore[i]));
 	PROPAGATE_VK(vkCreateFence(glbl.device, &fence_info, NULL, &glbl.frame_in_flight_fence[i]));
     }
@@ -751,12 +793,15 @@ void cleanup(void) {
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
 	vkDestroySemaphore(glbl.device, glbl.image_available_semaphore[i], NULL);
+	vkDestroySemaphore(glbl.device, glbl.copy_finished_semaphore[i], NULL);
 	vkDestroySemaphore(glbl.device, glbl.render_finished_semaphore[i], NULL);
 	vkDestroyFence(glbl.device, glbl.frame_in_flight_fence[i], NULL);
     }
 
     vkDestroyBuffer(glbl.device, glbl.vertex_buffer, NULL);
     vkFreeMemory(glbl.device, glbl.vertex_buffer_memory, NULL);
+    vkDestroyBuffer(glbl.device, glbl.staging_vertex_buffer, NULL);
+    vkFreeMemory(glbl.device, glbl.staging_vertex_buffer_memory, NULL);
     
     vkDestroyCommandPool(glbl.device, glbl.command_pool, NULL);
      
@@ -825,20 +870,39 @@ int32_t render_tick(void) {
 
     vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[current_frame]);
 
-    vkResetCommandBuffer(glbl.command_buffer[current_frame], 0);
-    record_command_buffer(glbl.command_buffer[current_frame], image_index);
+    vkResetCommandBuffer(glbl.graphics_command_buffers[current_frame], 0);
+    record_graphics_command_buffer(glbl.graphics_command_buffers[current_frame], image_index);
+
+    uint32_t do_copy = 0;
+    if (glbl.copy_queue_size > 0) {
+	do_copy = 1;
+	--glbl.copy_queue_size;
+
+	vkResetCommandBuffer(glbl.copy_command_buffers[current_frame], 0);
+	record_copy_command_buffer(glbl.copy_command_buffers[current_frame], &glbl.copy_queue[glbl.copy_queue_size]);
+
+	VkSubmitInfo submit_info = {0};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &glbl.copy_command_buffers[current_frame];
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = &glbl.copy_finished_semaphore[current_frame];
+
+	vkQueueSubmit(glbl.queue, 1, &submit_info, VK_NULL_HANDLE);
+    }
     
-    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
+    VkSemaphore copy_wait_semaphores[] = {glbl.image_available_semaphore[current_frame], glbl.copy_finished_semaphore[current_frame]};
 
     VkSubmitInfo submit_info = {0};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &glbl.image_available_semaphore[current_frame];
+    submit_info.waitSemaphoreCount = do_copy ? 2 : 1;
+    submit_info.pWaitSemaphores = do_copy ? copy_wait_semaphores : &glbl.image_available_semaphore[current_frame];
     submit_info.pWaitDstStageMask = wait_stages;
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &glbl.render_finished_semaphore[current_frame];
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &glbl.command_buffer[current_frame];
+    submit_info.pCommandBuffers = &glbl.graphics_command_buffers[current_frame];
 
     vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.frame_in_flight_fence[current_frame]);
 
