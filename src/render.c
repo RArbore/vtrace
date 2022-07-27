@@ -914,7 +914,7 @@ void cleanup_swapchain(void) {
     vkDestroySwapchainKHR(glbl.device, glbl.swapchain, NULL);
 }
 
-int32_t render_tick(void) {
+int32_t render_tick(int32_t* window_width, int32_t* window_height) {
     static uint32_t current_frame = 0;
     
     if (glfwWindowShouldClose(glbl.window)) {
@@ -990,6 +990,8 @@ int32_t render_tick(void) {
     }
 
     current_frame = (current_frame + 1) % FRAMES_IN_FLIGHT;
+    *window_width = glbl.window_width;
+    *window_height = glbl.window_height;
     
     return 0;
 }

@@ -37,11 +37,20 @@ pub struct GPUInstance {
 
 extern "C" {
     fn entry() -> u64;
-    fn render_tick() -> i32;
+    fn render_tick(window_width: *mut i32, window_height: *mut i32) -> i32;
     fn cleanup();
 }
 
-pub struct Renderer {}
+pub struct Renderer {
+    window_width: i32,
+    window_height: i32,
+    prev_window_width: i32,
+    prev_window_height: i32,
+    fov: f32,
+    frame_num: usize,
+    perspective: Matrix4<f32>,
+    camera: Matrix4<f32>,
+}
 
 impl Renderer {
     pub fn new(world: &WorldState) -> Self {
@@ -49,7 +58,34 @@ impl Renderer {
         if code != 0 {
             panic!("ERROR: Vulkan initialization failed",);
         }
-        Renderer {}
+        let fov = 80.0 / 180.0 * 3.1415926;
+        Renderer {
+            window_width: 1,
+            window_height: 1,
+            prev_window_width: 1,
+            prev_window_height: 1,
+            fov,
+            frame_num: 0,
+            perspective: Self::create_perspective(fov, 1.0),
+            camera: Self::create_camera(&vec3(0.0, 0.0, 1.0), &vec3(0.0, 0.0, -1.0), 0),
+        }
+    }
+
+    fn create_perspective(fov: f32, aspect: f32) -> Matrix4<f32> {
+        perspective(fov, aspect, 0.01, 10000.0)
+    }
+
+    fn create_camera(position: &Vec3, direction: &Vec3, frame_num: usize) -> Matrix4<f32> {
+        let offset = Vec3::new(
+            (frame_num >> 0 & 1) as f32 * 0.0002 - 0.0001,
+            (frame_num >> 1 & 1) as f32 * 0.0002 - 0.0001,
+            (frame_num >> 2 & 1) as f32 * 0.0002 - 0.0001,
+        );
+        look_at(
+            *position,
+            *position + *direction + offset,
+            vec3(0.0, 1.0, 0.0),
+        )
     }
 
     pub fn add_texture<T: VoxelFormat<Color>>(&mut self, texture: T) {}
@@ -59,7 +95,23 @@ impl Renderer {
     pub fn update_instances(&mut self, instances: Vec<GPUInstance>) {}
 
     pub fn render_tick(&mut self, world: &mut WorldState) -> bool {
-        unsafe { render_tick() == 0 }
+        let code = unsafe { render_tick(&mut self.window_width, &mut self.window_height) == 0 };
+
+        if self.window_width != self.prev_window_width
+            || self.window_height != self.prev_window_height
+        {
+            self.perspective = Self::create_perspective(
+                self.fov,
+                self.window_width as f32 / self.window_height as f32,
+            );
+
+            self.prev_window_width = self.window_width;
+            self.prev_window_height = self.window_height;
+        }
+        self.camera =
+            Self::create_camera(&vec3(0.0, 0.0, 1.0), &vec3(0.0, 0.0, -1.0), self.frame_num);
+
+        code
     }
 }
 

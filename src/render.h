@@ -180,4 +180,4 @@ void recreate_swapchain(void);
 
 void cleanup_swapchain(void);
 
-int32_t render_tick(void);
+int32_t render_tick(int32_t* window_width, int32_t* window_height);
