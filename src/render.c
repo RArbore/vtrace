@@ -44,6 +44,11 @@ static const gpu_vertex cube_vertices[] = {
 
 static const uint16_t cube_indices[] = {
     0, 1, 2, 2, 1, 3,
+    4, 6, 5, 6, 7, 5,
+    2, 3, 6, 6, 3, 7,
+    0, 4, 1, 1, 4, 5,
+    0, 2, 4, 4, 2, 6,
+    1, 5, 3, 3, 5, 7
 };
 
 static void glfw_framebuffer_resize_callback(__attribute__((unused)) GLFWwindow* window, __attribute__((unused)) int width, __attribute__((unused)) int height) {

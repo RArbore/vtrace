@@ -35,7 +35,7 @@ pub struct WorldState {
 impl WorldState {
     pub fn new() -> WorldState {
         WorldState {
-            camera_position: vec3(0.0, 0.0, 2.0),
+            camera_position: vec3(0.0, 0.0, 0.0),
             camera_theta: 0.0,
             camera_phi: PI / 2.0,
             accum_time_frac: 0.0,
@@ -63,5 +63,7 @@ impl WorldState {
         }
 
         self.camera_theta = self.accum_time_frac * 3.1415926 * 2.0;
+        self.camera_position = self.get_camera_direction() * -4.0;
+        self.camera_position.y = cos(self.camera_theta * 2.0);
     }
 }
