@@ -64,12 +64,6 @@ typedef struct gpu_vertex {
     float pos[3];
 } gpu_vertex;
 
-gpu_vertex triangle_vertices[] = {
-    {0.0f, -0.5f, 0.0f},
-    {0.5f, 0.5f, 0.0f},
-    {-0.5f, 0.5f, 0.0f},
-};
-
 typedef struct copy_command {
     VkBuffer src_buffer;
     VkBuffer dst_buffer;
@@ -100,10 +94,12 @@ typedef struct renderer {
     VkCommandPool command_pool;
     VkCommandBuffer graphics_command_buffers[FRAMES_IN_FLIGHT];
     VkCommandBuffer copy_command_buffers[FRAMES_IN_FLIGHT];
-    VkBuffer staging_vertex_buffer;
-    VkDeviceMemory staging_vertex_buffer_memory;
-    VkBuffer vertex_buffer;
-    VkDeviceMemory vertex_buffer_memory;
+    VkBuffer staging_cube_vertex_buffer;
+    VkBuffer staging_cube_index_buffer;
+    VkDeviceMemory staging_cube_buffer_memory;
+    VkBuffer cube_vertex_buffer;
+    VkBuffer cube_index_buffer;
+    VkDeviceMemory cube_buffer_memory;
     VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore copy_finished_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
@@ -164,9 +160,11 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
 
 result record_copy_command_buffer(VkCommandBuffer command_buffer, copy_command* command);
 
-result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer* buffer, VkDeviceMemory* buffer_memory);
+result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buffer);
 
-result create_vertex_buffer(void);
+result create_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkBuffer* buffers, uint32_t num_buffers, uint32_t* offsets);
+
+result create_cube_buffer(void);
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
