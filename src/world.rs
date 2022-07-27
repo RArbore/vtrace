@@ -28,14 +28,18 @@ pub struct WorldState {
     pub camera_position: Vec3,
     pub camera_theta: f32,
     pub camera_phi: f32,
+    accum_time_frac: f32,
+    accum_time_whole: i32,
 }
 
 impl WorldState {
     pub fn new() -> WorldState {
         WorldState {
-            camera_position: vec3(0.0, 0.0, 0.0),
+            camera_position: vec3(0.0, 0.0, 2.0),
             camera_theta: 0.0,
             camera_phi: PI / 2.0,
+            accum_time_frac: 0.0,
+            accum_time_whole: 0,
         }
     }
 
@@ -52,49 +56,12 @@ impl WorldState {
     }
 
     pub fn update(&mut self, dt: f32) {
-        /*
-        if keystate[VirtualKeyCode::W as usize] {
-            self.camera_position =
-                self.camera_position + self.get_horizontal_camera_direction() * MOVE_SPEED;
-        }
-        if keystate[VirtualKeyCode::S as usize] {
-            self.camera_position =
-                self.camera_position - self.get_horizontal_camera_direction() * MOVE_SPEED;
-        }
-        if keystate[VirtualKeyCode::A as usize] {
-            self.camera_position = self.camera_position
-                - cross(self.get_horizontal_camera_direction(), vec3(0.0, 1.0, 0.0)) * MOVE_SPEED;
-        }
-        if keystate[VirtualKeyCode::D as usize] {
-            self.camera_position = self.camera_position
-                + cross(self.get_horizontal_camera_direction(), vec3(0.0, 1.0, 0.0)) * MOVE_SPEED;
-        }
-        if keystate[VirtualKeyCode::Space as usize] {
-            self.camera_position = self.camera_position - vec3(0.0, 1.0, 0.0) * MOVE_SPEED;
-        }
-        if keystate[VirtualKeyCode::LShift as usize] {
-            self.camera_position = self.camera_position + vec3(0.0, 1.0, 0.0) * MOVE_SPEED;
+        self.accum_time_frac += dt;
+        if self.accum_time_frac > 1.0 {
+            self.accum_time_frac -= 1.0;
+            self.accum_time_whole += 1;
         }
 
-        let mut dmx = 0.0;
-        let mut dmy = 0.0;
-
-        if keystate[VirtualKeyCode::Left as usize] {
-            dmx -= SENSITIVITY;
-        }
-        if keystate[VirtualKeyCode::Right as usize] {
-            dmx += SENSITIVITY;
-        }
-        if keystate[VirtualKeyCode::Up as usize] {
-            dmy -= SENSITIVITY;
-        }
-        if keystate[VirtualKeyCode::Down as usize] {
-            dmy += SENSITIVITY;
-        }
-
-        self.camera_theta += dmx;
-        self.camera_phi -= dmy;
-        self.camera_phi = clamp(self.camera_phi, 0.01, PI * 0.99);
-        */
+        self.camera_theta = self.accum_time_frac * 3.1415926 * 2.0;
     }
 }

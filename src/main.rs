@@ -53,5 +53,9 @@ fn main() {
 
     renderer.update_instances(instances);
 
-    while renderer.render_tick(&mut world) {}
+    let (mut code, mut dt) = renderer.render_tick(&mut world);
+    while code {
+        world.update(dt / 4.0);
+        (code, dt) = renderer.render_tick(&mut world);
+    }
 }

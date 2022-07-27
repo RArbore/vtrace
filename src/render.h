@@ -60,6 +60,11 @@
     }									\
     }
 
+typedef struct render_tick_info {
+    void* perspective;
+    void* camera;
+} render_tick_info;
+
 typedef struct gpu_vertex {
     float pos[3];
 } gpu_vertex;
@@ -156,7 +161,7 @@ result create_command_pool(void);
 
 result create_command_buffers(void);
 
-result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
+result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index, const render_tick_info* render_tick_info);
 
 result record_copy_command_buffer(VkCommandBuffer command_buffer, copy_command* command);
 
@@ -180,4 +185,4 @@ void recreate_swapchain(void);
 
 void cleanup_swapchain(void);
 
-int32_t render_tick(int32_t* window_width, int32_t* window_height);
+int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info);

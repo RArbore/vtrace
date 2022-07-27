@@ -32,14 +32,18 @@ static const result SUCCESS = {.vk = VK_SUCCESS, .custom = 0};
 static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .custom = 1};
 
 static const gpu_vertex cube_vertices[] = {
-    {-0.5f, -0.5f, 0.0f},
-    {0.5f, -0.5f, 0.0f},
-    {0.5f, 0.5f, 0.0f},
-    {-0.5f, 0.5f, 0.0f},
+    {-0.5f, -0.5f,  0.5f},
+    {0.5f, -0.5f,  0.5f},
+    {-0.5f,  0.5f,  0.5f},
+    {0.5f,  0.5f,  0.5f},
+    {-0.5f, -0.5f, -0.5f},
+    {0.5f, -0.5f, -0.5f},
+    {-0.5f,  0.5f, -0.5f},
+    {0.5f,  0.5f, -0.5f},
 };
 
 static const uint16_t cube_indices[] = {
-    0, 1, 2, 2, 3, 0
+    0, 1, 2, 2, 1, 3,
 };
 
 static void glfw_framebuffer_resize_callback(__attribute__((unused)) GLFWwindow* window, __attribute__((unused)) int width, __attribute__((unused)) int height) {
@@ -372,7 +376,7 @@ result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* 
 
     uint32_t present_mode_index;
     for (present_mode_index = 0; present_mode_index < support->num_present_modes; ++present_mode_index) {
-	if (support->present_modes[present_mode_index] == VK_PRESENT_MODE_FIFO_KHR) {
+	if (support->present_modes[present_mode_index] == VK_PRESENT_MODE_MAILBOX_KHR) {
 	    *present_mode = support->present_modes[present_mode_index];
 	    break;
 	}
@@ -521,8 +525,15 @@ result create_graphics_pipeline(void) {
     color_blending_state_create_info.attachmentCount = 1;
     color_blending_state_create_info.pAttachments = &color_blend_attachment_state;
 
+    VkPushConstantRange push_constant_range = {0};
+    push_constant_range.offset = 0;
+    push_constant_range.size = sizeof(float) * 4 * 4 * 2;
+    push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
     VkPipelineLayoutCreateInfo pipeline_layout_create_info = {0};
     pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipeline_layout_create_info.pushConstantRangeCount = 1;
+    pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
     PROPAGATE_VK(vkCreatePipelineLayout(glbl.device, &pipeline_layout_create_info, NULL, &glbl.graphics_pipeline_layout));
 
@@ -634,7 +645,7 @@ result create_command_buffers(void) {
     return SUCCESS;
 }
 
-result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index) {
+result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index, const render_tick_info* render_tick_info) {
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -677,6 +688,9 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(command_buffer, 0, 1, &glbl.cube_vertex_buffer, offsets);
     vkCmdBindIndexBuffer(command_buffer, glbl.cube_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+    vkCmdPushConstants(command_buffer, glbl.graphics_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(float) * 4 * 4, render_tick_info->perspective);
+    vkCmdPushConstants(command_buffer, glbl.graphics_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(float) * 4 * 4, sizeof(float) * 4 * 4, render_tick_info->camera);
 
     vkCmdDrawIndexed(command_buffer, sizeof(cube_indices) / sizeof(cube_indices[0]), 1, 0, 0, 0);
 
@@ -914,7 +928,7 @@ void cleanup_swapchain(void) {
     vkDestroySwapchainKHR(glbl.device, glbl.swapchain, NULL);
 }
 
-int32_t render_tick(int32_t* window_width, int32_t* window_height) {
+int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info) {
     static uint32_t current_frame = 0;
     
     if (glfwWindowShouldClose(glbl.window)) {
@@ -937,7 +951,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height) {
     vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[current_frame]);
 
     vkResetCommandBuffer(glbl.graphics_command_buffers[current_frame], 0);
-    record_graphics_command_buffer(glbl.graphics_command_buffers[current_frame], image_index);
+    record_graphics_command_buffer(glbl.graphics_command_buffers[current_frame], image_index, render_tick_info);
 
     uint32_t do_copy = 0;
     if (glbl.copy_queue_size > 0) {

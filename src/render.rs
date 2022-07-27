@@ -17,7 +17,6 @@ use bytemuck::*;
 use glm::ext::*;
 use glm::*;
 
-use std::sync::*;
 use std::time::*;
 
 use crate::voxel::*;
@@ -37,7 +36,11 @@ pub struct GPUInstance {
 
 extern "C" {
     fn entry() -> u64;
-    fn render_tick(window_width: *mut i32, window_height: *mut i32) -> i32;
+    fn render_tick(
+        window_width: *mut i32,
+        window_height: *mut i32,
+        render_tick_info: *const RenderTickInfo,
+    ) -> i32;
     fn cleanup();
 }
 
@@ -50,6 +53,13 @@ pub struct Renderer {
     frame_num: usize,
     perspective: Matrix4<f32>,
     camera: Matrix4<f32>,
+    prev_time: Instant,
+}
+
+#[repr(C)]
+struct RenderTickInfo {
+    perspective: *mut Matrix4<f32>,
+    camera: *mut Matrix4<f32>,
 }
 
 impl Renderer {
@@ -67,7 +77,8 @@ impl Renderer {
             fov,
             frame_num: 0,
             perspective: Self::create_perspective(fov, 1.0),
-            camera: Self::create_camera(&vec3(0.0, 0.0, 1.0), &vec3(0.0, 0.0, -1.0), 0),
+            camera: Self::create_camera(&world.camera_position, &world.get_camera_direction(), 0),
+            prev_time: Instant::now(),
         }
     }
 
@@ -94,8 +105,18 @@ impl Renderer {
 
     pub fn update_instances(&mut self, instances: Vec<GPUInstance>) {}
 
-    pub fn render_tick(&mut self, world: &mut WorldState) -> bool {
-        let code = unsafe { render_tick(&mut self.window_width, &mut self.window_height) == 0 };
+    pub fn render_tick(&mut self, world: &mut WorldState) -> (bool, f32) {
+        let render_tick_info = RenderTickInfo {
+            perspective: &mut self.perspective,
+            camera: &mut self.camera,
+        };
+        let code = unsafe {
+            render_tick(
+                &mut self.window_width,
+                &mut self.window_height,
+                &render_tick_info,
+            ) == 0
+        };
 
         if self.window_width != self.prev_window_width
             || self.window_height != self.prev_window_height
@@ -108,10 +129,21 @@ impl Renderer {
             self.prev_window_width = self.window_width;
             self.prev_window_height = self.window_height;
         }
-        self.camera =
-            Self::create_camera(&vec3(0.0, 0.0, 1.0), &vec3(0.0, 0.0, -1.0), self.frame_num);
+        self.camera = Self::create_camera(
+            &world.camera_position,
+            &world.get_camera_direction(),
+            self.frame_num,
+        );
 
-        code
+        let dt = self.prev_time.elapsed().as_micros();
+        self.prev_time = Instant::now();
+        println!(
+            "FPS: {}   MS: {}",
+            1000000.0 / dt as f32,
+            dt as f32 / 1000.0
+        );
+
+        (code, dt as f32 / 1000000.0)
     }
 }
 
