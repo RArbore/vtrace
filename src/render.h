@@ -86,19 +86,26 @@ typedef struct renderer {
     VkPhysicalDevice physical;
     VkDevice device;
     VkQueue queue;
+
     VkSwapchainKHR swapchain;
     uint32_t swapchain_size;
     VkImage* swapchain_images;
     VkFormat swapchain_format;
     VkExtent2D swapchain_extent;
     VkImageView* swapchain_image_views;
+
     VkPipelineLayout graphics_pipeline_layout;
     VkRenderPass render_pass;
     VkPipeline graphics_pipeline;
     VkFramebuffer* framebuffers;
+    VkImage depth_image;
+    VkDeviceMemory depth_image_memory;
+    VkImageView depth_image_view;
+
     VkCommandPool command_pool;
     VkCommandBuffer graphics_command_buffers[FRAMES_IN_FLIGHT];
     VkCommandBuffer copy_command_buffers[FRAMES_IN_FLIGHT];
+
     VkBuffer staging_cube_vertex_buffer;
     VkBuffer staging_cube_index_buffer;
     VkBuffer staging_cube_instance_buffer;
@@ -107,6 +114,7 @@ typedef struct renderer {
     VkBuffer cube_index_buffer;
     VkBuffer cube_instance_buffer;
     VkDeviceMemory cube_buffer_memory;
+
     VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore copy_finished_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
@@ -159,6 +167,8 @@ result create_graphics_pipeline(void);
 
 result create_framebuffers(void);
 
+result create_depth_resources(void);
+
 result create_command_pool(void);
 
 result create_command_buffers(void);
@@ -169,7 +179,13 @@ result record_copy_command_buffer(VkCommandBuffer command_buffer, copy_command* 
 
 result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buffer);
 
-result create_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkBuffer* buffers, uint32_t num_buffers, uint32_t* offsets);
+result create_buffer_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkBuffer* buffers, uint32_t num_buffers, uint32_t* offsets);
+
+result create_image(VkImageCreateFlags flags, VkFormat format, VkExtent3D extent, uint32_t mipLevels, uint32_t arrayLevels, VkImageUsageFlagBits usage, VkImage* image);
+
+result create_image_view(VkImage image, VkImageViewType type, VkFormat format, VkImageSubresourceRange subresource_range, VkImageView* view);
+
+result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkImage* images, uint32_t num_images, uint32_t* offsets);
 
 result create_cube_buffer(void);
 

@@ -94,6 +94,7 @@ result init(void) {
     PROPAGATE(create_swapchain());
     PROPAGATE(create_graphics_pipeline());
     PROPAGATE(create_framebuffers());
+    PROPAGATE(create_depth_resources());
     PROPAGATE(create_command_pool());
     PROPAGATE(create_command_buffers());
     PROPAGATE(create_cube_buffer());
@@ -640,6 +641,28 @@ result create_framebuffers(void) {
     return SUCCESS;
 }
 
+result create_depth_resources(void) {
+    VkExtent3D extent;
+    extent.width = glbl.swapchain_extent.width;
+    extent.height = glbl.swapchain_extent.height;
+    extent.depth = 1;
+
+    PROPAGATE(create_image(0, VK_FORMAT_D32_SFLOAT, extent, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, &glbl.depth_image));
+
+    PROPAGATE(create_image_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.depth_image_memory, &glbl.depth_image, 1, NULL));
+
+    VkImageSubresourceRange subresource_range = {0};
+    subresource_range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    subresource_range.baseMipLevel = 0;
+    subresource_range.levelCount = 1;
+    subresource_range.baseArrayLayer = 0;
+    subresource_range.layerCount = 1;
+    
+    PROPAGATE(create_image_view(glbl.depth_image, VK_IMAGE_VIEW_TYPE_2D, VK_FORMAT_D32_SFLOAT, subresource_range, &glbl.depth_image_view));
+
+    return SUCCESS;
+}
+
 result create_command_pool(void) {
     uint32_t queue_family;
     PROPAGATE(physical_check_queue_family(glbl.physical, &queue_family, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT));
@@ -715,7 +738,7 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     vkCmdPushConstants(command_buffer, glbl.graphics_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(float) * 4 * 4, render_tick_info->perspective);
     vkCmdPushConstants(command_buffer, glbl.graphics_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(float) * 4 * 4, sizeof(float) * 4 * 4, render_tick_info->camera);
 
-    vkCmdDrawIndexed(command_buffer, sizeof(cube_indices) / sizeof(cube_indices[0]), 3, 0, 0, 0);
+    vkCmdDrawIndexed(command_buffer, sizeof(cube_indices) / sizeof(cube_indices[0]), sizeof(cube_instances) / (sizeof(float) * 4 * 4), 0, 0, 0);
 
     vkCmdEndRenderPass(command_buffer);
 
@@ -738,6 +761,17 @@ result record_copy_command_buffer(VkCommandBuffer command_buffer, copy_command* 
     return SUCCESS;
 }
 
+static uint32_t round_up(uint32_t num_to_round, uint32_t multiple) {
+    if (multiple == 0)
+        return num_to_round;
+
+    uint32_t remainder = num_to_round % multiple;
+    if (remainder == 0)
+        return num_to_round;
+
+    return num_to_round + multiple - remainder;
+}
+
 result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buffer) {
     VkBufferCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -750,19 +784,7 @@ result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buff
     return SUCCESS;
 }
 
-static uint32_t round_up(uint32_t num_to_round, uint32_t multiple)
-{
-    if (multiple == 0)
-        return num_to_round;
-
-    uint32_t remainder = num_to_round % multiple;
-    if (remainder == 0)
-        return num_to_round;
-
-    return num_to_round + multiple - remainder;
-}
-
-result create_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkBuffer* buffers, uint32_t num_buffers, uint32_t* offsets) {
+result create_buffer_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkBuffer* buffers, uint32_t num_buffers, uint32_t* offsets) {
     uint32_t allocate_size = 0;
     uint32_t memory_type_bits = 0;
     uint32_t local_offsets[num_buffers];
@@ -793,6 +815,70 @@ result create_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, V
     return SUCCESS;
 }
 
+result create_image(VkImageCreateFlags flags, VkFormat format, VkExtent3D extent, uint32_t mipLevels, uint32_t arrayLevels, VkImageUsageFlagBits usage, VkImage* image) {
+    VkImageCreateInfo create_info = {0};
+    create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    create_info.flags = flags;
+    create_info.imageType = extent.depth > 1 ? VK_IMAGE_TYPE_3D : extent.height > 1 ? VK_IMAGE_TYPE_2D : VK_IMAGE_TYPE_1D;
+    create_info.format = format;
+    create_info.extent = extent;
+    create_info.mipLevels = mipLevels;
+    create_info.arrayLayers = arrayLevels;
+    create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    create_info.usage = usage;
+    create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    PROPAGATE_VK(vkCreateImage(glbl.device, &create_info, NULL, image));
+
+    return SUCCESS;
+}
+
+result create_image_view(VkImage image, VkImageViewType type, VkFormat format, VkImageSubresourceRange subresource_range, VkImageView* view) {
+    VkImageViewCreateInfo create_info = {0};
+    create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    create_info.image = image;
+    create_info.viewType = type;
+    create_info.format = format;
+    create_info.subresourceRange = subresource_range;
+
+    PROPAGATE_VK(vkCreateImageView(glbl.device, &create_info, NULL, view));
+    
+    return SUCCESS;
+}
+
+result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkImage* images, uint32_t num_images, uint32_t* offsets) {
+    uint32_t allocate_size = 0;
+    uint32_t memory_type_bits = 0;
+    uint32_t local_offsets[num_images];
+    if (!offsets) {
+	offsets = &local_offsets[0];
+    }
+    for (uint32_t i = 0; i < num_images; ++i) {
+	VkMemoryRequirements requirements;
+	vkGetImageMemoryRequirements(glbl.device, images[i], &requirements);
+
+	allocate_size = round_up(allocate_size, requirements.alignment);
+	offsets[i] = allocate_size;
+	allocate_size += round_up(requirements.size, requirements.alignment);
+
+	memory_type_bits |= requirements.memoryTypeBits;
+    }
+
+    VkMemoryAllocateInfo allocate_info = {0};
+    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocate_info.allocationSize = allocate_size;
+    PROPAGATE(find_memory_type(memory_type_bits, properties, &allocate_info.memoryTypeIndex));
+    PROPAGATE_VK(vkAllocateMemory(glbl.device, &allocate_info, NULL, memory));
+
+    for (uint32_t i = 0; i < num_images; ++i) {
+	PROPAGATE_VK(vkBindImageMemory(glbl.device, images[i], *memory, offsets[i]));
+    }
+
+    return SUCCESS;
+}
+
 result create_cube_buffer(void) {
     uint32_t vertex_buffer_size = sizeof(cube_vertices);
     uint32_t index_buffer_size = sizeof(cube_indices);
@@ -802,7 +888,7 @@ result create_cube_buffer(void) {
     PROPAGATE(create_buffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &cube_buffers[0]));
     PROPAGATE(create_buffer(index_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &cube_buffers[1]));
     PROPAGATE(create_buffer(instance_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &cube_buffers[2]));
-    PROPAGATE(create_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.cube_buffer_memory, cube_buffers, sizeof(cube_buffers) / sizeof(cube_buffers[0]), NULL));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.cube_buffer_memory, cube_buffers, sizeof(cube_buffers) / sizeof(cube_buffers[0]), NULL));
     glbl.cube_vertex_buffer = cube_buffers[0];
     glbl.cube_index_buffer = cube_buffers[1];
     glbl.cube_instance_buffer = cube_buffers[2];
@@ -811,7 +897,7 @@ result create_cube_buffer(void) {
     PROPAGATE(create_buffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &cube_buffers[0]));
     PROPAGATE(create_buffer(index_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &cube_buffers[1]));
     PROPAGATE(create_buffer(instance_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &cube_buffers[2]));
-    PROPAGATE(create_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &glbl.staging_cube_buffer_memory, cube_buffers, sizeof(cube_buffers) / sizeof(cube_buffers[0]), buffer_offsets));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &glbl.staging_cube_buffer_memory, cube_buffers, sizeof(cube_buffers) / sizeof(cube_buffers[0]), buffer_offsets));
     glbl.staging_cube_vertex_buffer = cube_buffers[0];
     glbl.staging_cube_index_buffer = cube_buffers[1];
     glbl.staging_cube_instance_buffer = cube_buffers[2];
@@ -959,6 +1045,7 @@ void recreate_swapchain(void) {
 
     create_swapchain();
     create_framebuffers();
+    create_depth_resources();
 }
 
 void cleanup_swapchain(void) {
@@ -969,6 +1056,10 @@ void cleanup_swapchain(void) {
     for (uint32_t image_index = 0; image_index < glbl.swapchain_size; ++image_index) {
 	vkDestroyImageView(glbl.device, glbl.swapchain_image_views[image_index], NULL);
     }
+
+    vkDestroyImageView(glbl.device, glbl.depth_image_view, NULL);
+    vkDestroyImage(glbl.device, glbl.depth_image, NULL);
+    vkFreeMemory(glbl.device, glbl.depth_image_memory, NULL);
 
     free(glbl.swapchain_image_views);
     free(glbl.swapchain_images);

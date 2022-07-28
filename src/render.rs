@@ -137,11 +137,11 @@ impl Renderer {
 
         let dt = self.prev_time.elapsed().as_micros();
         self.prev_time = Instant::now();
-        println!(
+        /*println!(
             "FPS: {}   MS: {}",
             1000000.0 / dt as f32,
             dt as f32 / 1000.0
-        );
+        );*/
 
         (code, dt as f32 / 1000000.0)
     }
