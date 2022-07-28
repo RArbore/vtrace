@@ -15,6 +15,7 @@
 #version 460
 
 layout(location = 0) in vec3 position;
+layout (location = 1) in mat4 model;
 
 layout(location = 0) out vec3 fragColor;
 
@@ -31,6 +32,6 @@ vec3 colors[4] = vec3[](
 );
 
 void main() {
-    gl_Position = push.projection * push.camera * vec4(position, 1.0);
+    gl_Position = push.projection * push.camera * model * vec4(position, 1.0);
     fragColor = colors[gl_VertexIndex % 4];
 }

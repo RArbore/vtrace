@@ -51,6 +51,23 @@ static const uint16_t cube_indices[] = {
     1, 5, 3, 3, 5, 7
 };
 
+static const float cube_instances[] = {
+    1.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    0.0f, -1.3f, 0.0f, 1.0f,
+
+    1.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 1.0f,
+
+    1.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    0.0f, 1.3f, 0.0f, 1.0f,
+};
+
 static void glfw_framebuffer_resize_callback(__attribute__((unused)) GLFWwindow* window, __attribute__((unused)) int width, __attribute__((unused)) int height) {
     glbl.resized = 1;
 }
@@ -483,15 +500,15 @@ result create_graphics_pipeline(void) {
     pipeline_dynamic_state_create_info.dynamicStateCount = 2;
     pipeline_dynamic_state_create_info.pDynamicStates = pipeline_dynamic_states;
 
-    VkVertexInputBindingDescription vertex_input_binding_description = {0};
-    VkVertexInputAttributeDescription vertex_input_attribute_description = {0};
+    VkVertexInputBindingDescription vertex_input_binding_description[2] = {0};
+    VkVertexInputAttributeDescription vertex_input_attribute_description[5] = {0};
     VkPipelineVertexInputStateCreateInfo vertex_input_create_info = {0};
-    get_vertex_input_descriptions(&vertex_input_binding_description, &vertex_input_attribute_description);
+    get_vertex_input_descriptions(vertex_input_binding_description, vertex_input_attribute_description);
     vertex_input_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_create_info.vertexBindingDescriptionCount = 1;
-    vertex_input_create_info.vertexAttributeDescriptionCount = 1;
-    vertex_input_create_info.pVertexBindingDescriptions = &vertex_input_binding_description;
-    vertex_input_create_info.pVertexAttributeDescriptions = &vertex_input_attribute_description;
+    vertex_input_create_info.vertexBindingDescriptionCount = sizeof(vertex_input_binding_description) / sizeof(vertex_input_binding_description[0]);
+    vertex_input_create_info.vertexAttributeDescriptionCount = sizeof(vertex_input_attribute_description) / sizeof(vertex_input_attribute_description[0]);
+    vertex_input_create_info.pVertexBindingDescriptions = vertex_input_binding_description;
+    vertex_input_create_info.pVertexAttributeDescriptions = vertex_input_attribute_description;
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly_create_info = {0};
     input_assembly_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -692,12 +709,13 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
 
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(command_buffer, 0, 1, &glbl.cube_vertex_buffer, offsets);
+    vkCmdBindVertexBuffers(command_buffer, 1, 1, &glbl.cube_instance_buffer, offsets);
     vkCmdBindIndexBuffer(command_buffer, glbl.cube_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdPushConstants(command_buffer, glbl.graphics_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(float) * 4 * 4, render_tick_info->perspective);
     vkCmdPushConstants(command_buffer, glbl.graphics_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(float) * 4 * 4, sizeof(float) * 4 * 4, render_tick_info->camera);
 
-    vkCmdDrawIndexed(command_buffer, sizeof(cube_indices) / sizeof(cube_indices[0]), 1, 0, 0, 0);
+    vkCmdDrawIndexed(command_buffer, sizeof(cube_indices) / sizeof(cube_indices[0]), 3, 0, 0, 0);
 
     vkCmdEndRenderPass(command_buffer);
 
@@ -778,28 +796,37 @@ result create_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, V
 result create_cube_buffer(void) {
     uint32_t vertex_buffer_size = sizeof(cube_vertices);
     uint32_t index_buffer_size = sizeof(cube_indices);
+    uint32_t instance_buffer_size = sizeof(cube_instances);
 
-    VkBuffer cube_buffers[2];
+    VkBuffer cube_buffers[3];
     PROPAGATE(create_buffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &cube_buffers[0]));
     PROPAGATE(create_buffer(index_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &cube_buffers[1]));
-    PROPAGATE(create_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.cube_buffer_memory, cube_buffers, 2, NULL));
+    PROPAGATE(create_buffer(instance_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &cube_buffers[2]));
+    PROPAGATE(create_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.cube_buffer_memory, cube_buffers, sizeof(cube_buffers) / sizeof(cube_buffers[0]), NULL));
     glbl.cube_vertex_buffer = cube_buffers[0];
     glbl.cube_index_buffer = cube_buffers[1];
+    glbl.cube_instance_buffer = cube_buffers[2];
 
-    uint32_t buffer_offsets[2];
-    PROPAGATE(create_buffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &cube_buffers[0]));
-    PROPAGATE(create_buffer(index_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &cube_buffers[1]));
-    PROPAGATE(create_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &glbl.staging_cube_buffer_memory, cube_buffers, 2, buffer_offsets));
+    uint32_t buffer_offsets[3];
+    PROPAGATE(create_buffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &cube_buffers[0]));
+    PROPAGATE(create_buffer(index_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &cube_buffers[1]));
+    PROPAGATE(create_buffer(instance_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &cube_buffers[2]));
+    PROPAGATE(create_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &glbl.staging_cube_buffer_memory, cube_buffers, sizeof(cube_buffers) / sizeof(cube_buffers[0]), buffer_offsets));
     glbl.staging_cube_vertex_buffer = cube_buffers[0];
     glbl.staging_cube_index_buffer = cube_buffers[1];
+    glbl.staging_cube_instance_buffer = cube_buffers[2];
 
     void* vertex_data;
     void* index_data;
+    void* instance_data;
     vkMapMemory(glbl.device, glbl.staging_cube_buffer_memory, buffer_offsets[0], vertex_buffer_size, 0, &vertex_data);
     memcpy(vertex_data, &cube_vertices[0].pos[0], (size_t) vertex_buffer_size);
     vkUnmapMemory(glbl.device, glbl.staging_cube_buffer_memory);
     vkMapMemory(glbl.device, glbl.staging_cube_buffer_memory, buffer_offsets[1], index_buffer_size, 0, &index_data);
     memcpy(index_data, &cube_indices[0], (size_t) index_buffer_size);
+    vkUnmapMemory(glbl.device, glbl.staging_cube_buffer_memory);
+    vkMapMemory(glbl.device, glbl.staging_cube_buffer_memory, buffer_offsets[2], instance_buffer_size, 0, &instance_data);
+    memcpy(instance_data, &cube_instances[0], (size_t) instance_buffer_size);
     vkUnmapMemory(glbl.device, glbl.staging_cube_buffer_memory);
 
     VkBufferCopy copy_region = {0};
@@ -807,19 +834,32 @@ result create_cube_buffer(void) {
     PROPAGATE(queue_copy_buffer(glbl.cube_vertex_buffer, glbl.staging_cube_vertex_buffer, copy_region));
     copy_region.size = index_buffer_size;
     PROPAGATE(queue_copy_buffer(glbl.cube_index_buffer, glbl.staging_cube_index_buffer, copy_region));
+    copy_region.size = instance_buffer_size;
+    PROPAGATE(queue_copy_buffer(glbl.cube_instance_buffer, glbl.staging_cube_instance_buffer, copy_region));
     
     return SUCCESS;
 }
 
-void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description) {
-    vertex_input_binding_description->binding = 0;
-    vertex_input_binding_description->stride = sizeof(gpu_vertex);
-    vertex_input_binding_description->inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_descriptions, VkVertexInputAttributeDescription* vertex_input_attribute_descriptions) {
+    vertex_input_binding_descriptions[0].binding = 0;
+    vertex_input_binding_descriptions[0].stride = sizeof(gpu_vertex);
+    vertex_input_binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    vertex_input_attribute_description->binding = 0;
-    vertex_input_attribute_description->location = 0;
-    vertex_input_attribute_description->format = VK_FORMAT_R32G32B32_SFLOAT;
-    vertex_input_attribute_description->offset = 0;
+    vertex_input_binding_descriptions[1].binding = 1;
+    vertex_input_binding_descriptions[1].stride = sizeof(float) * 4 * 4;
+    vertex_input_binding_descriptions[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+
+    vertex_input_attribute_descriptions[0].binding = 0;
+    vertex_input_attribute_descriptions[0].location = 0;
+    vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    vertex_input_attribute_descriptions[0].offset = 0;
+
+    for (uint32_t i = 0; i < 4; ++i) {
+	vertex_input_attribute_descriptions[1 + i].binding = 1;
+	vertex_input_attribute_descriptions[1 + i].location = 1 + i;
+	vertex_input_attribute_descriptions[1 + i].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	vertex_input_attribute_descriptions[1 + i].offset = sizeof(float) * 4 * i;
+    }
 }
 
 result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region) {
@@ -883,9 +923,11 @@ void cleanup(void) {
 
     vkDestroyBuffer(glbl.device, glbl.cube_vertex_buffer, NULL);
     vkDestroyBuffer(glbl.device, glbl.cube_index_buffer, NULL);
+    vkDestroyBuffer(glbl.device, glbl.cube_instance_buffer, NULL);
     vkFreeMemory(glbl.device, glbl.cube_buffer_memory, NULL);
     vkDestroyBuffer(glbl.device, glbl.staging_cube_vertex_buffer, NULL);
     vkDestroyBuffer(glbl.device, glbl.staging_cube_index_buffer, NULL);
+    vkDestroyBuffer(glbl.device, glbl.staging_cube_instance_buffer, NULL);
     vkFreeMemory(glbl.device, glbl.staging_cube_buffer_memory, NULL);
     
     vkDestroyCommandPool(glbl.device, glbl.command_pool, NULL);
