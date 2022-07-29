@@ -189,6 +189,8 @@ result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* mem
 
 result create_cube_buffer(void);
 
+void update_instances(const float* instances, uint32_t instance_count);
+
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
 result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region);

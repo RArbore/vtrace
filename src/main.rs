@@ -28,7 +28,7 @@ fn main() {
     renderer.add_texture(texture.remove(0));
     renderer.update_descriptor();
 
-    let instances: Vec<render::GPUInstance> = (0..1000)
+    /*let instances: Vec<render::GPUInstance> = (0..1000)
         .map(|i| render::GPUInstance {
             model: [
                 1.0,
@@ -51,7 +51,7 @@ fn main() {
         })
         .collect();
 
-    renderer.update_instances(instances);
+    renderer.update_instances(instances);*/
 
     let (mut code, mut dt) = renderer.render_tick(&mut world);
     while code {

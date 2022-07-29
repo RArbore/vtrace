@@ -4,11 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bytemuck = "1.9.1"
 dot_vox = "4.1.0"
 glm = "0.2.3"
 image = "0.24.2"
-vulkano = "0.29.0"
-vulkano-shaders = "0.29.0"
-vulkano-win = "0.29.0"
 winit = "0.26.1"

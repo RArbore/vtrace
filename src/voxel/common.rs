@@ -12,7 +12,7 @@
  * along with vtrace. If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub trait Voxel: PartialEq + Eq + Copy + Default + bytemuck::Pod {}
+pub trait Voxel: PartialEq + Eq + Copy + Default {}
 
 pub trait VoxelFormat<T: Voxel>: IntoVoxelIterator<Item = T> + FromVoxelIterator<T> {
     fn dim_x(&self) -> (i32, i32);
@@ -51,7 +51,7 @@ pub trait FromVoxelIterator<A: Voxel> {
 }
 
 #[repr(C)]
-#[derive(PartialEq, Eq, Clone, Copy, Default, bytemuck::Zeroable, bytemuck::Pod)]
+#[derive(PartialEq, Eq, Clone, Copy, Default)]
 pub struct Color {
     r: u8,
     g: u8,

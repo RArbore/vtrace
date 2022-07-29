@@ -12,9 +12,6 @@
  * along with vtrace. If not, see <https://www.gnu.org/licenses/>.
  */
 
-use bytemuck::*;
-
-use glm::ext::*;
 use glm::*;
 
 use std::time::*;
@@ -23,24 +20,67 @@ use crate::voxel::*;
 use crate::world::*;
 
 #[repr(C)]
-#[derive(Default, Copy, Clone, Zeroable, Pod)]
+#[derive(Default, Copy, Clone)]
 struct GPUVertex {
     position: [f32; 3],
 }
 
 #[repr(C)]
-#[derive(Default, Copy, Clone, Zeroable, Pod)]
+#[derive(Default, Copy, Clone)]
 pub struct GPUInstance {
-    pub model: [f32; 16],
+    model: [f32; 16],
+}
+
+impl GPUInstance {
+    pub fn new(
+        rotate_angle: f32,
+        rotate_axis: &Vec3,
+        scale: &Vec3,
+        translate: &Vec3,
+    ) -> GPUInstance {
+        let identity = Matrix4::new(
+            Vec4::new(1.0, 0.0, 0.0, 0.0),
+            Vec4::new(0.0, 1.0, 0.0, 0.0),
+            Vec4::new(0.0, 0.0, 1.0, 0.0),
+            Vec4::new(0.0, 0.0, 0.0, 1.0),
+        );
+        let rotate = glm::ext::rotate(&identity, rotate_angle, *rotate_axis);
+        let scale = glm::ext::scale(&rotate, *scale);
+        let translate = glm::ext::translate(&rotate, *translate);
+        GPUInstance {
+            model: [
+                translate[0][0],
+                translate[0][1],
+                translate[0][2],
+                translate[0][3],
+                translate[1][0],
+                translate[1][1],
+                translate[1][2],
+                translate[1][3],
+                translate[2][0],
+                translate[2][1],
+                translate[2][2],
+                translate[2][3],
+                translate[3][0],
+                translate[3][1],
+                translate[3][2],
+                translate[3][3],
+            ],
+        }
+    }
 }
 
 extern "C" {
     fn entry() -> u64;
+
     fn render_tick(
         window_width: *mut i32,
         window_height: *mut i32,
         render_tick_info: *const RenderTickInfo,
     ) -> i32;
+
+    fn update_instances(instances: *const GPUInstance, instance_count: u32);
+
     fn cleanup();
 }
 
@@ -68,8 +108,31 @@ impl Renderer {
         if code != 0 {
             panic!("ERROR: Vulkan initialization failed",);
         }
+
+        let instances = vec![
+            GPUInstance::new(
+                0.0,
+                &Vec3::new(0.0, 0.0, 0.0),
+                &Vec3::new(0.0, 0.0, 0.0),
+                &Vec3::new(0.0, -1.3, 0.0),
+            ),
+            GPUInstance::new(
+                0.0,
+                &Vec3::new(0.0, 0.0, 0.0),
+                &Vec3::new(0.0, 0.0, 0.0),
+                &Vec3::new(0.0, 0.0, 0.0),
+            ),
+            GPUInstance::new(
+                0.0,
+                &Vec3::new(0.0, 0.0, 0.0),
+                &Vec3::new(0.0, 0.0, 0.0),
+                &Vec3::new(0.0, 1.3, 0.0),
+            ),
+        ];
+
         let fov = 80.0 / 180.0 * 3.1415926;
-        Renderer {
+
+        let mut renderer = Renderer {
             window_width: 1,
             window_height: 1,
             prev_window_width: 1,
@@ -79,11 +142,15 @@ impl Renderer {
             perspective: Self::create_perspective(fov, 1.0),
             camera: Self::create_camera(&world.camera_position, &world.get_camera_direction(), 0),
             prev_time: Instant::now(),
-        }
+        };
+
+        renderer.update_instances(&instances);
+
+        renderer
     }
 
     fn create_perspective(fov: f32, aspect: f32) -> Matrix4<f32> {
-        perspective(fov, aspect, 0.01, 10000.0)
+        glm::ext::perspective(fov, aspect, 0.01, 10000.0)
     }
 
     fn create_camera(position: &Vec3, direction: &Vec3, frame_num: usize) -> Matrix4<f32> {
@@ -92,10 +159,10 @@ impl Renderer {
             (frame_num >> 1 & 1) as f32 * 0.0002 - 0.0001,
             (frame_num >> 2 & 1) as f32 * 0.0002 - 0.0001,
         );
-        look_at(
+        glm::ext::look_at(
             *position,
             *position + *direction + offset,
-            vec3(0.0, 1.0, 0.0),
+            Vec3::new(0.0, 1.0, 0.0),
         )
     }
 
@@ -103,7 +170,9 @@ impl Renderer {
 
     pub fn update_descriptor(&mut self) {}
 
-    pub fn update_instances(&mut self, instances: Vec<GPUInstance>) {}
+    pub fn update_instances(&mut self, instances: &Vec<GPUInstance>) {
+        unsafe { update_instances(instances.as_ptr(), instances.len() as u32) };
+    }
 
     pub fn render_tick(&mut self, world: &mut WorldState) -> (bool, f32) {
         let render_tick_info = RenderTickInfo {

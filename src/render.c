@@ -955,6 +955,10 @@ result create_cube_buffer(void) {
     return SUCCESS;
 }
 
+void update_instances(const float* instances, uint32_t instance_count) {
+
+}
+
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_descriptions, VkVertexInputAttributeDescription* vertex_input_attribute_descriptions) {
     vertex_input_binding_descriptions[0].binding = 0;
     vertex_input_binding_descriptions[0].stride = sizeof(gpu_vertex);
