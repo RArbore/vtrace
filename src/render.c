@@ -93,8 +93,8 @@ result init(void) {
     PROPAGATE(create_device());
     PROPAGATE(create_swapchain());
     PROPAGATE(create_graphics_pipeline());
-    PROPAGATE(create_framebuffers());
     PROPAGATE(create_depth_resources());
+    PROPAGATE(create_framebuffers());
     PROPAGATE(create_command_pool());
     PROPAGATE(create_command_buffers());
     PROPAGATE(create_cube_buffer());
@@ -548,6 +548,14 @@ result create_graphics_pipeline(void) {
     color_blending_state_create_info.attachmentCount = 1;
     color_blending_state_create_info.pAttachments = &color_blend_attachment_state;
 
+    VkPipelineDepthStencilStateCreateInfo depth_stencil_state_create_info = {0};
+    depth_stencil_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
+    depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
+    depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS;
+    depth_stencil_state_create_info.depthBoundsTestEnable = VK_FALSE;
+    depth_stencil_state_create_info.stencilTestEnable = VK_FALSE;
+
     VkPushConstantRange push_constant_range = {0};
     push_constant_range.offset = 0;
     push_constant_range.size = sizeof(float) * 4 * 4 * 2;
@@ -574,23 +582,40 @@ result create_graphics_pipeline(void) {
     color_attachment_reference.attachment = 0;
     color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentDescription depth_attachment = {0};
+    depth_attachment.format = VK_FORMAT_D32_SFLOAT;
+    depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depth_attachment_reference = {0};
+    depth_attachment_reference.attachment = 1;
+    depth_attachment_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkSubpassDescription subpass = {0};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &color_attachment_reference;
+    subpass.pDepthStencilAttachment = &depth_attachment_reference;
 
     VkSubpassDependency subpass_dependency = {0};
     subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     subpass_dependency.dstSubpass = 0;
-    subpass_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpass_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     subpass_dependency.srcAccessMask = 0;
-    subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
+    VkAttachmentDescription attachments[] = {color_attachment, depth_attachment};
+    
     VkRenderPassCreateInfo render_pass_create_info = {0};
     render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    render_pass_create_info.attachmentCount = 1;
-    render_pass_create_info.pAttachments = &color_attachment;
+    render_pass_create_info.attachmentCount = 2;
+    render_pass_create_info.pAttachments = attachments;
     render_pass_create_info.subpassCount = 1;
     render_pass_create_info.pSubpasses = &subpass;
     render_pass_create_info.dependencyCount = 1;
@@ -607,6 +632,7 @@ result create_graphics_pipeline(void) {
     graphics_pipeline_create_info.pViewportState = &viewport_state_create_info;
     graphics_pipeline_create_info.pRasterizationState = &rasterization_state_create_info;
     graphics_pipeline_create_info.pColorBlendState = &color_blending_state_create_info;
+    graphics_pipeline_create_info.pDepthStencilState = &depth_stencil_state_create_info;
     graphics_pipeline_create_info.pDynamicState = &pipeline_dynamic_state_create_info;
     graphics_pipeline_create_info.layout = glbl.graphics_pipeline_layout;
     graphics_pipeline_create_info.renderPass = glbl.render_pass;
@@ -626,13 +652,14 @@ result create_framebuffers(void) {
     VkFramebufferCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     create_info.renderPass = glbl.render_pass;
-    create_info.attachmentCount = 1;
+    create_info.attachmentCount = 2;
     create_info.width = glbl.swapchain_extent.width;
     create_info.height = glbl.swapchain_extent.height;
     create_info.layers = 1;
 
     for (uint32_t i = 0; i < glbl.swapchain_size; ++i) {
-	create_info.pAttachments = &glbl.swapchain_image_views[i];
+	VkImageView attachments[] = {glbl.swapchain_image_views[i], glbl.depth_image_view};
+	create_info.pAttachments = attachments;
 	PROPAGATE_VK_CLEAN(vkCreateFramebuffer(glbl.device, &create_info, NULL, &glbl.framebuffers[i]));
 	free(glbl.framebuffers);
 	PROPAGATE_VK_END();
@@ -696,11 +723,13 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
 
     PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
-    VkClearValue clear_color;
-    clear_color.color.float32[0] = 0.0f;
-    clear_color.color.float32[1] = 0.0f;
-    clear_color.color.float32[2] = 0.0f;
-    clear_color.color.float32[3] = 1.0f;
+    VkClearValue clear_values[0];
+    clear_values[0].color.float32[0] = 0.0f;
+    clear_values[0].color.float32[1] = 0.0f;
+    clear_values[0].color.float32[2] = 0.0f;
+    clear_values[0].color.float32[3] = 1.0f;
+    clear_values[1].depthStencil.depth = 1.0f;
+    clear_values[1].depthStencil.stencil = 0;
     
     VkRenderPassBeginInfo render_pass_begin_info = {0};
     render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -709,8 +738,8 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     render_pass_begin_info.renderArea.offset.x = 0;
     render_pass_begin_info.renderArea.offset.y = 0;
     render_pass_begin_info.renderArea.extent = glbl.swapchain_extent;
-    render_pass_begin_info.clearValueCount = 1;
-    render_pass_begin_info.pClearValues = &clear_color;
+    render_pass_begin_info.clearValueCount = 2;
+    render_pass_begin_info.pClearValues = clear_values;
 
     vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, glbl.graphics_pipeline);
@@ -1044,8 +1073,8 @@ void recreate_swapchain(void) {
     cleanup_swapchain();
 
     create_swapchain();
-    create_framebuffers();
     create_depth_resources();
+    create_framebuffers();
 }
 
 void cleanup_swapchain(void) {
