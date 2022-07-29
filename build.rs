@@ -54,8 +54,8 @@ fn main() {
     println!("cargo:rustc-link-lib=static=render");
     println!("cargo:rustc-link-lib=dylib=glfw");
     println!("cargo:rustc-link-lib=dylib=vulkan");
-    println!("cargo:rerun-if-changed=render.c");
-    println!("cargo:rerun-if-changed=render.h");
-    println!("cargo:rerun-if-changed=test.vert");
-    println!("cargo:rerun-if-changed=test.frag");
+    println!("cargo:rerun-if-changed=src/render.c");
+    println!("cargo:rerun-if-changed=src/render.h");
+    println!("cargo:rerun-if-changed=shaders/test.vert");
+    println!("cargo:rerun-if-changed=shaders/test.frag");
 }
