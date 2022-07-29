@@ -15,8 +15,6 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use glm::*;
-
 mod render;
 mod voxel;
 mod world;
@@ -33,21 +31,21 @@ fn main() {
     let instances = vec![
         render::GPUInstance::new(
             0.0,
-            &Vec3::new(0.0, 1.0, 0.0),
-            &Vec3::new(0.0, 0.0, 0.0),
-            &Vec3::new(0.0, -1.3, 0.0),
+            &glm::Vec3::new(0.0, 1.0, 0.0),
+            &glm::Vec3::new(0.0, 0.0, 0.0),
+            &glm::Vec3::new(0.0, -1.3, 0.0),
         ),
         render::GPUInstance::new(
             0.0,
-            &Vec3::new(0.0, 1.0, 0.0),
-            &Vec3::new(0.0, 0.0, 0.0),
-            &Vec3::new(0.0, 0.0, 0.0),
+            &glm::Vec3::new(0.0, 1.0, 0.0),
+            &glm::Vec3::new(0.0, 0.0, 0.0),
+            &glm::Vec3::new(0.0, 0.0, 0.0),
         ),
         render::GPUInstance::new(
             0.0,
-            &Vec3::new(0.0, 1.0, 0.0),
-            &Vec3::new(0.0, 0.0, 0.0),
-            &Vec3::new(0.0, 1.3, 0.0),
+            &glm::Vec3::new(0.0, 1.0, 0.0),
+            &glm::Vec3::new(0.0, 0.0, 0.0),
+            &glm::Vec3::new(0.0, 1.3, 0.0),
         ),
     ];
 

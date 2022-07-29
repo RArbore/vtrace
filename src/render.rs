@@ -94,6 +94,8 @@ pub struct Renderer {
     perspective: Matrix4<f32>,
     camera: Matrix4<f32>,
     prev_time: Instant,
+    prev_frame_time: Instant,
+    prev_frame_num: usize,
 }
 
 #[repr(C)]
@@ -121,6 +123,8 @@ impl Renderer {
             perspective: Self::create_perspective(fov, 1.0),
             camera: Self::create_camera(&world.camera_position, &world.get_camera_direction(), 0),
             prev_time: Instant::now(),
+            prev_frame_time: Instant::now(),
+            prev_frame_num: 0,
         }
     }
 
@@ -180,14 +184,23 @@ impl Renderer {
         );
 
         let dt = self.prev_time.elapsed().as_micros();
-        self.prev_time = Instant::now();
-        /*println!(
-            "FPS: {}   MS: {}",
-            1000000.0 / dt as f32,
-            dt as f32 / 1000.0
-        );*/
+        if dt > 1000000 {
+            self.prev_time = Instant::now();
+            let num_frames = self.frame_num - self.prev_frame_num;
+            self.prev_frame_num = self.frame_num;
+            println!(
+                "FPS: {}   MS: {}",
+                1000000.0 * num_frames as f32 / dt as f32,
+                dt as f32 / 1000.0 / num_frames as f32
+            );
+        }
 
-        (code, dt as f32 / 1000000.0)
+        let frame_dt = self.prev_frame_time.elapsed().as_micros();
+        self.prev_frame_time = Instant::now();
+
+        self.frame_num += 1;
+
+        (code, frame_dt as f32 / 1000000.0)
     }
 }
 
