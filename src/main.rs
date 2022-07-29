@@ -15,6 +15,8 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
+use glm::*;
+
 mod render;
 mod voxel;
 mod world;
@@ -28,30 +30,28 @@ fn main() {
     renderer.add_texture(texture.remove(0));
     renderer.update_descriptor();
 
-    /*let instances: Vec<render::GPUInstance> = (0..1000)
-        .map(|i| render::GPUInstance {
-            model: [
-                1.0,
-                0.0,
-                0.0,
-                (i % 10) as f32 * 4.0,
-                0.0,
-                1.0,
-                0.0,
-                (i / 10 % 10) as f32 * 4.0,
-                0.0,
-                0.0,
-                1.0,
-                (i / 10 / 10 % 10) as f32 * 4.0,
-                0.0,
-                0.0,
-                0.0,
-                unsafe { std::mem::transmute(1) },
-            ],
-        })
-        .collect();
+    let instances = vec![
+        render::GPUInstance::new(
+            0.0,
+            &Vec3::new(0.0, 1.0, 0.0),
+            &Vec3::new(0.0, 0.0, 0.0),
+            &Vec3::new(0.0, -1.3, 0.0),
+        ),
+        render::GPUInstance::new(
+            0.0,
+            &Vec3::new(0.0, 1.0, 0.0),
+            &Vec3::new(0.0, 0.0, 0.0),
+            &Vec3::new(0.0, 0.0, 0.0),
+        ),
+        render::GPUInstance::new(
+            0.0,
+            &Vec3::new(0.0, 1.0, 0.0),
+            &Vec3::new(0.0, 0.0, 0.0),
+            &Vec3::new(0.0, 1.3, 0.0),
+        ),
+    ];
 
-    renderer.update_instances(instances);*/
+    renderer.update_instances(&instances);
 
     let (mut code, mut dt) = renderer.render_tick(&mut world);
     while code {

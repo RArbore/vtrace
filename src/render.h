@@ -108,12 +108,17 @@ typedef struct renderer {
 
     VkBuffer staging_cube_vertex_buffer;
     VkBuffer staging_cube_index_buffer;
-    VkBuffer staging_cube_instance_buffer;
-    VkDeviceMemory staging_cube_buffer_memory;
+    VkDeviceMemory staging_cube_memory;
     VkBuffer cube_vertex_buffer;
     VkBuffer cube_index_buffer;
-    VkBuffer cube_instance_buffer;
-    VkDeviceMemory cube_buffer_memory;
+    VkDeviceMemory cube_memory;
+
+    uint32_t instance_count;
+    uint32_t instance_capacity;
+    VkBuffer staging_instance_buffer;
+    VkDeviceMemory staging_instance_memory;
+    VkBuffer instance_buffer;
+    VkDeviceMemory instance_memory;
 
     VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore copy_finished_semaphore[FRAMES_IN_FLIGHT];
@@ -189,6 +194,8 @@ result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* mem
 
 result create_cube_buffer(void);
 
+result create_instance_buffer(void);
+
 void update_instances(const float* instances, uint32_t instance_count);
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
@@ -204,5 +211,7 @@ void cleanup(void);
 void recreate_swapchain(void);
 
 void cleanup_swapchain(void);
+
+void cleanup_instance_buffer(void);
 
 int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info);

@@ -26,7 +26,7 @@ struct GPUVertex {
 }
 
 #[repr(C)]
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct GPUInstance {
     model: [f32; 16],
 }
@@ -109,30 +109,9 @@ impl Renderer {
             panic!("ERROR: Vulkan initialization failed",);
         }
 
-        let instances = vec![
-            GPUInstance::new(
-                0.0,
-                &Vec3::new(0.0, 0.0, 0.0),
-                &Vec3::new(0.0, 0.0, 0.0),
-                &Vec3::new(0.0, -1.3, 0.0),
-            ),
-            GPUInstance::new(
-                0.0,
-                &Vec3::new(0.0, 0.0, 0.0),
-                &Vec3::new(0.0, 0.0, 0.0),
-                &Vec3::new(0.0, 0.0, 0.0),
-            ),
-            GPUInstance::new(
-                0.0,
-                &Vec3::new(0.0, 0.0, 0.0),
-                &Vec3::new(0.0, 0.0, 0.0),
-                &Vec3::new(0.0, 1.3, 0.0),
-            ),
-        ];
-
         let fov = 80.0 / 180.0 * 3.1415926;
 
-        let mut renderer = Renderer {
+        Renderer {
             window_width: 1,
             window_height: 1,
             prev_window_width: 1,
@@ -142,11 +121,7 @@ impl Renderer {
             perspective: Self::create_perspective(fov, 1.0),
             camera: Self::create_camera(&world.camera_position, &world.get_camera_direction(), 0),
             prev_time: Instant::now(),
-        };
-
-        renderer.update_instances(&instances);
-
-        renderer
+        }
     }
 
     fn create_perspective(fov: f32, aspect: f32) -> Matrix4<f32> {
