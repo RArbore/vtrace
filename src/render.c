@@ -745,7 +745,7 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
 
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(command_buffer, 0, 1, &glbl.cube_vertex_buffer, offsets);
-    vkCmdBindVertexBuffers(command_buffer, 1, 1, &glbl.instance_buffers[0], offsets);
+    vkCmdBindVertexBuffers(command_buffer, 1, 1, &glbl.instance_buffer, offsets);
     vkCmdBindIndexBuffer(command_buffer, glbl.cube_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdPushConstants(command_buffer, glbl.graphics_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(float) * 4 * 4, render_tick_info->perspective);
@@ -931,19 +931,12 @@ result create_cube_buffer(void) {
 result create_instance_buffer(void) {
     uint32_t round_up_p2 = 1;
     while (round_up_p2 <= glbl.instance_count) round_up_p2 *= 2;
-    if (glbl.instance_buffer_num == 0) glbl.instance_buffer_num = 1;
-    uint32_t buffer_size = round_up_p2 * sizeof(float) * 4 * 4;
-
-    glbl.instance_buffers = malloc(glbl.instance_buffer_num * sizeof(VkBuffer));
-    glbl.staging_instance_buffers = malloc(glbl.instance_buffer_num * sizeof(VkBuffer));
     
-    for (uint32_t buffer_num = 0; buffer_num < glbl.instance_buffer_num; ++buffer_num) {
-	PROPAGATE(create_buffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &glbl.instance_buffers[buffer_num]));
-	PROPAGATE(create_buffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &glbl.staging_instance_buffers[buffer_num]));
-    }
+    PROPAGATE(create_buffer(round_up_p2 * sizeof(float) * 4 * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &glbl.instance_buffer));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.instance_memory, &glbl.instance_buffer, 1, NULL));
 
-    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.instance_memory, glbl.instance_buffers, glbl.instance_buffer_num, NULL));
-    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &glbl.staging_instance_memory, glbl.staging_instance_buffers, glbl.instance_buffer_num, NULL));
+    PROPAGATE(create_buffer(round_up_p2 * sizeof(float) * 4 * 4, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &glbl.staging_instance_buffer));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &glbl.staging_instance_memory, &glbl.staging_instance_buffer, 1, NULL));
 
     glbl.instance_capacity = round_up_p2;
 
@@ -964,7 +957,7 @@ void update_instances(const float* instances, uint32_t instance_count) {
 
     VkBufferCopy copy_region = {0};
     copy_region.size = instance_count * sizeof(float) * 4 * 4;
-    queue_copy_buffer(glbl.instance_buffers[0], glbl.staging_instance_buffers[0], copy_region);
+    queue_copy_buffer(glbl.instance_buffer, glbl.staging_instance_buffer, copy_region);
 }
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_descriptions, VkVertexInputAttributeDescription* vertex_input_attribute_descriptions) {
@@ -1107,16 +1100,10 @@ void cleanup_swapchain(void) {
 }
 
 void cleanup_instance_buffer(void) {
-    for (uint32_t buffer_num = 0; buffer_num < glbl.instance_buffer_num; ++buffer_num) {
-	vkDestroyBuffer(glbl.device, glbl.staging_instance_buffers[buffer_num], NULL);
-	vkDestroyBuffer(glbl.device, glbl.instance_buffers[buffer_num], NULL);
-    }
-
+    vkDestroyBuffer(glbl.device, glbl.staging_instance_buffer, NULL);
     vkFreeMemory(glbl.device, glbl.staging_instance_memory, NULL);
+    vkDestroyBuffer(glbl.device, glbl.instance_buffer, NULL);
     vkFreeMemory(glbl.device, glbl.instance_memory, NULL);
-
-    free(glbl.instance_buffers);
-    free(glbl.staging_instance_buffers);
 }
 
 int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info) {

@@ -115,10 +115,9 @@ typedef struct renderer {
 
     uint32_t instance_count;
     uint32_t instance_capacity;
-    uint32_t instance_buffer_num;
-    VkBuffer* staging_instance_buffers;
+    VkBuffer staging_instance_buffer;
     VkDeviceMemory staging_instance_memory;
-    VkBuffer* instance_buffers;
+    VkBuffer instance_buffer;
     VkDeviceMemory instance_memory;
 
     VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
