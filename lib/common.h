@@ -143,6 +143,10 @@ typedef struct result {
     int32_t custom;
 } result;
 
+__attribute__((unused)) static const result SUCCESS = {.vk = VK_SUCCESS, .custom = 0};
+__attribute__((unused)) static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .custom = 1};
+extern renderer glbl;
+
 uint64_t entry(void);
 
 result init(void);

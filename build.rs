@@ -27,7 +27,13 @@ fn main() {
             if profile == "RELEASE" { "-O3" } else { "-g" },
             format!("-D{}", profile).as_str(),
             "-c",
-            "src/render.c",
+            "lib/entry.c",
+            "lib/device.c",
+            "lib/swapchain.c",
+            "lib/pipeline.c",
+            "lib/commands.c",
+            "lib/memory.c",
+            "lib/sync.c",
             "-o",
             format!("{}/render.o", out_dir).as_str(),
         ])
@@ -54,8 +60,14 @@ fn main() {
     println!("cargo:rustc-link-lib=static=render");
     println!("cargo:rustc-link-lib=dylib=glfw");
     println!("cargo:rustc-link-lib=dylib=vulkan");
-    println!("cargo:rerun-if-changed=render.c");
-    println!("cargo:rerun-if-changed=render.h");
+    println!("cargo:rerun-if-changed=lib/entry.c");
+    println!("cargo:rerun-if-changed=lib/device.c");
+    println!("cargo:rerun-if-changed=lib/swapchain.c");
+    println!("cargo:rerun-if-changed=lib/pipeline.c");
+    println!("cargo:rerun-if-changed=lib/commands.c");
+    println!("cargo:rerun-if-changed=lib/memory.c");
+    println!("cargo:rerun-if-changed=lib/sync.c");
+    println!("cargo:rerun-if-changed=lib/common.h");
     println!("cargo:rerun-if-changed=test.vert");
     println!("cargo:rerun-if-changed=test.frag");
 }
