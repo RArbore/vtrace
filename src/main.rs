@@ -28,30 +28,29 @@ fn main() {
     renderer.add_texture(texture.remove(0));
     renderer.update_descriptor();
 
+    let mut instances = vec![];
+    for x in -100..=100 {
+        for z in -100..=100 {
+            instances.push(render::GPUInstance::new(
+                0.0,
+                &glm::Vec3::new(0.0, 1.0, 0.0),
+                &glm::Vec3::new(0.0, 0.0, 0.0),
+                &glm::Vec3::new(x as f32 * 1.5, 0.0, z as f32 * 1.5),
+            ));
+        }
+    }
+
     let (mut code, mut dt) = renderer.render_tick(&mut world);
     while code {
-        world.update(dt / 4.0);
+        world.update(dt / 10.0);
 
-        let instances = vec![
-            render::GPUInstance::new(
-                0.0,
-                &glm::Vec3::new(0.0, 1.0, 0.0),
-                &glm::Vec3::new(0.0, 0.0, 0.0),
-                &glm::Vec3::new(0.0, -1.3, 0.0),
-            ),
-            render::GPUInstance::new(
-                0.0,
-                &glm::Vec3::new(0.0, 1.0, 0.0),
-                &glm::Vec3::new(0.0, 0.0, 0.0),
-                &glm::Vec3::new(0.0, 0.0, 0.0),
-            ),
-            render::GPUInstance::new(
-                0.0,
-                &glm::Vec3::new(0.0, 1.0, 0.0),
-                &glm::Vec3::new(0.0, 0.0, 0.0),
-                &glm::Vec3::new(0.0, 1.3, 0.0),
-            ),
-        ];
+        let mut i = 0;
+        for x in -100..=100 {
+            for z in -100..=100 {
+                instances[i].translate(&glm::Vec3::new(0.0, (x + z) as f32 * dt / 10.0, 0.0));
+                i += 1;
+            }
+        }
 
         renderer.update_instances(&instances);
 

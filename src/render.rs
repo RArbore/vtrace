@@ -68,6 +68,12 @@ impl GPUInstance {
             ],
         }
     }
+
+    pub fn translate(&mut self, translate: &Vec3) {
+        self.model[12] += translate.x;
+        self.model[13] += translate.y;
+        self.model[14] += translate.z;
+    }
 }
 
 extern "C" {

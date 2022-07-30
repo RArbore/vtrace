@@ -63,7 +63,8 @@ impl WorldState {
         }
 
         self.camera_theta = self.accum_time_frac * 3.1415926 * 2.0;
+        self.camera_phi = cos(self.camera_theta) + 3.1415926 / 2.0;
         self.camera_position = self.get_camera_direction() * -4.0;
-        self.camera_position.y = cos(self.camera_theta * 2.0);
+        self.camera_position.y = cos(self.camera_theta) * 20.0;
     }
 }
