@@ -20,28 +20,46 @@ fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let profile = env::var("PROFILE").unwrap().to_uppercase();
 
-    Command::new("cc")
-        .args(&[
-            "-march=native",
-            "-static",
-            if profile == "RELEASE" { "-O3" } else { "-g" },
-            format!("-D{}", profile).as_str(),
-            "-c",
-            "lib/entry.c",
-            "lib/device.c",
-            "lib/swapchain.c",
-            "lib/pipeline.c",
-            "lib/commands.c",
-            "lib/memory.c",
-            "lib/sync.c",
-            "-o",
-            format!("{}/render.o", out_dir).as_str(),
-        ])
-        .status()
-        .unwrap();
+    let c_files = [
+        "entry.c",
+        "device.c",
+        "swapchain.c",
+        "pipeline.c",
+        "commands.c",
+        "memory.c",
+        "sync.c",
+    ];
+
+    let o_files = [
+        "entry.o",
+        "device.o",
+        "swapchain.o",
+        "pipeline.o",
+        "commands.o",
+        "memory.o",
+        "sync.o",
+    ];
+
+    for (c_file, o_file) in std::iter::zip(c_files, o_files) {
+        Command::new("cc")
+            .args(&[
+                "-march=native",
+                "-static",
+                if profile == "RELEASE" { "-O3" } else { "-g" },
+                format!("-D{}", profile).as_str(),
+                "-c",
+                format!("lib/{}", c_file).as_str(),
+                "-o",
+                format!("{}/{}", out_dir, o_file).as_str(),
+            ])
+            .status()
+            .unwrap();
+
+        println!("cargo:rerun-if-changed=lib/{}", c_file);
+    }
 
     Command::new("ar")
-        .args(&["rcs", "librender.a", "render.o"])
+        .args(std::iter::once("rcs").chain(std::iter::once("librender.a").chain(o_files)))
         .current_dir(&Path::new(&out_dir))
         .status()
         .unwrap();
@@ -60,13 +78,6 @@ fn main() {
     println!("cargo:rustc-link-lib=static=render");
     println!("cargo:rustc-link-lib=dylib=glfw");
     println!("cargo:rustc-link-lib=dylib=vulkan");
-    println!("cargo:rerun-if-changed=lib/entry.c");
-    println!("cargo:rerun-if-changed=lib/device.c");
-    println!("cargo:rerun-if-changed=lib/swapchain.c");
-    println!("cargo:rerun-if-changed=lib/pipeline.c");
-    println!("cargo:rerun-if-changed=lib/commands.c");
-    println!("cargo:rerun-if-changed=lib/memory.c");
-    println!("cargo:rerun-if-changed=lib/sync.c");
     println!("cargo:rerun-if-changed=lib/common.h");
     println!("cargo:rerun-if-changed=test.vert");
     println!("cargo:rerun-if-changed=test.frag");

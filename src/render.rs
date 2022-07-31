@@ -159,7 +159,7 @@ impl Renderer {
         unsafe { update_instances(instances.as_ptr(), instances.len() as u32) };
     }
 
-    pub fn render_tick(&mut self, world: &mut WorldState) -> (bool, f32) {
+    pub fn render_tick(&mut self, pos: &Vec3, dir: &Vec3) -> (bool, f32) {
         let render_tick_info = RenderTickInfo {
             perspective: &mut self.perspective,
             camera: &mut self.camera,
@@ -183,11 +183,7 @@ impl Renderer {
             self.prev_window_width = self.window_width;
             self.prev_window_height = self.window_height;
         }
-        self.camera = Self::create_camera(
-            &world.camera_position,
-            &world.get_camera_direction(),
-            self.frame_num,
-        );
+        self.camera = Self::create_camera(pos, dir, self.frame_num);
 
         let dt = self.prev_time.elapsed().as_micros();
         if dt > 1000000 {

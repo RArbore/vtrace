@@ -23,15 +23,15 @@ fn main() {
     let mut texture = voxel::load("assets/AncientTemple.vox");
 
     let mut world = world::WorldState::new();
-    let mut renderer = render::Renderer::new(&world);
+    let renderer = std::sync::Arc::new(std::sync::Mutex::new(render::Renderer::new(&world)));
 
-    renderer.add_texture(texture.remove(0));
-    renderer.update_descriptor();
+    renderer.lock().unwrap().add_texture(texture.remove(0));
+    renderer.lock().unwrap().update_descriptor();
 
-    let mut instances = vec![];
+    let mut instances1 = vec![];
     for x in -100..=100 {
         for z in -100..=100 {
-            instances.push(render::GPUInstance::new(
+            instances1.push(render::GPUInstance::new(
                 0.0,
                 &glm::Vec3::new(0.0, 1.0, 0.0),
                 &glm::Vec3::new(0.0, 0.0, 0.0),
@@ -40,20 +40,29 @@ fn main() {
         }
     }
 
-    let (mut code, mut dt) = renderer.render_tick(&mut world);
+    let mut instances2 = vec![Default::default(); instances1.len()];
+
+    let mut instances = (&mut instances1, &mut instances2);
+
+    let (mut code, mut dt) = (true, 0.0);
     while code {
-        world.update(dt / 10.0);
+        let render_camera_pos = world.camera_position;
+        let render_camera_dir = world.get_camera_direction();
 
-        let mut i = 0;
-        for x in -100..=100 {
-            for z in -100..=100 {
-                instances[i].translate(&glm::Vec3::new(0.0, (x + z) as f32 * dt / 10.0, 0.0));
-                i += 1;
-            }
-        }
+        renderer.lock().unwrap().update_instances(instances.0);
+        let renderer_clone = renderer.clone();
 
-        renderer.update_instances(&instances);
+        let handle = std::thread::spawn(move || {
+            renderer_clone
+                .lock()
+                .unwrap()
+                .render_tick(&render_camera_pos, &render_camera_dir)
+        });
 
-        (code, dt) = renderer.render_tick(&mut world);
+        world.update(dt / 10.0, instances.0, instances.1);
+
+        (code, dt) = handle.join().unwrap();
+
+        instances = (instances.1, instances.0);
     }
 }

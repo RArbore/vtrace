@@ -15,8 +15,6 @@
 use glm::builtin::*;
 use glm::*;
 
-use winit::event::*;
-
 use crate::render::*;
 
 const MOVE_SPEED: f32 = 0.005;
@@ -55,7 +53,12 @@ impl WorldState {
         vec3(cos(self.camera_theta), 0.0, sin(self.camera_theta))
     }
 
-    pub fn update(&mut self, dt: f32) {
+    pub fn update(
+        &mut self,
+        dt: f32,
+        old_instances: &Vec<GPUInstance>,
+        new_instances: &mut Vec<GPUInstance>,
+    ) {
         self.accum_time_frac += dt;
         if self.accum_time_frac > 1.0 {
             self.accum_time_frac -= 1.0;
@@ -66,5 +69,14 @@ impl WorldState {
         self.camera_phi = cos(self.camera_theta) + 3.1415926 / 2.0;
         self.camera_position = self.get_camera_direction() * -4.0;
         self.camera_position.y = cos(self.camera_theta) * 20.0;
+
+        let mut i = 0;
+        for x in -100..=100 {
+            for z in -100..=100 {
+                new_instances[i] = old_instances[i];
+                new_instances[i].translate(&glm::Vec3::new(0.0, (x + z) as f32 * dt / 10.0, 0.0));
+                i += 1;
+            }
+        }
     }
 }
