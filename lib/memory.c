@@ -238,6 +238,10 @@ result create_staging_texture_buffer(void) {
     return SUCCESS;
 }
 
+result create_texture_resources(void) {
+    return SUCCESS;
+}
+
 int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth) {
     uint32_t upload_size = 4 * width * height * depth;
     if (upload_size > glbl.staging_texture_size) {
@@ -250,6 +254,33 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     vkMapMemory(glbl.device, glbl.staging_texture_memory, 0, upload_size, 0, &texture_data);
     memcpy(texture_data, data, upload_size);
     vkUnmapMemory(glbl.device, glbl.staging_texture_memory);
+
+    VkImage image;
+    VkImageView image_view;
+
+    VkExtent3D extent;
+    extent.width = width;
+    extent.height = height;
+    extent.depth = depth;
+    VkImageSubresourceRange subresource_range; 
+    subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresource_range.baseMipLevel = 0;
+    subresource_range.levelCount = 1;
+    subresource_range.baseArrayLayer = 0;
+    subresource_range.layerCount = 1;
+    
+    create_image(0, VK_FORMAT_R8G8B8A8_SRGB, extent, 1, 1, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &image);
+    create_image_view(image, VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, &image_view);
+
+    if (glbl.texture_image_count >= glbl.texture_image_allocated) {
+	glbl.texture_image_allocated = round_up_p2(glbl.texture_image_allocated + 1);
+	glbl.texture_images = realloc(glbl.texture_images, glbl.texture_image_allocated * sizeof(VkImage));
+	glbl.texture_image_views = realloc(glbl.texture_image_views, glbl.texture_image_allocated * sizeof(VkImageView));
+    }
+
+    glbl.texture_images[glbl.texture_image_count] = image;
+    glbl.texture_image_views[glbl.texture_image_count] = image_view;
+    ++glbl.texture_image_count;
     
     return 0;
 }
@@ -317,4 +348,18 @@ void cleanup_staging_texture_buffer(void) {
     vkQueueWaitIdle(glbl.queue);
     vkDestroyBuffer(glbl.device, glbl.staging_texture_buffer, NULL);
     vkFreeMemory(glbl.device, glbl.staging_texture_memory, NULL);
+}
+
+void cleanup_texture_images(void) {
+    vkQueueWaitIdle(glbl.queue);
+    for (uint32_t i = 0; i < glbl.texture_image_count; ++i) {
+	vkDestroyImage(glbl.device, glbl.texture_images[i], NULL);
+	vkDestroyImageView(glbl.device, glbl.texture_image_views[i], NULL);
+    }
+    free(glbl.texture_images);
+    free(glbl.texture_image_views);
+}
+
+void cleanup_texture_resources(void) {
+    vkFreeMemory(glbl.device, glbl.texture_memory, NULL);
 }

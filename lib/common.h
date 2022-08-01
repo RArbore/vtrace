@@ -123,6 +123,13 @@ typedef struct renderer {
     uint32_t staging_texture_size;
     VkBuffer staging_texture_buffer;
     VkDeviceMemory staging_texture_memory;
+    uint32_t texture_image_count;
+    uint32_t texture_image_allocated;
+    uint32_t texture_memory_used;
+    uint32_t texture_memory_allocated;
+    VkImage* texture_images;
+    VkImageView* texture_image_views;
+    VkDeviceMemory texture_memory;
 
     VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
@@ -209,6 +216,8 @@ void update_instances(const float* instances, uint32_t instance_count);
 
 result create_staging_texture_buffer(void);
 
+result create_texture_resources(void);
+
 int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth);
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
@@ -228,5 +237,9 @@ void cleanup_swapchain(void);
 void cleanup_instance_buffer(void);
 
 void cleanup_staging_texture_buffer(void);
+
+void cleanup_texture_images(void);
+
+void cleanup_texture_resources(void);
 
 int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info);
