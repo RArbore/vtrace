@@ -239,6 +239,8 @@ result create_staging_texture_buffer(void) {
 }
 
 result create_texture_resources(void) {
+    if (glbl.texture_memory_allocated > 0) PROPAGATE(create_image_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.texture_memory, glbl.texture_images, glbl.texture_image_count, NULL));
+    
     return SUCCESS;
 }
 
@@ -247,7 +249,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     if (upload_size > glbl.staging_texture_size) {
 	glbl.staging_texture_size = round_up_p2(upload_size);
 	cleanup_staging_texture_buffer();
-	create_staging_texture_buffer();
+	PROPAGATE_C(create_staging_texture_buffer());
     }
 
     void* texture_data;
@@ -269,8 +271,8 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     subresource_range.baseArrayLayer = 0;
     subresource_range.layerCount = 1;
     
-    create_image(0, VK_FORMAT_R8G8B8A8_SRGB, extent, 1, 1, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &image);
-    create_image_view(image, VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, &image_view);
+    PROPAGATE_C(create_image(0, VK_FORMAT_R8G8B8A8_SRGB, extent, 1, 1, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &image));
+    PROPAGATE_C(create_image_view(image, VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, &image_view));
 
     if (glbl.texture_image_count >= glbl.texture_image_allocated) {
 	glbl.texture_image_allocated = round_up_p2(glbl.texture_image_allocated + 1);
@@ -281,6 +283,19 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     glbl.texture_images[glbl.texture_image_count] = image;
     glbl.texture_image_views[glbl.texture_image_count] = image_view;
     ++glbl.texture_image_count;
+
+    VkMemoryRequirements requirements;
+    vkGetImageMemoryRequirements(glbl.device, image, &requirements);
+    uint32_t desired_offset = round_up(glbl.texture_memory_used, requirements.alignment);
+    uint32_t needed_size = desired_offset + requirements.size;
+    if (needed_size > glbl.texture_memory_allocated) {
+	cleanup_texture_resources();
+	glbl.texture_memory_allocated = needed_size;
+	PROPAGATE_C(create_texture_resources());
+    }
+    else {
+	PROPAGATE_VK_C(vkBindImageMemory(glbl.device, image, glbl.texture_memory, desired_offset));
+    }
     
     return 0;
 }

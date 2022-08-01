@@ -39,6 +39,20 @@
 	}								\
     }
 
+#define PROPAGATE_VK_C(res)						\
+    {									\
+	VkResult eval = res;						\
+	if (eval != SUCCESS.vk) {					\
+	    return 1;							\
+	}								\
+    }
+
+#define PROPAGATE_C(res)						\
+    {									\
+	result eval = res;						\
+	if (!IS_SUCCESS(eval)) return 1;				\
+    }
+
 #define PROPAGATE_CLEAN(res)						\
     {									\
     result PROPAGATE_CLEANUP_RETURN_VALUE_RESERVED = res;		\
