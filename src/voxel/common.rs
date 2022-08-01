@@ -22,6 +22,11 @@ pub trait VoxelFormat<T: Voxel>: IntoVoxelIterator<Item = T> + FromVoxelIterator
     fn at_mut<'a>(&'a mut self, x: i32, y: i32, z: i32) -> Option<&'a mut T>;
 }
 
+pub trait RawVoxelFormat<T: Voxel>: VoxelFormat<T> {
+    fn get_raw(&self) -> *const T;
+    fn get_raw_mut(&mut self) -> *mut T;
+}
+
 pub fn contains<V: Voxel, T: VoxelFormat<V>>(voxels: &T, x: i32, y: i32, z: i32) -> bool {
     x >= voxels.dim_x().0
         && y >= voxels.dim_y().0

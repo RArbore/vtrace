@@ -28,6 +28,7 @@ pub struct WorldState {
     pub camera_phi: f32,
     accum_time_frac: f32,
     accum_time_whole: i32,
+    frame_num: i32,
 }
 
 impl WorldState {
@@ -38,6 +39,7 @@ impl WorldState {
             camera_phi: PI / 2.0,
             accum_time_frac: 0.0,
             accum_time_whole: 0,
+            frame_num: 0,
         }
     }
 
@@ -78,5 +80,7 @@ impl WorldState {
                 i += 1;
             }
         }
+
+        self.frame_num += 1;
     }
 }

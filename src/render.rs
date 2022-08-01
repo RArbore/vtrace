@@ -85,6 +85,8 @@ extern "C" {
         render_tick_info: *const RenderTickInfo,
     ) -> i32;
 
+    fn add_texture(data: *const Color, width: u32, height: u32, depth: u32) -> i32;
+
     fn update_instances(instances: *const GPUInstance, instance_count: u32);
 
     fn cleanup();
@@ -151,7 +153,22 @@ impl Renderer {
         )
     }
 
-    pub fn add_texture<T: VoxelFormat<Color>>(&mut self, texture: T) {}
+    pub fn add_texture<T: RawVoxelFormat<Color>>(&mut self, texture: T) {
+        let dim_x = texture.dim_x();
+        let dim_y = texture.dim_y();
+        let dim_z = texture.dim_z();
+        assert!(dim_x.1 > dim_x.0);
+        assert!(dim_y.1 > dim_y.0);
+        assert!(dim_z.1 > dim_z.0);
+        unsafe {
+            add_texture(
+                texture.get_raw(),
+                (dim_x.1 - dim_x.0) as u32,
+                (dim_y.1 - dim_y.0) as u32,
+                (dim_z.1 - dim_z.0) as u32,
+            )
+        };
+    }
 
     pub fn update_descriptor(&mut self) {}
 

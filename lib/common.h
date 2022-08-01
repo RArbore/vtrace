@@ -120,6 +120,10 @@ typedef struct renderer {
     VkBuffer instance_buffer;
     VkDeviceMemory instance_memory;
 
+    uint32_t staging_texture_size;
+    VkBuffer staging_texture_buffer;
+    VkDeviceMemory staging_texture_memory;
+
     VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
     VkFence frame_in_flight_fence[FRAMES_IN_FLIGHT];
@@ -203,6 +207,10 @@ result create_instance_buffer(void);
 
 void update_instances(const float* instances, uint32_t instance_count);
 
+result create_staging_texture_buffer(void);
+
+int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth);
+
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
 result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region);
@@ -218,5 +226,7 @@ void recreate_swapchain(void);
 void cleanup_swapchain(void);
 
 void cleanup_instance_buffer(void);
+
+void cleanup_staging_texture_buffer(void);
 
 int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info);

@@ -51,6 +51,7 @@ result init(void) {
     PROPAGATE(create_command_buffers());
     PROPAGATE(create_cube_buffer());
     PROPAGATE(create_instance_buffer());
+    PROPAGATE(create_staging_texture_buffer());
     PROPAGATE(create_synchronization());
 
     return SUCCESS;
@@ -61,6 +62,7 @@ void cleanup(void) {
 
     cleanup_swapchain();
     cleanup_instance_buffer();
+    cleanup_staging_texture_buffer();
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
 	vkDestroySemaphore(glbl.device, glbl.image_available_semaphore[i], NULL);

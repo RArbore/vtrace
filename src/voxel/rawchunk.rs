@@ -155,6 +155,18 @@ impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> VoxelFormat<T>
     }
 }
 
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> RawVoxelFormat<T>
+    for RawStaticChunk<T, X, Y, Z>
+{
+    fn get_raw(&self) -> *const T {
+        self.data[0][0].as_ptr()
+    }
+
+    fn get_raw_mut(&mut self) -> *mut T {
+        self.data[0][0].as_mut_ptr()
+    }
+}
+
 #[derive(PartialEq, Eq, Debug)]
 pub struct RawDynamicChunk<T: Voxel> {
     data: Box<[T]>,
@@ -282,6 +294,16 @@ impl<T: Voxel> VoxelFormat<T> for RawDynamicChunk<T> {
         } else {
             None
         }
+    }
+}
+
+impl<T: Voxel> RawVoxelFormat<T> for RawDynamicChunk<T> {
+    fn get_raw(&self) -> *const T {
+        self.data.as_ptr()
+    }
+
+    fn get_raw_mut(&mut self) -> *mut T {
+        self.data.as_mut_ptr()
     }
 }
 

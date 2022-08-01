@@ -192,17 +192,22 @@ result create_cube_buffer(void) {
     return SUCCESS;
 }
 
+static uint32_t round_up_p2(uint32_t x) {
+    uint32_t rounded = 1;
+    while (rounded < x) rounded *= 2;
+    return rounded;
+}
+
 result create_instance_buffer(void) {
-    uint32_t round_up_p2 = 1;
-    while (round_up_p2 <= glbl.instance_count) round_up_p2 *= 2;
+    uint32_t instance_capacity = round_up_p2(glbl.instance_count + 1);
     
-    PROPAGATE(create_buffer(round_up_p2 * sizeof(float) * 4 * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &glbl.instance_buffer));
+    PROPAGATE(create_buffer(instance_capacity * sizeof(float) * 4 * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &glbl.instance_buffer));
     PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.instance_memory, &glbl.instance_buffer, 1, NULL));
 
-    PROPAGATE(create_buffer(round_up_p2 * sizeof(float) * 4 * 4, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &glbl.staging_instance_buffer));
+    PROPAGATE(create_buffer(instance_capacity * sizeof(float) * 4 * 4, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &glbl.staging_instance_buffer));
     PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &glbl.staging_instance_memory, &glbl.staging_instance_buffer, 1, NULL));
 
-    glbl.instance_capacity = round_up_p2;
+    glbl.instance_capacity = instance_capacity;
 
     return SUCCESS;
 }
@@ -222,6 +227,31 @@ void update_instances(const float* instances, uint32_t instance_count) {
     VkBufferCopy copy_region = {0};
     copy_region.size = instance_count * sizeof(float) * 4 * 4;
     queue_copy_buffer(glbl.instance_buffer, glbl.staging_instance_buffer, copy_region);
+}
+
+result create_staging_texture_buffer(void) {
+    if (glbl.staging_texture_size == 0) glbl.staging_texture_size = 1;
+
+    PROPAGATE(create_buffer(glbl.staging_texture_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &glbl.staging_texture_buffer));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &glbl.staging_texture_memory, &glbl.staging_texture_buffer, 1, NULL));
+
+    return SUCCESS;
+}
+
+int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth) {
+    uint32_t upload_size = 4 * width * height * depth;
+    if (upload_size > glbl.staging_texture_size) {
+	glbl.staging_texture_size = round_up_p2(upload_size);
+	cleanup_staging_texture_buffer();
+	create_staging_texture_buffer();
+    }
+
+    void* texture_data;
+    vkMapMemory(glbl.device, glbl.staging_texture_memory, 0, upload_size, 0, &texture_data);
+    memcpy(texture_data, data, upload_size);
+    vkUnmapMemory(glbl.device, glbl.staging_texture_memory);
+    
+    return 0;
 }
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_descriptions, VkVertexInputAttributeDescription* vertex_input_attribute_descriptions) {
@@ -281,4 +311,10 @@ void cleanup_instance_buffer(void) {
     vkFreeMemory(glbl.device, glbl.staging_instance_memory, NULL);
     vkDestroyBuffer(glbl.device, glbl.instance_buffer, NULL);
     vkFreeMemory(glbl.device, glbl.instance_memory, NULL);
+}
+
+void cleanup_staging_texture_buffer(void) {
+    vkQueueWaitIdle(glbl.queue);
+    vkDestroyBuffer(glbl.device, glbl.staging_texture_buffer, NULL);
+    vkFreeMemory(glbl.device, glbl.staging_texture_memory, NULL);
 }
