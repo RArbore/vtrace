@@ -300,6 +300,8 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     
     glbl.texture_image_views[glbl.texture_image_count - 1] = image_view;
 
+    queue_layout_transition(glbl.texture_images[glbl.texture_image_count - 1], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
     return 0;
 }
 
