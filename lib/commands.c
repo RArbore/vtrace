@@ -43,8 +43,8 @@ result create_command_buffers(void) {
 
     PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.graphics_command_buffers[0]));
 
-    allocate_info.commandBufferCount = COPY_QUEUE_SIZE * FRAMES_IN_FLIGHT;
-    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.copy_command_buffers[0][0]));
+    allocate_info.commandBufferCount = FRAMES_IN_FLIGHT;
+    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.copy_command_buffers[0]));
     
     return SUCCESS;
 }
@@ -108,14 +108,16 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     return SUCCESS;
 }
 
-result record_copy_command_buffer(VkCommandBuffer command_buffer, copy_command* command) {
+result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t num_copies, copy_command* command) {
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
-    vkCmdCopyBuffer(command_buffer, command->src_buffer, command->dst_buffer, 1, &command->copy_region);
+    for (uint32_t i = 0; i < num_copies; ++i) {
+	vkCmdCopyBuffer(command_buffer, command[i].src_buffer, command[i].dst_buffer, 1, &command[i].copy_region);
+    }
     
     PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
     

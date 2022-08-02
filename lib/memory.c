@@ -264,15 +264,8 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     extent.width = width;
     extent.height = height;
     extent.depth = depth;
-    VkImageSubresourceRange subresource_range; 
-    subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    subresource_range.baseMipLevel = 0;
-    subresource_range.levelCount = 1;
-    subresource_range.baseArrayLayer = 0;
-    subresource_range.layerCount = 1;
     
     PROPAGATE_C(create_image(0, VK_FORMAT_R8G8B8A8_SRGB, extent, 1, 1, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &image));
-    PROPAGATE_C(create_image_view(image, VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, &image_view));
 
     if (glbl.texture_image_count >= glbl.texture_image_allocated) {
 	glbl.texture_image_allocated = round_up_p2(glbl.texture_image_allocated + 1);
@@ -281,7 +274,6 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     }
 
     glbl.texture_images[glbl.texture_image_count] = image;
-    glbl.texture_image_views[glbl.texture_image_count] = image_view;
     ++glbl.texture_image_count;
 
     VkMemoryRequirements requirements;
@@ -296,7 +288,18 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     else {
 	PROPAGATE_VK_C(vkBindImageMemory(glbl.device, image, glbl.texture_memory, desired_offset));
     }
+
+    VkImageSubresourceRange subresource_range; 
+    subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresource_range.baseMipLevel = 0;
+    subresource_range.levelCount = 1;
+    subresource_range.baseArrayLayer = 0;
+    subresource_range.layerCount = 1;
+
+    PROPAGATE_C(create_image_view(image, VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, &image_view));
     
+    glbl.texture_image_views[glbl.texture_image_count - 1] = image_view;
+
     return 0;
 }
 

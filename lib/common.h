@@ -118,7 +118,7 @@ typedef struct renderer {
 
     VkCommandPool command_pool;
     VkCommandBuffer graphics_command_buffers[FRAMES_IN_FLIGHT];
-    VkCommandBuffer copy_command_buffers[COPY_QUEUE_SIZE][FRAMES_IN_FLIGHT];
+    VkCommandBuffer copy_command_buffers[FRAMES_IN_FLIGHT];
 
     VkBuffer staging_cube_vertex_buffer;
     VkBuffer staging_cube_index_buffer;
@@ -149,7 +149,7 @@ typedef struct renderer {
     VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
     VkFence frame_in_flight_fence[FRAMES_IN_FLIGHT];
 
-    VkSemaphore copy_finished_semaphore[COPY_QUEUE_SIZE];
+    VkSemaphore copy_finished_semaphore[FRAMES_IN_FLIGHT];
 
     uint32_t copy_queue_size;
     copy_command copy_queue[COPY_QUEUE_SIZE];
@@ -210,7 +210,7 @@ result create_command_buffers(void);
 
 result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index, const render_tick_info* render_tick_info);
 
-result record_copy_command_buffer(VkCommandBuffer command_buffer, copy_command* command);
+result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t num_copies, copy_command* commands);
 
 result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buffer);
 

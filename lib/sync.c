@@ -30,9 +30,6 @@ result create_synchronization(void) {
 	PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.image_available_semaphore[i]));
 	PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.render_finished_semaphore[i]));
 	PROPAGATE_VK(vkCreateFence(glbl.device, &fence_info, NULL, &glbl.frame_in_flight_fence[i]));
-    }
-
-    for (uint32_t i = 0; i < COPY_QUEUE_SIZE; ++i) {
 	PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.copy_finished_semaphore[i]));
     }
 
