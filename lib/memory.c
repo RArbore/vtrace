@@ -325,20 +325,6 @@ void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input
     }
 }
 
-result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region) {
-    if (glbl.copy_queue_size >= COPY_QUEUE_SIZE) {
-	fprintf(stderr, "ERROR: Attempted to queue copy operation, but copy queue is full");
-	return CUSTOM_ERROR;
-    }
-    
-    glbl.copy_queue[glbl.copy_queue_size].src_buffer = src_buffer;
-    glbl.copy_queue[glbl.copy_queue_size].dst_buffer = dst_buffer;
-    glbl.copy_queue[glbl.copy_queue_size].copy_region = copy_region;
-    ++glbl.copy_queue_size;
-
-    return SUCCESS;
-}
-
 result find_memory_type(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t* type) {
     VkPhysicalDeviceMemoryProperties physical_mem_properties;
     vkGetPhysicalDeviceMemoryProperties(glbl.physical, &physical_mem_properties);

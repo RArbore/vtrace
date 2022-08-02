@@ -14,6 +14,7 @@
 
 use std::env;
 use std::path::Path;
+use std::process::exit;
 use std::process::Command;
 
 fn main() {
@@ -41,7 +42,7 @@ fn main() {
     ];
 
     for (c_file, o_file) in std::iter::zip(c_files, o_files) {
-        Command::new("cc")
+        let status = Command::new("cc")
             .args(&[
                 "-march=native",
                 "-static",
@@ -54,25 +55,37 @@ fn main() {
             ])
             .status()
             .unwrap();
+        if !status.success() {
+            exit(1);
+        }
 
         println!("cargo:rerun-if-changed=lib/{}", c_file);
     }
 
-    Command::new("ar")
+    let status = Command::new("ar")
         .args(std::iter::once("rcs").chain(std::iter::once("librender.a").chain(o_files)))
         .current_dir(&Path::new(&out_dir))
         .status()
         .unwrap();
+    if !status.success() {
+        exit(1);
+    }
 
-    Command::new("glslc")
+    let status = Command::new("glslc")
         .args(&["shaders/test.vert", "-o", "shaders/test.vert.spv"])
         .status()
         .unwrap();
+    if !status.success() {
+        exit(1);
+    }
 
-    Command::new("glslc")
+    let status = Command::new("glslc")
         .args(&["shaders/test.frag", "-o", "shaders/test.frag.spv"])
         .status()
         .unwrap();
+    if !status.success() {
+        exit(1);
+    }
 
     println!("cargo:rustc-link-search=native={}", out_dir);
     println!("cargo:rustc-link-lib=static=render");

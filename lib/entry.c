@@ -97,18 +97,16 @@ void cleanup(void) {
 }
 
 int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info) {
-    static uint32_t current_frame = 0;
-    
     if (glfwWindowShouldClose(glbl.window)) {
 	return -1;
     }
 
     glfwPollEvents();
 
-    vkWaitForFences(glbl.device, 1, &glbl.frame_in_flight_fence[current_frame], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame], VK_TRUE, UINT64_MAX);
 
     uint32_t image_index;
-    VkResult acquire_image_result = vkAcquireNextImageKHR(glbl.device, glbl.swapchain, UINT64_MAX, glbl.image_available_semaphore[current_frame], VK_NULL_HANDLE, &image_index);
+    VkResult acquire_image_result = vkAcquireNextImageKHR(glbl.device, glbl.swapchain, UINT64_MAX, glbl.image_available_semaphore[glbl.current_frame], VK_NULL_HANDLE, &image_index);
     if (acquire_image_result == VK_ERROR_OUT_OF_DATE_KHR) {
 	recreate_swapchain();
 	return 0;
@@ -116,33 +114,33 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	return -1;
     }
 
-    vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[current_frame]);
+    vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame]);
 
-    vkResetCommandBuffer(glbl.graphics_command_buffers[current_frame], 0);
-    record_graphics_command_buffer(glbl.graphics_command_buffers[current_frame], image_index, render_tick_info);
+    vkResetCommandBuffer(glbl.graphics_command_buffers[glbl.current_frame], 0);
+    record_graphics_command_buffer(glbl.graphics_command_buffers[glbl.current_frame], image_index, render_tick_info);
     
     VkPipelineStageFlags wait_stages[2];
     VkSemaphore wait_semaphores[2];
 
-    wait_semaphores[0] = glbl.image_available_semaphore[current_frame];
+    wait_semaphores[0] = glbl.image_available_semaphore[glbl.current_frame];
     wait_stages[0] = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     uint32_t did_copies = 0;
     if (glbl.copy_queue_size > 0) {
 
-	vkResetCommandBuffer(glbl.copy_command_buffers[current_frame], 0);
-	record_copy_command_buffer(glbl.copy_command_buffers[current_frame], glbl.copy_queue_size, glbl.copy_queue);
+	vkResetCommandBuffer(glbl.copy_command_buffers[glbl.current_frame], 0);
+	record_copy_command_buffer(glbl.copy_command_buffers[glbl.current_frame], glbl.copy_queue_size, glbl.copy_queue);
 
 	VkSubmitInfo submit_info = {0};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &glbl.copy_command_buffers[current_frame];
+	submit_info.pCommandBuffers = &glbl.copy_command_buffers[glbl.current_frame];
 	submit_info.signalSemaphoreCount = 1;
-	submit_info.pSignalSemaphores = &glbl.copy_finished_semaphore[current_frame];
+	submit_info.pSignalSemaphores = &glbl.copy_finished_semaphore[glbl.current_frame];
 
 	vkQueueSubmit(glbl.queue, 1, &submit_info, VK_NULL_HANDLE);
 
-	wait_semaphores[1] = glbl.copy_finished_semaphore[current_frame];
+	wait_semaphores[1] = glbl.copy_finished_semaphore[glbl.current_frame];
 	wait_stages[1] = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
 	did_copies = 1;
@@ -155,16 +153,16 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     submit_info.pWaitSemaphores = wait_semaphores;
     submit_info.pWaitDstStageMask = wait_stages;
     submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &glbl.render_finished_semaphore[current_frame];
+    submit_info.pSignalSemaphores = &glbl.render_finished_semaphore[glbl.current_frame];
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &glbl.graphics_command_buffers[current_frame];
+    submit_info.pCommandBuffers = &glbl.graphics_command_buffers[glbl.current_frame];
 
-    vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.frame_in_flight_fence[current_frame]);
+    vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.frame_in_flight_fence[glbl.current_frame]);
 
     VkPresentInfoKHR present_info = {0};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &glbl.render_finished_semaphore[current_frame];
+    present_info.pWaitSemaphores = &glbl.render_finished_semaphore[glbl.current_frame];
     present_info.swapchainCount = 1;
     present_info.pSwapchains = &glbl.swapchain;
     present_info.pImageIndices = &image_index;
@@ -178,7 +176,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	return -1;
     }
 
-    current_frame = (current_frame + 1) % FRAMES_IN_FLIGHT;
+    glbl.current_frame = (glbl.current_frame + 1) % FRAMES_IN_FLIGHT;
     *window_width = glbl.window_width;
     *window_height = glbl.window_height;
     

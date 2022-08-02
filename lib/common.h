@@ -20,7 +20,7 @@
 
 #define MAX_VK_ENUMERATIONS 16
 #define FRAMES_IN_FLIGHT 2
-#define COPY_QUEUE_SIZE 16
+#define COMMAND_QUEUE_SIZE 16
 
 #define IS_SUCCESS(res) (res.vk == SUCCESS.vk && res.custom == SUCCESS.custom)
 
@@ -89,7 +89,14 @@ typedef struct copy_command {
     VkBufferCopy copy_region;
 } copy_command;
 
+typedef struct transition_command {
+    VkImage image;
+    VkImageLayout old;
+    VkImageLayout new;
+} transition_command;
+
 typedef struct renderer {
+    uint32_t current_frame;
     uint32_t window_width;
     uint32_t window_height;
     uint32_t resized;
@@ -119,6 +126,7 @@ typedef struct renderer {
     VkCommandPool command_pool;
     VkCommandBuffer graphics_command_buffers[FRAMES_IN_FLIGHT];
     VkCommandBuffer copy_command_buffers[FRAMES_IN_FLIGHT];
+    VkCommandBuffer layout_transition_command_buffers[FRAMES_IN_FLIGHT];
 
     VkBuffer staging_cube_vertex_buffer;
     VkBuffer staging_cube_index_buffer;
@@ -150,9 +158,12 @@ typedef struct renderer {
     VkFence frame_in_flight_fence[FRAMES_IN_FLIGHT];
 
     VkSemaphore copy_finished_semaphore[FRAMES_IN_FLIGHT];
-
     uint32_t copy_queue_size;
-    copy_command copy_queue[COPY_QUEUE_SIZE];
+    copy_command copy_queue[COMMAND_QUEUE_SIZE];
+
+    VkSemaphore transition_finished_semaphore[FRAMES_IN_FLIGHT];
+    uint32_t transition_queue_size;
+    transition_command transition_queue[COMMAND_QUEUE_SIZE];
 } renderer;
 
 typedef struct swapchain_support {
@@ -212,6 +223,8 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
 
 result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t num_copies, copy_command* commands);
 
+result record_layout_transition_command_buffer(VkCommandBuffer command_buffer, uint32_t num_transitions, transition_command* command);
+
 result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buffer);
 
 result create_buffer_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkBuffer* buffers, uint32_t num_buffers, uint32_t* offsets);
@@ -237,6 +250,8 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
 result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region);
+
+result queue_layout_transition(VkImage image, VkImageLayout old, VkImageLayout new);
 
 result find_memory_type(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t* type);
 
