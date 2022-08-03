@@ -115,7 +115,14 @@ result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t num_c
     PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
     for (uint32_t i = 0; i < num_copies; ++i) {
-	vkCmdCopyBuffer(command_buffer, command[i].src_buffer, command[i].dst_buffer, 1, &command[i].copy_region);
+	switch (command[i].type) {
+	case COPY_TYPE_BUFFER_BUFFER:
+	    vkCmdCopyBuffer(command_buffer, command[i].buffer_buffer.src_buffer, command[i].buffer_buffer.dst_buffer, 1, &command[i].buffer_buffer.copy_region);
+	    break;
+	case COPY_TYPE_BUFFER_IMAGE:
+	    vkCmdCopyBufferToImage(command_buffer, command[i].buffer_image.src_buffer, command[i].buffer_image.dst_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &command[i].buffer_image.copy_region);
+	    break;
+	}
     }
     
     PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
@@ -160,9 +167,25 @@ result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy 
 	return CUSTOM_ERROR;
     }
     
-    glbl.copy_queue[glbl.copy_queue_size].src_buffer = src_buffer;
-    glbl.copy_queue[glbl.copy_queue_size].dst_buffer = dst_buffer;
-    glbl.copy_queue[glbl.copy_queue_size].copy_region = copy_region;
+    glbl.copy_queue[glbl.copy_queue_size].type = COPY_TYPE_BUFFER_BUFFER;
+    glbl.copy_queue[glbl.copy_queue_size].buffer_buffer.src_buffer = src_buffer;
+    glbl.copy_queue[glbl.copy_queue_size].buffer_buffer.dst_buffer = dst_buffer;
+    glbl.copy_queue[glbl.copy_queue_size].buffer_buffer.copy_region = copy_region;
+    ++glbl.copy_queue_size;
+
+    return SUCCESS;
+}
+
+result queue_copy_buffer_to_image(VkImage dst_image, VkBuffer src_buffer, VkBufferImageCopy copy_region) {
+    if (glbl.copy_queue_size >= COMMAND_QUEUE_SIZE) {
+	fprintf(stderr, "ERROR: Attempted to queue copy operation, but copy queue is full");
+	return CUSTOM_ERROR;
+    }
+    
+    glbl.copy_queue[glbl.copy_queue_size].type = COPY_TYPE_BUFFER_IMAGE;
+    glbl.copy_queue[glbl.copy_queue_size].buffer_image.src_buffer = src_buffer;
+    glbl.copy_queue[glbl.copy_queue_size].buffer_image.dst_image = dst_image;
+    glbl.copy_queue[glbl.copy_queue_size].buffer_image.copy_region = copy_region;
     ++glbl.copy_queue_size;
 
     return SUCCESS;

@@ -83,10 +83,25 @@ typedef struct gpu_vertex {
     float pos[3];
 } gpu_vertex;
 
+typedef enum copy_type {
+    COPY_TYPE_BUFFER_BUFFER = 0,
+    COPY_TYPE_BUFFER_IMAGE = 1,
+} copy_type;
+
 typedef struct copy_command {
-    VkBuffer src_buffer;
-    VkBuffer dst_buffer;
-    VkBufferCopy copy_region;
+    copy_type type;
+    union {
+	struct {
+	    VkBuffer src_buffer;
+	    VkBuffer dst_buffer;
+	    VkBufferCopy copy_region;
+	} buffer_buffer;
+	struct {
+	    VkBuffer src_buffer;
+	    VkImage dst_image;
+	    VkBufferImageCopy copy_region;
+	} buffer_image;
+    };
 } copy_command;
 
 typedef struct transition_command {
@@ -250,6 +265,8 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
 result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region);
+
+result queue_copy_buffer_to_image(VkImage dst_image, VkBuffer src_buffer, VkBufferImageCopy copy_region);
 
 result queue_layout_transition(VkImage image, VkImageLayout old, VkImageLayout new);
 
