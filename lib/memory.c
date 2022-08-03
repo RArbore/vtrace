@@ -345,6 +345,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     copy_command.copy_buffer_image.copy_region = region;
     queue_secondary_command(copy_command);
 
+    transition_command.delay = 2;
     transition_command.layout_transition.old = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     transition_command.layout_transition.new = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     queue_secondary_command(transition_command);

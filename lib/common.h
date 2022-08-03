@@ -233,7 +233,7 @@ result create_command_buffers(void);
 
 result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index, const render_tick_info* render_tick_info);
 
-result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_commands, secondary_command* commands);
+result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t num_commands, secondary_command* commands);
 
 result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buffer);
 

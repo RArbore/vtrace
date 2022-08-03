@@ -106,61 +106,67 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     return SUCCESS;
 }
 
-result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_commands, secondary_command* commands) {
+result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t num_commands, secondary_command* commands) {
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
-    uint32_t skips = 0;
-    for (uint32_t i = 0; i < *num_commands; ++i) {
-	if (commands[i].delay > 0) {
-	    --commands[i].delay;
-	    commands[skips] = commands[i];
-	    ++skips;
-	    continue;
-	}
-	switch (commands[i].type) {
-	case SECONDARY_TYPE_COPY_BUFFER_BUFFER:
-	    vkCmdCopyBuffer(command_buffer, commands[i].copy_buffer_buffer.src_buffer, commands[i].copy_buffer_buffer.dst_buffer, 1, &commands[i].copy_buffer_buffer.copy_region);
-	    break;
-	case SECONDARY_TYPE_COPY_BUFFER_IMAGE:
-	    vkCmdCopyBufferToImage(command_buffer, commands[i].copy_buffer_image.src_buffer, commands[i].copy_buffer_image.dst_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &commands[i].copy_buffer_image.copy_region);
-	    break;
-	case SECONDARY_TYPE_LAYOUT_TRANSITION: {
-	    VkImageMemoryBarrier barrier = {0};
-	    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	    barrier.oldLayout = commands[i].layout_transition.old;
-	    barrier.newLayout = commands[i].layout_transition.new;
-	    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	    barrier.image = commands[i].layout_transition.image;
-	    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	    barrier.subresourceRange.baseMipLevel = 0;
-	    barrier.subresourceRange.levelCount = 1;
-	    barrier.subresourceRange.baseArrayLayer = 0;
-	    barrier.subresourceRange.layerCount = 1;
+    uint32_t skips = 1;
+    while (skips > 0) {
+	skips = 0;
+	for (uint32_t i = 0; i < num_commands; ++i) {
+	    if (commands[i].delay > 0) {
+		--commands[i].delay;
+		commands[skips] = commands[i];
+		++skips;
+		continue;
+	    }
+	    switch (commands[i].type) {
+	    case SECONDARY_TYPE_COPY_BUFFER_BUFFER:
+		vkCmdCopyBuffer(command_buffer, commands[i].copy_buffer_buffer.src_buffer, commands[i].copy_buffer_buffer.dst_buffer, 1, &commands[i].copy_buffer_buffer.copy_region);
+		break;
+	    case SECONDARY_TYPE_COPY_BUFFER_IMAGE:
+		vkCmdCopyBufferToImage(command_buffer, commands[i].copy_buffer_image.src_buffer, commands[i].copy_buffer_image.dst_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &commands[i].copy_buffer_image.copy_region);
+		break;
+	    case SECONDARY_TYPE_LAYOUT_TRANSITION: {
+		VkImageMemoryBarrier barrier = {0};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.oldLayout = commands[i].layout_transition.old;
+		barrier.newLayout = commands[i].layout_transition.new;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = commands[i].layout_transition.image;
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = 1;
+		
+		if (commands[i].layout_transition.old == VK_IMAGE_LAYOUT_UNDEFINED && commands[i].layout_transition.new == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+		    barrier.srcAccessMask = 0;
+		    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+		}
+		else if (commands[i].layout_transition.old == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && commands[i].layout_transition.new == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+		    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+		}
+		break;
+	    }
+	    }
 	    
-	    if (commands[i].layout_transition.old == VK_IMAGE_LAYOUT_UNDEFINED && commands[i].layout_transition.new == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
-	    }
-	    else if (commands[i].layout_transition.old == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && commands[i].layout_transition.new == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
-	    }
-	    break;
 	}
+	num_commands = skips;
+	if (skips > 0) {
+	    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, NULL, 0, NULL, 0, NULL);
 	}
     }
     
     PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
-
-    *num_commands = skips;
-
+    
     return SUCCESS;
 }
 
