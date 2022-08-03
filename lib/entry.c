@@ -131,7 +131,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     uint32_t did_transitions = 0;
     if (glbl.transition_queue_size > 0) {
 	vkResetCommandBuffer(glbl.layout_transition_command_buffers[glbl.current_frame], 0);
-	record_layout_transition_command_buffer(glbl.layout_transition_command_buffers[glbl.current_frame], glbl.transition_queue_size, glbl.transition_queue);
+	record_layout_transition_command_buffer(glbl.layout_transition_command_buffers[glbl.current_frame], &glbl.transition_queue_size, glbl.transition_queue);
 
 	VkSubmitInfo submit_info = {0};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -143,13 +143,12 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	vkQueueSubmit(glbl.queue, 1, &submit_info, VK_NULL_HANDLE);
 
 	did_transitions = 1;
-	glbl.transition_queue_size = 0;
     }
 
     uint32_t did_copies = 0;
     if (glbl.copy_queue_size > 0) {
 	vkResetCommandBuffer(glbl.copy_command_buffers[glbl.current_frame], 0);
-	record_copy_command_buffer(glbl.copy_command_buffers[glbl.current_frame], glbl.copy_queue_size, glbl.copy_queue);
+        record_copy_command_buffer(glbl.copy_command_buffers[glbl.current_frame], &glbl.copy_queue_size, glbl.copy_queue);
 
 	VkPipelineStageFlags wait_top = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 	VkSubmitInfo submit_info = {0};
@@ -168,7 +167,6 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	wait_stages[1] = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
 	did_copies = 1;
-	glbl.copy_queue_size = 0;
     }
 
     VkSubmitInfo submit_info = {0};

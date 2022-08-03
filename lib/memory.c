@@ -185,9 +185,9 @@ result create_cube_buffer(void) {
 
     VkBufferCopy copy_region = {0};
     copy_region.size = vertex_buffer_size;
-    PROPAGATE(queue_copy_buffer(glbl.cube_vertex_buffer, glbl.staging_cube_vertex_buffer, copy_region));
+    PROPAGATE(queue_copy_buffer(glbl.cube_vertex_buffer, glbl.staging_cube_vertex_buffer, copy_region, 0));
     copy_region.size = index_buffer_size;
-    PROPAGATE(queue_copy_buffer(glbl.cube_index_buffer, glbl.staging_cube_index_buffer, copy_region));
+    PROPAGATE(queue_copy_buffer(glbl.cube_index_buffer, glbl.staging_cube_index_buffer, copy_region, 0));
     
     return SUCCESS;
 }
@@ -226,7 +226,7 @@ void update_instances(const float* instances, uint32_t instance_count) {
 
     VkBufferCopy copy_region = {0};
     copy_region.size = instance_count * sizeof(float) * 4 * 4;
-    queue_copy_buffer(glbl.instance_buffer, glbl.staging_instance_buffer, copy_region);
+    queue_copy_buffer(glbl.instance_buffer, glbl.staging_instance_buffer, copy_region, 0);
 }
 
 result create_staging_texture_buffer(void) {
@@ -300,7 +300,26 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     
     glbl.texture_image_views[glbl.texture_image_count - 1] = image_view;
 
-    queue_layout_transition(glbl.texture_images[glbl.texture_image_count - 1], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    queue_layout_transition(glbl.texture_images[glbl.texture_image_count - 1], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0);
+
+    VkBufferImageCopy region = {0};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+    
+    region.imageOffset.x = 0;
+    region.imageOffset.y = 0;
+    region.imageOffset.z = 0;
+    region.imageExtent = extent;
+
+    queue_copy_buffer_to_image(image, glbl.staging_texture_buffer, region, 0);
+
+    queue_layout_transition(glbl.texture_images[glbl.texture_image_count - 1], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
 
     return 0;
 }

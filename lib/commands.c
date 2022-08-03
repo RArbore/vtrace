@@ -107,14 +107,21 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     return SUCCESS;
 }
 
-result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t num_copies, copy_command* command) {
+result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_copies, copy_command* command) {
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
-    for (uint32_t i = 0; i < num_copies; ++i) {
+    uint32_t skips = 0;
+    for (uint32_t i = 0; i < *num_copies; ++i) {
+	if (command[i].delay > 0) {
+	    --command[i].delay;
+	    command[skips] = command[i];
+	    ++skips;
+	    continue;
+	}
 	switch (command[i].type) {
 	case COPY_TYPE_BUFFER_BUFFER:
 	    vkCmdCopyBuffer(command_buffer, command[i].buffer_buffer.src_buffer, command[i].buffer_buffer.dst_buffer, 1, &command[i].buffer_buffer.copy_region);
@@ -126,18 +133,28 @@ result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t num_c
     }
     
     PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
+
+    *num_copies = skips;
     
     return SUCCESS;
 }
 
-result record_layout_transition_command_buffer(VkCommandBuffer command_buffer, uint32_t num_transitions, transition_command* command) {
+result record_layout_transition_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_transitions, transition_command* command) {
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
-    for (uint32_t i = 0; i < num_transitions; ++i) {
+    uint32_t skips = 0;
+    for (uint32_t i = 0; i < *num_transitions; ++i) {
+	if (command[i].delay > 0) {
+	    --command[i].delay;
+	    command[skips] = command[i];
+	    ++skips;
+	    continue;
+	}
+	
 	VkImageMemoryBarrier barrier = {0};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	barrier.oldLayout = command[i].old;
@@ -157,17 +174,20 @@ result record_layout_transition_command_buffer(VkCommandBuffer command_buffer, u
     }
     
     PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
+
+    *num_transitions = skips;
     
     return SUCCESS;
 }
 
-result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region) {
+result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region, uint32_t delay) {
     if (glbl.copy_queue_size >= COMMAND_QUEUE_SIZE) {
 	fprintf(stderr, "ERROR: Attempted to queue copy operation, but copy queue is full");
 	return CUSTOM_ERROR;
     }
     
     glbl.copy_queue[glbl.copy_queue_size].type = COPY_TYPE_BUFFER_BUFFER;
+    glbl.copy_queue[glbl.copy_queue_size].delay = delay;
     glbl.copy_queue[glbl.copy_queue_size].buffer_buffer.src_buffer = src_buffer;
     glbl.copy_queue[glbl.copy_queue_size].buffer_buffer.dst_buffer = dst_buffer;
     glbl.copy_queue[glbl.copy_queue_size].buffer_buffer.copy_region = copy_region;
@@ -176,13 +196,14 @@ result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy 
     return SUCCESS;
 }
 
-result queue_copy_buffer_to_image(VkImage dst_image, VkBuffer src_buffer, VkBufferImageCopy copy_region) {
+result queue_copy_buffer_to_image(VkImage dst_image, VkBuffer src_buffer, VkBufferImageCopy copy_region, uint32_t delay) {
     if (glbl.copy_queue_size >= COMMAND_QUEUE_SIZE) {
 	fprintf(stderr, "ERROR: Attempted to queue copy operation, but copy queue is full");
 	return CUSTOM_ERROR;
     }
     
     glbl.copy_queue[glbl.copy_queue_size].type = COPY_TYPE_BUFFER_IMAGE;
+    glbl.copy_queue[glbl.copy_queue_size].delay = delay;
     glbl.copy_queue[glbl.copy_queue_size].buffer_image.src_buffer = src_buffer;
     glbl.copy_queue[glbl.copy_queue_size].buffer_image.dst_image = dst_image;
     glbl.copy_queue[glbl.copy_queue_size].buffer_image.copy_region = copy_region;
@@ -191,13 +212,14 @@ result queue_copy_buffer_to_image(VkImage dst_image, VkBuffer src_buffer, VkBuff
     return SUCCESS;
 }
 
-result queue_layout_transition(VkImage image, VkImageLayout old, VkImageLayout new) {
+result queue_layout_transition(VkImage image, VkImageLayout old, VkImageLayout new, uint32_t delay) {
     if (glbl.transition_queue_size >= COMMAND_QUEUE_SIZE) {
 	fprintf(stderr, "ERROR: Attempted to queue transition operation, but transition queue is full");
 	return CUSTOM_ERROR;
     }
     
     glbl.transition_queue[glbl.transition_queue_size].image = image;
+    glbl.transition_queue[glbl.transition_queue_size].delay = delay;
     glbl.transition_queue[glbl.transition_queue_size].old = old;
     glbl.transition_queue[glbl.transition_queue_size].new = new;
     ++glbl.transition_queue_size;

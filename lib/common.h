@@ -90,6 +90,7 @@ typedef enum copy_type {
 
 typedef struct copy_command {
     copy_type type;
+    uint32_t delay;
     union {
 	struct {
 	    VkBuffer src_buffer;
@@ -105,6 +106,7 @@ typedef struct copy_command {
 } copy_command;
 
 typedef struct transition_command {
+    uint32_t delay;
     VkImage image;
     VkImageLayout old;
     VkImageLayout new;
@@ -236,9 +238,9 @@ result create_command_buffers(void);
 
 result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index, const render_tick_info* render_tick_info);
 
-result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t num_copies, copy_command* commands);
+result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_copies, copy_command* commands);
 
-result record_layout_transition_command_buffer(VkCommandBuffer command_buffer, uint32_t num_transitions, transition_command* command);
+result record_layout_transition_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_transitions, transition_command* command);
 
 result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buffer);
 
@@ -264,11 +266,11 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
-result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region);
+result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region, uint32_t delay);
 
-result queue_copy_buffer_to_image(VkImage dst_image, VkBuffer src_buffer, VkBufferImageCopy copy_region);
+result queue_copy_buffer_to_image(VkImage dst_image, VkBuffer src_buffer, VkBufferImageCopy copy_region, uint32_t delay);
 
-result queue_layout_transition(VkImage image, VkImageLayout old, VkImageLayout new);
+result queue_layout_transition(VkImage image, VkImageLayout old, VkImageLayout new, uint32_t delay);
 
 result find_memory_type(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t* type);
 
