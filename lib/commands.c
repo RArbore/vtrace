@@ -167,10 +167,17 @@ result record_layout_transition_command_buffer(VkCommandBuffer command_buffer, u
 	barrier.subresourceRange.levelCount = 1;
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount = 1;
-	barrier.srcAccessMask = 0;
-	barrier.dstAccessMask = 0;
-	
-	vkCmdPipelineBarrier(command_buffer, 0, 0, 0, 0, NULL, 0, NULL, 1, &barrier);
+
+	if (command[i].old == VK_IMAGE_LAYOUT_UNDEFINED && command[i].new == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+	    barrier.srcAccessMask = 0;
+	    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+	}
+	else if (command[i].old == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && command[i].new == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+	    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+	}
     }
     
     PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
