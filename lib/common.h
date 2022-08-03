@@ -83,34 +83,33 @@ typedef struct gpu_vertex {
     float pos[3];
 } gpu_vertex;
 
-typedef enum copy_type {
-    COPY_TYPE_BUFFER_BUFFER = 0,
-    COPY_TYPE_BUFFER_IMAGE = 1,
-} copy_type;
+typedef enum secondary_type {
+    SECONDARY_TYPE_COPY_BUFFER_BUFFER,
+    SECONDARY_TYPE_COPY_BUFFER_IMAGE,
+    SECONDARY_TYPE_LAYOUT_TRANSITION
+} secondary_type;
 
-typedef struct copy_command {
-    copy_type type;
+typedef struct secondary_command {
+    secondary_type type;
     uint32_t delay;
     union {
 	struct {
 	    VkBuffer src_buffer;
 	    VkBuffer dst_buffer;
 	    VkBufferCopy copy_region;
-	} buffer_buffer;
+	} copy_buffer_buffer;
 	struct {
 	    VkBuffer src_buffer;
 	    VkImage dst_image;
 	    VkBufferImageCopy copy_region;
-	} buffer_image;
+	} copy_buffer_image;
+	struct {
+	    VkImage image;
+	    VkImageLayout old;
+	    VkImageLayout new;
+	} layout_transition;
     };
-} copy_command;
-
-typedef struct transition_command {
-    uint32_t delay;
-    VkImage image;
-    VkImageLayout old;
-    VkImageLayout new;
-} transition_command;
+} secondary_command;
 
 typedef struct renderer {
     uint32_t current_frame;
@@ -142,8 +141,7 @@ typedef struct renderer {
 
     VkCommandPool command_pool;
     VkCommandBuffer graphics_command_buffers[FRAMES_IN_FLIGHT];
-    VkCommandBuffer copy_command_buffers[FRAMES_IN_FLIGHT];
-    VkCommandBuffer layout_transition_command_buffers[FRAMES_IN_FLIGHT];
+    VkCommandBuffer secondary_command_buffers[FRAMES_IN_FLIGHT];
 
     VkBuffer staging_cube_vertex_buffer;
     VkBuffer staging_cube_index_buffer;
@@ -174,13 +172,10 @@ typedef struct renderer {
     VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
     VkFence frame_in_flight_fence[FRAMES_IN_FLIGHT];
 
-    VkSemaphore copy_finished_semaphore[FRAMES_IN_FLIGHT];
-    uint32_t copy_queue_size;
-    copy_command copy_queue[COMMAND_QUEUE_SIZE];
-
-    VkSemaphore transition_finished_semaphore[FRAMES_IN_FLIGHT];
-    uint32_t transition_queue_size;
-    transition_command transition_queue[COMMAND_QUEUE_SIZE];
+    VkSemaphore secondary_finished_semaphore[FRAMES_IN_FLIGHT];
+    VkSemaphore secondary_intercommand_semaphore[FRAMES_IN_FLIGHT];
+    uint32_t secondary_queue_size;
+    secondary_command secondary_queue[COMMAND_QUEUE_SIZE];
 } renderer;
 
 typedef struct swapchain_support {
@@ -238,9 +233,7 @@ result create_command_buffers(void);
 
 result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index, const render_tick_info* render_tick_info);
 
-result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_copies, copy_command* commands);
-
-result record_layout_transition_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_transitions, transition_command* command);
+result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_commands, secondary_command* commands);
 
 result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buffer);
 
@@ -266,11 +259,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
-result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region, uint32_t delay);
-
-result queue_copy_buffer_to_image(VkImage dst_image, VkBuffer src_buffer, VkBufferImageCopy copy_region, uint32_t delay);
-
-result queue_layout_transition(VkImage image, VkImageLayout old, VkImageLayout new, uint32_t delay);
+result queue_secondary_command(secondary_command command);
 
 result find_memory_type(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t* type);
 

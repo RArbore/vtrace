@@ -183,11 +183,20 @@ result create_cube_buffer(void) {
     memcpy(index_data, &cube_indices[0], (size_t) index_buffer_size);
     vkUnmapMemory(glbl.device, glbl.staging_cube_memory);
 
-    VkBufferCopy copy_region = {0};
-    copy_region.size = vertex_buffer_size;
-    PROPAGATE(queue_copy_buffer(glbl.cube_vertex_buffer, glbl.staging_cube_vertex_buffer, copy_region, 0));
-    copy_region.size = index_buffer_size;
-    PROPAGATE(queue_copy_buffer(glbl.cube_index_buffer, glbl.staging_cube_index_buffer, copy_region, 0));
+    secondary_command copy_command = {0};
+    copy_command.type = SECONDARY_TYPE_COPY_BUFFER_BUFFER;
+    copy_command.delay = 0;
+    copy_command.copy_buffer_buffer.src_buffer = glbl.staging_cube_vertex_buffer;
+    copy_command.copy_buffer_buffer.dst_buffer = glbl.cube_vertex_buffer;
+    copy_command.copy_buffer_buffer.copy_region.size = vertex_buffer_size;
+
+    PROPAGATE(queue_secondary_command(copy_command));
+
+    copy_command.copy_buffer_buffer.src_buffer = glbl.staging_cube_index_buffer;
+    copy_command.copy_buffer_buffer.dst_buffer = glbl.cube_index_buffer;
+    copy_command.copy_buffer_buffer.copy_region.size = index_buffer_size;
+
+    PROPAGATE(queue_secondary_command(copy_command));
     
     return SUCCESS;
 }
@@ -224,9 +233,14 @@ void update_instances(const float* instances, uint32_t instance_count) {
     memcpy(instance_data, instances, instance_count * sizeof(float) * 4 * 4);
     vkUnmapMemory(glbl.device, glbl.staging_instance_memory);
 
-    VkBufferCopy copy_region = {0};
-    copy_region.size = instance_count * sizeof(float) * 4 * 4;
-    queue_copy_buffer(glbl.instance_buffer, glbl.staging_instance_buffer, copy_region, 0);
+    secondary_command copy_command = {0};
+    copy_command.type = SECONDARY_TYPE_COPY_BUFFER_BUFFER;
+    copy_command.delay = 0;
+    copy_command.copy_buffer_buffer.src_buffer = glbl.staging_instance_buffer;
+    copy_command.copy_buffer_buffer.dst_buffer = glbl.instance_buffer;
+    copy_command.copy_buffer_buffer.copy_region.size = instance_count * sizeof(float) * 4 * 4;
+
+    queue_secondary_command(copy_command);
 }
 
 result create_staging_texture_buffer(void) {
@@ -300,7 +314,13 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     
     glbl.texture_image_views[glbl.texture_image_count - 1] = image_view;
 
-    queue_layout_transition(glbl.texture_images[glbl.texture_image_count - 1], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0);
+    secondary_command transition_command;
+    transition_command.type = SECONDARY_TYPE_LAYOUT_TRANSITION;
+    transition_command.delay = 0;
+    transition_command.layout_transition.image = glbl.texture_images[glbl.texture_image_count - 1];
+    transition_command.layout_transition.old = VK_IMAGE_LAYOUT_UNDEFINED;
+    transition_command.layout_transition.new = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    queue_secondary_command(transition_command);
 
     VkBufferImageCopy region = {0};
     region.bufferOffset = 0;
@@ -317,9 +337,17 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     region.imageOffset.z = 0;
     region.imageExtent = extent;
 
-    queue_copy_buffer_to_image(image, glbl.staging_texture_buffer, region, 0);
+    secondary_command copy_command;
+    copy_command.type = SECONDARY_TYPE_COPY_BUFFER_IMAGE;
+    copy_command.delay = 1;
+    copy_command.copy_buffer_image.src_buffer = glbl.staging_texture_buffer;
+    copy_command.copy_buffer_image.dst_image = image;
+    copy_command.copy_buffer_image.copy_region = region;
+    queue_secondary_command(copy_command);
 
-    queue_layout_transition(glbl.texture_images[glbl.texture_image_count - 1], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
+    transition_command.layout_transition.old = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    transition_command.layout_transition.new = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    queue_secondary_command(transition_command);
 
     return 0;
 }

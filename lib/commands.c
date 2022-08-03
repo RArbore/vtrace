@@ -42,8 +42,7 @@ result create_command_buffers(void) {
     allocate_info.commandBufferCount = FRAMES_IN_FLIGHT;
 
     PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.graphics_command_buffers[0]));
-    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.copy_command_buffers[0]));
-    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.layout_transition_command_buffers[0]));
+    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.secondary_command_buffers[0]));
     
     return SUCCESS;
 }
@@ -107,7 +106,7 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     return SUCCESS;
 }
 
-result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_copies, copy_command* command) {
+result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_commands, secondary_command* commands) {
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -115,121 +114,64 @@ result record_copy_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_
     PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
     uint32_t skips = 0;
-    for (uint32_t i = 0; i < *num_copies; ++i) {
-	if (command[i].delay > 0) {
-	    --command[i].delay;
-	    command[skips] = command[i];
+    for (uint32_t i = 0; i < *num_commands; ++i) {
+	if (commands[i].delay > 0) {
+	    --commands[i].delay;
+	    commands[skips] = commands[i];
 	    ++skips;
 	    continue;
 	}
-	switch (command[i].type) {
-	case COPY_TYPE_BUFFER_BUFFER:
-	    vkCmdCopyBuffer(command_buffer, command[i].buffer_buffer.src_buffer, command[i].buffer_buffer.dst_buffer, 1, &command[i].buffer_buffer.copy_region);
+	switch (commands[i].type) {
+	case SECONDARY_TYPE_COPY_BUFFER_BUFFER:
+	    vkCmdCopyBuffer(command_buffer, commands[i].copy_buffer_buffer.src_buffer, commands[i].copy_buffer_buffer.dst_buffer, 1, &commands[i].copy_buffer_buffer.copy_region);
 	    break;
-	case COPY_TYPE_BUFFER_IMAGE:
-	    vkCmdCopyBufferToImage(command_buffer, command[i].buffer_image.src_buffer, command[i].buffer_image.dst_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &command[i].buffer_image.copy_region);
+	case SECONDARY_TYPE_COPY_BUFFER_IMAGE:
+	    vkCmdCopyBufferToImage(command_buffer, commands[i].copy_buffer_image.src_buffer, commands[i].copy_buffer_image.dst_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &commands[i].copy_buffer_image.copy_region);
 	    break;
+	case SECONDARY_TYPE_LAYOUT_TRANSITION: {
+	    VkImageMemoryBarrier barrier = {0};
+	    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	    barrier.oldLayout = commands[i].layout_transition.old;
+	    barrier.newLayout = commands[i].layout_transition.new;
+	    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	    barrier.image = commands[i].layout_transition.image;
+	    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	    barrier.subresourceRange.baseMipLevel = 0;
+	    barrier.subresourceRange.levelCount = 1;
+	    barrier.subresourceRange.baseArrayLayer = 0;
+	    barrier.subresourceRange.layerCount = 1;
+	    
+	    if (commands[i].layout_transition.old == VK_IMAGE_LAYOUT_UNDEFINED && commands[i].layout_transition.new == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+	    }
+	    else if (commands[i].layout_transition.old == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && commands[i].layout_transition.new == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+	    }
+	    break;
+	}
 	}
     }
     
     PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
 
-    *num_copies = skips;
-    
+    *num_commands = skips;
+
     return SUCCESS;
 }
 
-result record_layout_transition_command_buffer(VkCommandBuffer command_buffer, uint32_t* num_transitions, transition_command* command) {
-    VkCommandBufferBeginInfo begin_info = {0};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
-
-    uint32_t skips = 0;
-    for (uint32_t i = 0; i < *num_transitions; ++i) {
-	if (command[i].delay > 0) {
-	    --command[i].delay;
-	    command[skips] = command[i];
-	    ++skips;
-	    continue;
-	}
-	
-	VkImageMemoryBarrier barrier = {0};
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.oldLayout = command[i].old;
-	barrier.newLayout = command[i].new;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image = command[i].image;
-	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = 1;
-	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
-
-	if (command[i].old == VK_IMAGE_LAYOUT_UNDEFINED && command[i].new == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-	    barrier.srcAccessMask = 0;
-	    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
-	}
-	else if (command[i].old == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && command[i].new == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-	    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
-	}
-    }
-    
-    PROPAGATE_VK(vkEndCommandBuffer(command_buffer));
-
-    *num_transitions = skips;
-    
-    return SUCCESS;
-}
-
-result queue_copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkBufferCopy copy_region, uint32_t delay) {
-    if (glbl.copy_queue_size >= COMMAND_QUEUE_SIZE) {
+result queue_secondary_command(secondary_command command) {
+    if (glbl.secondary_queue_size >= COMMAND_QUEUE_SIZE) {
 	fprintf(stderr, "ERROR: Attempted to queue copy operation, but copy queue is full");
 	return CUSTOM_ERROR;
     }
     
-    glbl.copy_queue[glbl.copy_queue_size].type = COPY_TYPE_BUFFER_BUFFER;
-    glbl.copy_queue[glbl.copy_queue_size].delay = delay;
-    glbl.copy_queue[glbl.copy_queue_size].buffer_buffer.src_buffer = src_buffer;
-    glbl.copy_queue[glbl.copy_queue_size].buffer_buffer.dst_buffer = dst_buffer;
-    glbl.copy_queue[glbl.copy_queue_size].buffer_buffer.copy_region = copy_region;
-    ++glbl.copy_queue_size;
-
-    return SUCCESS;
-}
-
-result queue_copy_buffer_to_image(VkImage dst_image, VkBuffer src_buffer, VkBufferImageCopy copy_region, uint32_t delay) {
-    if (glbl.copy_queue_size >= COMMAND_QUEUE_SIZE) {
-	fprintf(stderr, "ERROR: Attempted to queue copy operation, but copy queue is full");
-	return CUSTOM_ERROR;
-    }
-    
-    glbl.copy_queue[glbl.copy_queue_size].type = COPY_TYPE_BUFFER_IMAGE;
-    glbl.copy_queue[glbl.copy_queue_size].delay = delay;
-    glbl.copy_queue[glbl.copy_queue_size].buffer_image.src_buffer = src_buffer;
-    glbl.copy_queue[glbl.copy_queue_size].buffer_image.dst_image = dst_image;
-    glbl.copy_queue[glbl.copy_queue_size].buffer_image.copy_region = copy_region;
-    ++glbl.copy_queue_size;
-
-    return SUCCESS;
-}
-
-result queue_layout_transition(VkImage image, VkImageLayout old, VkImageLayout new, uint32_t delay) {
-    if (glbl.transition_queue_size >= COMMAND_QUEUE_SIZE) {
-	fprintf(stderr, "ERROR: Attempted to queue transition operation, but transition queue is full");
-	return CUSTOM_ERROR;
-    }
-    
-    glbl.transition_queue[glbl.transition_queue_size].image = image;
-    glbl.transition_queue[glbl.transition_queue_size].delay = delay;
-    glbl.transition_queue[glbl.transition_queue_size].old = old;
-    glbl.transition_queue[glbl.transition_queue_size].new = new;
-    ++glbl.transition_queue_size;
+    glbl.secondary_queue[glbl.secondary_queue_size] = command;
+    ++glbl.secondary_queue_size;
 
     return SUCCESS;
 }

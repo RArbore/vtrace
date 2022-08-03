@@ -71,8 +71,7 @@ void cleanup(void) {
 	vkDestroySemaphore(glbl.device, glbl.image_available_semaphore[i], NULL);
 	vkDestroySemaphore(glbl.device, glbl.render_finished_semaphore[i], NULL);
 	vkDestroyFence(glbl.device, glbl.frame_in_flight_fence[i], NULL);
-	vkDestroySemaphore(glbl.device, glbl.copy_finished_semaphore[i], NULL);
-	vkDestroySemaphore(glbl.device, glbl.transition_finished_semaphore[i], NULL);
+	vkDestroySemaphore(glbl.device, glbl.secondary_finished_semaphore[i], NULL);
     }
 
     vkDestroyBuffer(glbl.device, glbl.cube_vertex_buffer, NULL);
@@ -117,61 +116,33 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 
     vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame]);
     vkResetCommandBuffer(glbl.graphics_command_buffers[glbl.current_frame], 0);
-    vkResetCommandBuffer(glbl.copy_command_buffers[glbl.current_frame], 0);
-    vkResetCommandBuffer(glbl.layout_transition_command_buffers[glbl.current_frame], 0);
+    vkResetCommandBuffer(glbl.secondary_command_buffers[glbl.current_frame], 0);
     record_graphics_command_buffer(glbl.graphics_command_buffers[glbl.current_frame], image_index, render_tick_info);
 
 
-    VkPipelineStageFlags wait_stages[2];
-    VkSemaphore wait_semaphores[2];
+    VkPipelineStageFlags wait_stages[2] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
+    VkSemaphore wait_semaphores[2] = {glbl.image_available_semaphore[glbl.current_frame], glbl.secondary_finished_semaphore[glbl.current_frame]};
 
-    wait_semaphores[0] = glbl.image_available_semaphore[glbl.current_frame];
-    wait_stages[0] = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-    uint32_t did_transitions = 0;
-    if (glbl.transition_queue_size > 0) {
-	vkResetCommandBuffer(glbl.layout_transition_command_buffers[glbl.current_frame], 0);
-	record_layout_transition_command_buffer(glbl.layout_transition_command_buffers[glbl.current_frame], &glbl.transition_queue_size, glbl.transition_queue);
+    uint32_t did_secondary = 0;
+    if (glbl.secondary_queue_size > 0) {
+	vkResetCommandBuffer(glbl.secondary_command_buffers[glbl.current_frame], 0);
+	record_secondary_command_buffer(glbl.secondary_command_buffers[glbl.current_frame], &glbl.secondary_queue_size, glbl.secondary_queue);
 
 	VkSubmitInfo submit_info = {0};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &glbl.layout_transition_command_buffers[glbl.current_frame];
+	submit_info.pCommandBuffers = &glbl.secondary_command_buffers[glbl.current_frame];
 	submit_info.signalSemaphoreCount = 1;
-	submit_info.pSignalSemaphores = &glbl.transition_finished_semaphore[glbl.current_frame];
+	submit_info.pSignalSemaphores = &glbl.secondary_finished_semaphore[glbl.current_frame];
 
 	vkQueueSubmit(glbl.queue, 1, &submit_info, VK_NULL_HANDLE);
 
-	did_transitions = 1;
-    }
-
-    uint32_t did_copies = 0;
-    if (glbl.copy_queue_size > 0) {
-	vkResetCommandBuffer(glbl.copy_command_buffers[glbl.current_frame], 0);
-        record_copy_command_buffer(glbl.copy_command_buffers[glbl.current_frame], &glbl.copy_queue_size, glbl.copy_queue);
-
-	VkPipelineStageFlags wait_top = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-	VkSubmitInfo submit_info = {0};
-	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &glbl.copy_command_buffers[glbl.current_frame];
-	submit_info.waitSemaphoreCount = did_transitions;
-	submit_info.pWaitSemaphores = &glbl.transition_finished_semaphore[glbl.current_frame];
-	submit_info.pWaitDstStageMask = &wait_top;
-	submit_info.signalSemaphoreCount = 1;
-	submit_info.pSignalSemaphores = &glbl.copy_finished_semaphore[glbl.current_frame];
-
-	vkQueueSubmit(glbl.queue, 1, &submit_info, VK_NULL_HANDLE);
-
-	wait_semaphores[1] = glbl.copy_finished_semaphore[glbl.current_frame];
-	wait_stages[1] = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-
-	did_copies = 1;
+	did_secondary = 1;
     }
 
     VkSubmitInfo submit_info = {0};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.waitSemaphoreCount = did_copies ? 2 : 1;
+    submit_info.waitSemaphoreCount = did_secondary ? 2 : 1;
     submit_info.pWaitSemaphores = wait_semaphores;
     submit_info.pWaitDstStageMask = wait_stages;
     submit_info.signalSemaphoreCount = 1;
