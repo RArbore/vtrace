@@ -167,6 +167,7 @@ typedef struct renderer {
     VkImage* texture_images;
     VkImageView* texture_image_views;
     VkDeviceMemory texture_memory;
+    VkSampler texture_sampler;
 
     VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
@@ -254,6 +255,8 @@ void update_instances(const float* instances, uint32_t instance_count);
 result create_staging_texture_buffer(void);
 
 result create_texture_resources(void);
+
+result create_texture_sampler(void);
 
 int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth);
 

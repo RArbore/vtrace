@@ -23,20 +23,22 @@ fn main() {
 
     let c_files = [
         "entry.c",
+        "descriptor.c",
         "device.c",
         "swapchain.c",
         "pipeline.c",
-        "commands.c",
+        "command.c",
         "memory.c",
         "sync.c",
     ];
 
     let o_files = [
         "entry.o",
+        "descriptor.o",
         "device.o",
         "swapchain.o",
         "pipeline.o",
-        "commands.o",
+        "command.o",
         "memory.o",
         "sync.o",
     ];
