@@ -45,6 +45,7 @@ result init(void) {
     PROPAGATE(create_device());
     PROPAGATE(create_swapchain());
     PROPAGATE(create_descriptor_layouts());
+    PROPAGATE(create_descriptor_pool());
     PROPAGATE(create_graphics_pipeline());
     PROPAGATE(create_depth_resources());
     PROPAGATE(create_framebuffers());
@@ -89,6 +90,7 @@ void cleanup(void) {
      
     vkDestroyPipeline(glbl.device, glbl.graphics_pipeline, NULL);
     vkDestroyPipelineLayout(glbl.device, glbl.graphics_pipeline_layout, NULL);
+    vkDestroyDescriptorPool(glbl.device, glbl.descriptor_pool, NULL);
     vkDestroyDescriptorSetLayout(glbl.device, glbl.graphics_descriptor_set_layout, NULL);
 
     vkDestroyRenderPass(glbl.device, glbl.render_pass, NULL);
