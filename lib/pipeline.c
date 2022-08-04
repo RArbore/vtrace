@@ -155,6 +155,8 @@ result create_graphics_pipeline(void) {
     pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipeline_layout_create_info.pushConstantRangeCount = 1;
     pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+    pipeline_layout_create_info.setLayoutCount = 1;
+    pipeline_layout_create_info.pSetLayouts = &glbl.graphics_descriptor_set_layout;
 
     PROPAGATE_VK(vkCreatePipelineLayout(glbl.device, &pipeline_layout_create_info, NULL, &glbl.graphics_pipeline_layout));
 

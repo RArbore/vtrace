@@ -131,6 +131,7 @@ typedef struct renderer {
     VkExtent2D swapchain_extent;
     VkImageView* swapchain_image_views;
 
+    VkDescriptorSetLayout graphics_descriptor_set_layout;
     VkPipelineLayout graphics_pipeline_layout;
     VkRenderPass render_pass;
     VkPipeline graphics_pipeline;
@@ -221,6 +222,8 @@ result create_swapchain(void);
 result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* surface_format, VkPresentModeKHR* present_mode, VkExtent2D* swap_extent);
 
 result create_shader_module(VkShaderModule* module, const char* shader);
+
+result create_descriptor_layouts(void);
 
 result create_graphics_pipeline(void);
 
