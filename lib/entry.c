@@ -44,8 +44,9 @@ result init(void) {
     PROPAGATE(create_physical());
     PROPAGATE(create_device());
     PROPAGATE(create_swapchain());
-    PROPAGATE(create_descriptor_layouts());
     PROPAGATE(create_descriptor_pool());
+    PROPAGATE(create_descriptor_layouts());
+    PROPAGATE(create_descriptor_sets());
     PROPAGATE(create_graphics_pipeline());
     PROPAGATE(create_depth_resources());
     PROPAGATE(create_framebuffers());

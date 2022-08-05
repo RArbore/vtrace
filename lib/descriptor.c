@@ -20,7 +20,7 @@
 
 result create_descriptor_pool(void) {
     VkDescriptorPoolSize pool_size = {0};
-    pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     pool_size.descriptorCount = FRAMES_IN_FLIGHT;
 
     VkDescriptorPoolCreateInfo create_info = {0};
@@ -54,6 +54,23 @@ result create_descriptor_layouts(void) {
     return SUCCESS;
 }
 
+result create_descriptor_sets(void) {
+    VkDescriptorSetLayout layouts[FRAMES_IN_FLIGHT];
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+	layouts[i] = glbl.graphics_descriptor_set_layout;
+    }
+
+    VkDescriptorSetAllocateInfo allocate_info = {0};
+    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocate_info.descriptorPool = glbl.descriptor_pool;
+    allocate_info.descriptorSetCount = FRAMES_IN_FLIGHT;
+    allocate_info.pSetLayouts = layouts;
+
+    PROPAGATE_VK(vkAllocateDescriptorSets(glbl.device, &allocate_info, glbl.graphics_descriptor_sets));
+
+    return SUCCESS;
+}
+
 result create_texture_sampler(void) {
     VkSamplerCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -76,5 +93,27 @@ result create_texture_sampler(void) {
 
     PROPAGATE_VK(vkCreateSampler(glbl.device, &create_info, NULL, &glbl.texture_sampler));
     
+    return SUCCESS;
+}
+
+result update_descriptors(void) {
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+	VkDescriptorImageInfo image_info = {0};
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_info.imageView = glbl.texture_image_views[0];
+	image_info.sampler = glbl.texture_sampler;
+
+	VkWriteDescriptorSet descriptor_write = {0};
+	descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptor_write.dstSet = glbl.graphics_descriptor_sets[i];
+	descriptor_write.dstBinding = 0;
+	descriptor_write.dstArrayElement = 0;
+	descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptor_write.descriptorCount = 1;
+	descriptor_write.pImageInfo = &image_info;
+
+	vkUpdateDescriptorSets(glbl.device, 1, &descriptor_write, 0, NULL);
+    }
+
     return SUCCESS;
 }

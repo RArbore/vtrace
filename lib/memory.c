@@ -350,6 +350,8 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     transition_command.layout_transition.new = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     queue_secondary_command(transition_command);
 
+    PROPAGATE_C(update_descriptors());
+
     return 0;
 }
 

@@ -133,6 +133,7 @@ typedef struct renderer {
 
     VkDescriptorPool descriptor_pool;
     VkDescriptorSetLayout graphics_descriptor_set_layout;
+    VkDescriptorSet graphics_descriptor_sets[FRAMES_IN_FLIGHT];
 
     VkPipelineLayout graphics_pipeline_layout;
     VkRenderPass render_pass;
@@ -229,6 +230,8 @@ result create_descriptor_pool(void);
 
 result create_descriptor_layouts(void);
 
+result create_descriptor_sets(void);
+
 result create_graphics_pipeline(void);
 
 result create_framebuffers(void);
@@ -266,6 +269,8 @@ result create_texture_resources(void);
 result create_texture_sampler(void);
 
 int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth);
+
+result update_descriptors(void);
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
