@@ -31,6 +31,17 @@ pub struct GPUInstance {
     model: [f32; 16],
 }
 
+#[repr(C)]
+#[derive(Default, Debug, Copy, Clone)]
+pub struct UserInput {
+    pub key_w: u8,
+    pub key_a: u8,
+    pub key_s: u8,
+    pub key_d: u8,
+    pub key_space: u8,
+    pub key_lshift: u8,
+}
+
 impl GPUInstance {
     pub fn new(
         rotate_angle: f32,
@@ -85,6 +96,8 @@ extern "C" {
         window_height: *mut i32,
         render_tick_info: *const RenderTickInfo,
     ) -> i32;
+
+    fn get_input_data_pointer() -> *const UserInput;
 
     fn add_texture(data: *const Color, width: u32, height: u32, depth: u32) -> i32;
 
@@ -152,6 +165,10 @@ impl Renderer {
             *position + *direction + offset,
             Vec3::new(0.0, 1.0, 0.0),
         )
+    }
+
+    pub fn get_input_data_pointer(&self) -> *const UserInput {
+        unsafe { get_input_data_pointer() }
     }
 
     pub fn add_texture<T: RawVoxelFormat<Color>>(&mut self, texture: T) {

@@ -17,8 +17,7 @@ use glm::*;
 
 use crate::render::*;
 
-const MOVE_SPEED: f32 = 0.005;
-const SENSITIVITY: f32 = 0.003;
+const MOVE_SPEED: f32 = 10.0;
 const PI: f32 = 3.14159265358979323846;
 
 #[derive(Debug)]
@@ -60,6 +59,7 @@ impl WorldState {
         dt: f32,
         old_instances: &Vec<GPUInstance>,
         new_instances: &mut Vec<GPUInstance>,
+        user_input: UserInput,
     ) {
         self.accum_time_frac += dt;
         if self.accum_time_frac > 1.0 {
@@ -67,10 +67,28 @@ impl WorldState {
             self.accum_time_whole += 1;
         }
 
-        self.camera_theta = self.accum_time_frac * 3.1415926 * 2.0;
-        self.camera_phi = cos(self.camera_theta) + 3.1415926 / 2.0;
-        self.camera_position = self.get_camera_direction() * -4.0;
-        self.camera_position.y = cos(self.camera_theta) * 20.0;
+        if user_input.key_w > 0 {
+            self.camera_position = self.camera_position
+                + vec3(cos(self.camera_theta), 0.0, sin(self.camera_theta)) * dt * MOVE_SPEED;
+        }
+        if user_input.key_s > 0 {
+            self.camera_position = self.camera_position
+                - vec3(cos(self.camera_theta), 0.0, sin(self.camera_theta)) * dt * MOVE_SPEED;
+        }
+        if user_input.key_a > 0 {
+            self.camera_position = self.camera_position
+                + vec3(sin(self.camera_theta), 0.0, -cos(self.camera_theta)) * dt * MOVE_SPEED;
+        }
+        if user_input.key_d > 0 {
+            self.camera_position = self.camera_position
+                - vec3(sin(self.camera_theta), 0.0, -cos(self.camera_theta)) * dt * MOVE_SPEED;
+        }
+        if user_input.key_space > 0 {
+            self.camera_position = self.camera_position - vec3(0.0, 1.0, 0.0) * dt * MOVE_SPEED;
+        }
+        if user_input.key_lshift > 0 {
+            self.camera_position = self.camera_position + vec3(0.0, 1.0, 0.0) * dt * MOVE_SPEED;
+        }
 
         let mut i = 0;
         for x in -100..=100 {

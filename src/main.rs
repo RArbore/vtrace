@@ -28,6 +28,8 @@ fn main() {
     renderer.lock().unwrap().add_texture(texture.remove(0));
     renderer.lock().unwrap().update_descriptor();
 
+    let input_ptr = renderer.lock().unwrap().get_input_data_pointer();
+
     let mut instances1 = vec![];
     for x in -100..=100 {
         for z in -100..=100 {
@@ -60,7 +62,7 @@ fn main() {
                 .render_tick(&render_camera_pos, &render_camera_dir)
         });
 
-        world.update(dt / 10.0, instances.0, instances.1);
+        world.update(dt / 10.0, instances.0, instances.1, unsafe { *input_ptr });
 
         (code, dt) = handle.join().unwrap();
 

@@ -295,6 +295,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     uint32_t desired_offset = round_up(glbl.texture_memory_used, requirements.alignment);
     uint32_t needed_size = desired_offset + requirements.size;
     if (needed_size > glbl.texture_memory_allocated) {
+	// TODO: Allocate new memory, queue copy, queue freeing of old memory
 	cleanup_texture_resources();
 	glbl.texture_memory_allocated = needed_size;
 	PROPAGATE_C(create_texture_resources());

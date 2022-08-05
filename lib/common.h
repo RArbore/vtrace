@@ -118,6 +118,8 @@ typedef struct renderer {
     uint32_t resized;
     GLFWwindow* window;
 
+    uint8_t keys[6];
+
     VkInstance instance;
     VkSurfaceKHR surface;
     VkPhysicalDevice physical;
@@ -293,5 +295,7 @@ void cleanup_staging_texture_buffer(void);
 void cleanup_texture_images(void);
 
 void cleanup_texture_resources(void);
+
+uint8_t* get_input_data_pointer(void);
 
 int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info);

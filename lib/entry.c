@@ -24,6 +24,29 @@ static void glfw_framebuffer_resize_callback(__attribute__((unused)) GLFWwindow*
     glbl.resized = 1;
 }
 
+static void glfw_key_callback(__attribute__((unused)) GLFWwindow* window, int key, __attribute__((unused)) int scancode, int action, __attribute__((unused)) int mods) {
+    switch (key) {
+    case GLFW_KEY_W:
+	glbl.keys[0] = action == GLFW_RELEASE ? 0 : 1;
+	break;
+    case GLFW_KEY_A:
+	glbl.keys[1] = action == GLFW_RELEASE ? 0 : 1;
+	break;
+    case GLFW_KEY_S:
+	glbl.keys[2] = action == GLFW_RELEASE ? 0 : 1;
+	break;
+    case GLFW_KEY_D:
+	glbl.keys[3] = action == GLFW_RELEASE ? 0 : 1;
+	break;
+    case GLFW_KEY_SPACE:
+	glbl.keys[4] = action == GLFW_RELEASE ? 0 : 1;
+	break;
+    case GLFW_KEY_LEFT_SHIFT:
+	glbl.keys[5] = action == GLFW_RELEASE ? 0 : 1;
+	break;
+    }
+}
+
 uint64_t entry(void) {
     result res = init();
     return ((uint64_t) res.vk << 32) | (uint64_t) res.custom;
@@ -38,6 +61,7 @@ result init(void) {
     glbl.window_height = 1000;
     glbl.window = glfwCreateWindow(glbl.window_width, glbl.window_height, "vtrace", NULL, NULL);
     glfwSetFramebufferSizeCallback(glbl.window, glfw_framebuffer_resize_callback);
+    glfwSetKeyCallback(glbl.window, glfw_key_callback);
 
     PROPAGATE(create_instance());
     PROPAGATE(create_surface());
@@ -102,6 +126,10 @@ void cleanup(void) {
     
     glfwDestroyWindow(glbl.window);
     glfwTerminate();
+}
+
+uint8_t* get_input_data_pointer(void) {
+    return glbl.keys;
 }
 
 int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info) {
