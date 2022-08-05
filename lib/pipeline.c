@@ -68,8 +68,8 @@ result create_shader_module(VkShaderModule* module, const char* shader_path) {
 
 result create_graphics_pipeline(void) {
     VkShaderModule vertex_shader, fragment_shader;
-    PROPAGATE(create_shader_module(&vertex_shader, "shaders/test.vert.spv"));
-    PROPAGATE(create_shader_module(&fragment_shader, "shaders/test.frag.spv"));
+    PROPAGATE(create_shader_module(&vertex_shader, "shaders/trace.vert.spv"));
+    PROPAGATE(create_shader_module(&fragment_shader, "shaders/trace.frag.spv"));
 
     VkPipelineShaderStageCreateInfo vertex_shader_stage_create_info = {0};
     vertex_shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;

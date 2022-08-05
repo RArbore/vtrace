@@ -54,9 +54,9 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
     VkClearValue clear_values[0];
-    clear_values[0].color.float32[0] = 0.0f;
-    clear_values[0].color.float32[1] = 0.0f;
-    clear_values[0].color.float32[2] = 0.0f;
+    clear_values[0].color.float32[0] = 53.0f / 100.0f;
+    clear_values[0].color.float32[1] = 81.0f / 100.0f;
+    clear_values[0].color.float32[2] = 92.0f / 100.0f;
     clear_values[0].color.float32[3] = 1.0f;
     clear_values[1].depthStencil.depth = 1.0f;
     clear_values[1].depthStencil.stencil = 0;

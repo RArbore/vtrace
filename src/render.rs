@@ -37,6 +37,7 @@ impl GPUInstance {
         rotate_axis: &Vec3,
         scale: &Vec3,
         translate: &Vec3,
+        model_id: u32,
     ) -> GPUInstance {
         let identity = Matrix4::new(
             Vec4::new(1.0, 0.0, 0.0, 0.0),
@@ -64,7 +65,7 @@ impl GPUInstance {
                 translate[3][0],
                 translate[3][1],
                 translate[3][2],
-                translate[3][3],
+                unsafe { std::mem::transmute(model_id) },
             ],
         }
     }

@@ -36,7 +36,7 @@ void main() {
     // this entry will always be 1.
     object_id = gl_InstanceIndex;
     model_id = floatBitsToInt(model[3][3]);
-    mat4 recovered_model = transpose(model);
+    mat4 recovered_model = model;
     recovered_model[3][3] = 1.0;
 
     model_matrix = recovered_model;

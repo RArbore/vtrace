@@ -74,7 +74,7 @@ fn main() {
     }
 
     let status = Command::new("glslc")
-        .args(&["shaders/test.vert", "-o", "shaders/test.vert.spv"])
+        .args(&["shaders/trace.vert", "-o", "shaders/trace.vert.spv"])
         .status()
         .unwrap();
     if !status.success() {
@@ -82,7 +82,7 @@ fn main() {
     }
 
     let status = Command::new("glslc")
-        .args(&["shaders/test.frag", "-o", "shaders/test.frag.spv"])
+        .args(&["shaders/trace.frag", "-o", "shaders/trace.frag.spv"])
         .status()
         .unwrap();
     if !status.success() {
@@ -94,6 +94,6 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=glfw");
     println!("cargo:rustc-link-lib=dylib=vulkan");
     println!("cargo:rerun-if-changed=lib/common.h");
-    println!("cargo:rerun-if-changed=test.vert");
-    println!("cargo:rerun-if-changed=test.frag");
+    println!("cargo:rerun-if-changed=trace.vert");
+    println!("cargo:rerun-if-changed=trace.frag");
 }

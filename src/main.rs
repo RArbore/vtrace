@@ -36,6 +36,7 @@ fn main() {
                 &glm::Vec3::new(0.0, 1.0, 0.0),
                 &glm::Vec3::new(0.0, 0.0, 0.0),
                 &glm::Vec3::new(x as f32 * 1.5, 0.0, z as f32 * 1.5),
+                0,
             ));
         }
     }
