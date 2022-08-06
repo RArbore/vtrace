@@ -111,14 +111,23 @@ typedef struct secondary_command {
     };
 } secondary_command;
 
+typedef struct user_input {
+    uint8_t keys[6];
+    double mouse_x;
+    double mouse_y;
+    double last_mouse_x;
+    double last_mouse_y;
+} user_input;
+
 typedef struct renderer {
     uint32_t current_frame;
+    uint32_t num_frames_elapsed;
     uint32_t window_width;
     uint32_t window_height;
     uint32_t resized;
     GLFWwindow* window;
 
-    uint8_t keys[6];
+    user_input user_input;
 
     VkInstance instance;
     VkSurfaceKHR surface;
@@ -296,6 +305,6 @@ void cleanup_texture_images(void);
 
 void cleanup_texture_resources(void);
 
-uint8_t* get_input_data_pointer(void);
+user_input* get_input_data_pointer(void);
 
 int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info);

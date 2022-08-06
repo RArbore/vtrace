@@ -40,6 +40,11 @@ pub struct UserInput {
     pub key_d: u8,
     pub key_space: u8,
     pub key_lshift: u8,
+
+    pub mouse_x: f64,
+    pub mouse_y: f64,
+    pub last_mouse_x: f64,
+    pub last_mouse_y: f64,
 }
 
 impl GPUInstance {

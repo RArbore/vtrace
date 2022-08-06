@@ -18,6 +18,7 @@ use glm::*;
 use crate::render::*;
 
 const MOVE_SPEED: f32 = 10.0;
+const SENSITIVITY: f32 = 0.01;
 const PI: f32 = 3.14159265358979323846;
 
 #[derive(Debug)]
@@ -88,6 +89,21 @@ impl WorldState {
         }
         if user_input.key_lshift > 0 {
             self.camera_position = self.camera_position + vec3(0.0, 1.0, 0.0) * dt * MOVE_SPEED;
+        }
+
+        self.camera_theta += SENSITIVITY * (user_input.mouse_x - user_input.last_mouse_x) as f32;
+        self.camera_phi -= SENSITIVITY * (user_input.mouse_y - user_input.last_mouse_y) as f32;
+        if self.camera_theta < 0.0 {
+            self.camera_theta += 2.0 * PI;
+        }
+        if self.camera_theta >= 2.0 * PI {
+            self.camera_theta -= 2.0 * PI;
+        }
+        if self.camera_phi < 0.1 {
+            self.camera_phi = 0.1;
+        }
+        if self.camera_phi >= PI - 0.1 {
+            self.camera_phi = PI - 0.1;
         }
 
         let mut i = 0;

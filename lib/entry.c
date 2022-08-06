@@ -27,22 +27,22 @@ static void glfw_framebuffer_resize_callback(__attribute__((unused)) GLFWwindow*
 static void glfw_key_callback(__attribute__((unused)) GLFWwindow* window, int key, __attribute__((unused)) int scancode, int action, __attribute__((unused)) int mods) {
     switch (key) {
     case GLFW_KEY_W:
-	glbl.keys[0] = action == GLFW_RELEASE ? 0 : 1;
+	glbl.user_input.keys[0] = action == GLFW_RELEASE ? 0 : 1;
 	break;
     case GLFW_KEY_A:
-	glbl.keys[1] = action == GLFW_RELEASE ? 0 : 1;
+	glbl.user_input.keys[1] = action == GLFW_RELEASE ? 0 : 1;
 	break;
     case GLFW_KEY_S:
-	glbl.keys[2] = action == GLFW_RELEASE ? 0 : 1;
+	glbl.user_input.keys[2] = action == GLFW_RELEASE ? 0 : 1;
 	break;
     case GLFW_KEY_D:
-	glbl.keys[3] = action == GLFW_RELEASE ? 0 : 1;
+	glbl.user_input.keys[3] = action == GLFW_RELEASE ? 0 : 1;
 	break;
     case GLFW_KEY_SPACE:
-	glbl.keys[4] = action == GLFW_RELEASE ? 0 : 1;
+	glbl.user_input.keys[4] = action == GLFW_RELEASE ? 0 : 1;
 	break;
     case GLFW_KEY_LEFT_SHIFT:
-	glbl.keys[5] = action == GLFW_RELEASE ? 0 : 1;
+	glbl.user_input.keys[5] = action == GLFW_RELEASE ? 0 : 1;
 	break;
     }
 }
@@ -62,6 +62,7 @@ result init(void) {
     glbl.window = glfwCreateWindow(glbl.window_width, glbl.window_height, "vtrace", NULL, NULL);
     glfwSetFramebufferSizeCallback(glbl.window, glfw_framebuffer_resize_callback);
     glfwSetKeyCallback(glbl.window, glfw_key_callback);
+    glfwSetInputMode(glbl.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     PROPAGATE(create_instance());
     PROPAGATE(create_surface());
@@ -128,8 +129,8 @@ void cleanup(void) {
     glfwTerminate();
 }
 
-uint8_t* get_input_data_pointer(void) {
-    return glbl.keys;
+user_input* get_input_data_pointer(void) {
+    return &glbl.user_input;
 }
 
 int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info) {
@@ -138,6 +139,14 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     }
 
     glfwPollEvents();
+
+    glbl.user_input.last_mouse_x = glbl.user_input.mouse_x;
+    glbl.user_input.last_mouse_y = glbl.user_input.mouse_y;
+    glfwGetCursorPos(glbl.window, &glbl.user_input.mouse_x, &glbl.user_input.mouse_y);
+    if (glbl.num_frames_elapsed == 0) {
+	glbl.user_input.last_mouse_x = glbl.user_input.mouse_x;
+	glbl.user_input.last_mouse_y = glbl.user_input.mouse_y;
+    }
 
     vkWaitForFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame], VK_TRUE, UINT64_MAX);
 
@@ -207,6 +216,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     }
 
     glbl.current_frame = (glbl.current_frame + 1) % FRAMES_IN_FLIGHT;
+    ++glbl.num_frames_elapsed;
     *window_width = glbl.window_width;
     *window_height = glbl.window_height;
     
