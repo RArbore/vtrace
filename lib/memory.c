@@ -265,6 +265,11 @@ result create_texture_resources(void) {
 }
 
 int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth) {
+    if (glbl.texture_image_count >= MAX_TEXTURES) {
+	fprintf(stderr, "ERROR: Tried allocating too many textures");
+	return 1;
+    }
+    
     vkWaitForFences(glbl.device, 1, &glbl.texture_upload_finished_fence, VK_TRUE, UINT64_MAX);
     vkResetFences(glbl.device, 1, &glbl.texture_upload_finished_fence);
     
@@ -303,7 +308,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     vkGetImageMemoryRequirements(glbl.device, image, &requirements);
     uint32_t desired_offset = round_up(glbl.texture_memory_used, requirements.alignment);
     uint32_t needed_size = desired_offset + requirements.size;
-    printf("%lu %lu %u %u\n", requirements.size, requirements.alignment, desired_offset, needed_size);
+    //printf("%lu %lu %u %u\n", requirements.size, requirements.alignment, desired_offset, needed_size);
     if (needed_size > glbl.texture_memory_allocated) {
 	// TODO: Allocate new memory, queue copy, queue freeing of old memory
 	cleanup_texture_resources();

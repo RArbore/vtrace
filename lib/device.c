@@ -33,7 +33,7 @@ result create_instance(void) {
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "Custom";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.apiVersion = VK_API_VERSION_1_0;
+    app_info.apiVersion = VK_API_VERSION_1_1;
 
     VkInstanceCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -142,6 +142,11 @@ int32_t physical_score(VkPhysicalDevice physical) {
 	return -1;
     }
 
+    result bindless_check = physical_check_bindless_support(physical);
+    if (!IS_SUCCESS(bindless_check)) {
+	return -1;
+    }
+
     return device_type_score;
 }
 
@@ -215,6 +220,22 @@ result physical_check_swapchain_support(VkPhysicalDevice physical, swapchain_sup
     return SUCCESS;
 }
 
+result physical_check_bindless_support(VkPhysicalDevice physical) {
+    VkPhysicalDeviceDescriptorIndexingFeatures indexing_features = {0};
+    indexing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+
+    VkPhysicalDeviceFeatures2 device_features = {0};
+    device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    device_features.pNext = &indexing_features;
+    
+    vkGetPhysicalDeviceFeatures2(physical, &device_features);
+    
+    if (indexing_features.descriptorBindingPartiallyBound && indexing_features.runtimeDescriptorArray) {
+	return SUCCESS;
+    }
+    return CUSTOM_ERROR;
+}
+
 result create_device(void) {
     uint32_t queue_family;
     PROPAGATE(physical_check_queue_family(glbl.physical, &queue_family, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT));
@@ -227,13 +248,16 @@ result create_device(void) {
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_priority;
 
-    VkPhysicalDeviceFeatures device_features = {0};
+    VkPhysicalDeviceFeatures2 device_features = {0};
+    device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+
+    vkGetPhysicalDeviceFeatures2(glbl.physical, &device_features);
 
     VkDeviceCreateInfo device_create_info = {0};
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    device_create_info.pQueueCreateInfos = &queue_create_info;
     device_create_info.queueCreateInfoCount = 1;
-    device_create_info.pEnabledFeatures = &device_features;
+    device_create_info.pQueueCreateInfos = &queue_create_info;
+    device_create_info.pNext = &device_features;
     device_create_info.enabledExtensionCount = sizeof(device_extensions) / sizeof(device_extensions[0]);
     device_create_info.ppEnabledExtensionNames = device_extensions;
 

@@ -21,6 +21,7 @@
 #define MAX_VK_ENUMERATIONS 16
 #define FRAMES_IN_FLIGHT 2
 #define COMMAND_QUEUE_SIZE 16
+#define MAX_TEXTURES 4096
 
 #define IS_SUCCESS(res) (res.vk == SUCCESS.vk && res.custom == SUCCESS.custom)
 
@@ -237,6 +238,8 @@ result physical_check_queue_family(VkPhysicalDevice physical, uint32_t* queue_fa
 result physical_check_extensions(VkPhysicalDevice physical);
 
 result physical_check_swapchain_support(VkPhysicalDevice physical, swapchain_support* support);
+
+result physical_check_bindless_support(VkPhysicalDevice physical);
 
 result create_device(void);
 
