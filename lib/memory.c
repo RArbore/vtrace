@@ -61,7 +61,7 @@ result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buff
     return SUCCESS;
 }
 
-result create_buffer_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkBuffer* buffers, uint32_t num_buffers, uint32_t* offsets) {
+result create_buffer_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkBuffer* buffers, uint32_t num_buffers, uint32_t* offsets, uint32_t minimum_size) {
     uint32_t allocate_size = 0;
     uint32_t memory_type_bits = 0;
     uint32_t local_offsets[num_buffers];
@@ -78,6 +78,8 @@ result create_buffer_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* me
 
 	memory_type_bits |= requirements.memoryTypeBits;
     }
+
+    if (allocate_size < minimum_size) allocate_size = minimum_size;
 
     VkMemoryAllocateInfo allocate_info = {0};
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -125,7 +127,7 @@ result create_image_view(VkImage image, VkImageViewType type, VkFormat format, V
     return SUCCESS;
 }
 
-result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkImage* images, uint32_t num_images, uint32_t* offsets) {
+result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkImage* images, uint32_t num_images, uint32_t* offsets, uint32_t minimum_size) {
     uint32_t allocate_size = 0;
     uint32_t memory_type_bits = 0;
     uint32_t local_offsets[num_images];
@@ -142,6 +144,8 @@ result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* mem
 
 	memory_type_bits |= requirements.memoryTypeBits;
     }
+
+    if (allocate_size < minimum_size) allocate_size = minimum_size;
 
     VkMemoryAllocateInfo allocate_info = {0};
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -163,14 +167,14 @@ result create_cube_buffer(void) {
     VkBuffer cube_buffers[2];
     PROPAGATE(create_buffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &cube_buffers[0]));
     PROPAGATE(create_buffer(index_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &cube_buffers[1]));
-    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.cube_memory, cube_buffers, sizeof(cube_buffers) / sizeof(cube_buffers[0]), NULL));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.cube_memory, cube_buffers, sizeof(cube_buffers) / sizeof(cube_buffers[0]), NULL, 0));
     glbl.cube_vertex_buffer = cube_buffers[0];
     glbl.cube_index_buffer = cube_buffers[1];
 
     uint32_t buffer_offsets[2];
     PROPAGATE(create_buffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &cube_buffers[0]));
     PROPAGATE(create_buffer(index_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &cube_buffers[1]));
-    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &glbl.staging_cube_memory, cube_buffers, sizeof(cube_buffers) / sizeof(cube_buffers[0]), buffer_offsets));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &glbl.staging_cube_memory, cube_buffers, sizeof(cube_buffers) / sizeof(cube_buffers[0]), buffer_offsets, 0));
     glbl.staging_cube_vertex_buffer = cube_buffers[0];
     glbl.staging_cube_index_buffer = cube_buffers[1];
 
@@ -211,10 +215,10 @@ result create_instance_buffer(void) {
     uint32_t instance_capacity = round_up_p2(glbl.instance_count + 1);
     
     PROPAGATE(create_buffer(instance_capacity * sizeof(float) * 4 * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &glbl.instance_buffer));
-    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.instance_memory, &glbl.instance_buffer, 1, NULL));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.instance_memory, &glbl.instance_buffer, 1, NULL, 0));
 
     PROPAGATE(create_buffer(instance_capacity * sizeof(float) * 4 * 4, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &glbl.staging_instance_buffer));
-    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &glbl.staging_instance_memory, &glbl.staging_instance_buffer, 1, NULL));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &glbl.staging_instance_memory, &glbl.staging_instance_buffer, 1, NULL, 0));
 
     glbl.instance_capacity = instance_capacity;
 
@@ -249,13 +253,13 @@ result create_staging_texture_buffer(void) {
     if (glbl.staging_texture_size == 0) glbl.staging_texture_size = 1;
 
     PROPAGATE(create_buffer(glbl.staging_texture_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &glbl.staging_texture_buffer));
-    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &glbl.staging_texture_memory, &glbl.staging_texture_buffer, 1, NULL));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &glbl.staging_texture_memory, &glbl.staging_texture_buffer, 1, NULL, 0));
 
     return SUCCESS;
 }
 
 result create_texture_resources(void) {
-    if (glbl.texture_memory_allocated > 0) PROPAGATE(create_image_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.texture_memory, glbl.texture_images, glbl.texture_image_count, NULL));
+    if (glbl.texture_memory_allocated > 0) PROPAGATE(create_image_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.texture_memory, glbl.texture_images, glbl.texture_image_count, NULL, glbl.texture_memory_allocated));
     
     return SUCCESS;
 }
@@ -299,6 +303,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     vkGetImageMemoryRequirements(glbl.device, image, &requirements);
     uint32_t desired_offset = round_up(glbl.texture_memory_used, requirements.alignment);
     uint32_t needed_size = desired_offset + requirements.size;
+    printf("%lu %lu %u %u\n", requirements.size, requirements.alignment, desired_offset, needed_size);
     if (needed_size > glbl.texture_memory_allocated) {
 	// TODO: Allocate new memory, queue copy, queue freeing of old memory
 	cleanup_texture_resources();
@@ -309,6 +314,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	// TODO: Fix trying to bind with too little memory
 	PROPAGATE_VK_C(vkBindImageMemory(glbl.device, image, glbl.texture_memory, desired_offset));
     }
+    glbl.texture_memory_used = needed_size;
 
     VkImageSubresourceRange subresource_range; 
     subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
