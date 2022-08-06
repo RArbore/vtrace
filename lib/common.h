@@ -151,8 +151,8 @@ typedef struct renderer {
     VkDescriptorPool descriptor_pool;
     VkDescriptorSetLayout graphics_descriptor_set_layout;
     VkDescriptorSet graphics_descriptor_sets[FRAMES_IN_FLIGHT];
-    VkWriteDescriptorSet graphics_pending_descriptor_writes[FRAMES_IN_FLIGHT];
-    descriptor_info graphics_pending_descriptor_write_infos[FRAMES_IN_FLIGHT];
+    VkWriteDescriptorSet graphics_pending_descriptor_writes[FRAMES_IN_FLIGHT][FRAMES_IN_FLIGHT];
+    descriptor_info graphics_pending_descriptor_write_infos[FRAMES_IN_FLIGHT][FRAMES_IN_FLIGHT];
 
     VkPipelineLayout graphics_pipeline_layout;
     VkRenderPass render_pass;

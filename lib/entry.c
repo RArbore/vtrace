@@ -148,7 +148,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	glbl.user_input.last_mouse_x = glbl.user_input.mouse_x;
 	glbl.user_input.last_mouse_y = glbl.user_input.mouse_y;
     }
-
+    
     vkWaitForFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame], VK_TRUE, UINT64_MAX);
 
     uint32_t image_index;
@@ -160,9 +160,11 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	return -1;
     }
 
-    if (glbl.graphics_pending_descriptor_writes[glbl.current_frame].sType == VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET) {
-	vkUpdateDescriptorSets(glbl.device, 1, &glbl.graphics_pending_descriptor_writes[glbl.current_frame], 0, NULL);
-	glbl.graphics_pending_descriptor_writes[glbl.current_frame].sType = 0;
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+	if (glbl.graphics_pending_descriptor_writes[glbl.current_frame][i].sType == VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET) {
+	    vkUpdateDescriptorSets(glbl.device, 1, &glbl.graphics_pending_descriptor_writes[glbl.current_frame][i], 0, NULL);
+	    glbl.graphics_pending_descriptor_writes[glbl.current_frame][i].sType = 0;
+	}
     }
 
     vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame]);
