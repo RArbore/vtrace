@@ -248,8 +248,14 @@ result create_device(void) {
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_priority;
 
+    VkPhysicalDeviceDescriptorIndexingFeatures indexing_features = {0};
+    indexing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+    indexing_features.descriptorBindingPartiallyBound = VK_TRUE;
+    indexing_features.runtimeDescriptorArray = VK_TRUE;
+
     VkPhysicalDeviceFeatures2 device_features = {0};
     device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    device_features.pNext = &indexing_features;
 
     vkGetPhysicalDeviceFeatures2(glbl.physical, &device_features);
 
