@@ -133,6 +133,8 @@ void recreate_swapchain(void) {
         glfwGetFramebufferSize(glbl.window, &width, &height);
         glfwWaitEvents();
     }
+    glbl.window_width = width;
+    glbl.window_height = height;
     
     vkDeviceWaitIdle(glbl.device);
 

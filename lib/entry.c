@@ -55,7 +55,7 @@ uint64_t entry(void) {
 result init(void) {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     glbl.window_width = 1000;
     glbl.window_height = 1000;
