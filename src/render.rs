@@ -106,7 +106,7 @@ extern "C" {
 
     fn add_texture(data: *const Color, width: u32, height: u32, depth: u32) -> i32;
 
-    fn update_instances(instances: *const GPUInstance, instance_count: u32);
+    fn update_instances(instances: *const GPUInstance, instance_count: u32) -> i32;
 
     fn cleanup();
 }
@@ -182,10 +182,11 @@ impl Renderer {
         self.texture_upload_queue.push(texture);
     }
 
-    pub fn update_descriptor(&mut self) {}
-
     pub fn update_instances(&mut self, instances: &Vec<GPUInstance>) {
-        unsafe { update_instances(instances.as_ptr(), instances.len() as u32) };
+        let code = unsafe { update_instances(instances.as_ptr(), instances.len() as u32) };
+        if code != 0 {
+            panic!("ERROR: Updating instances failed",);
+        }
     }
 
     pub fn render_tick(&mut self, pos: &Vec3, dir: &Vec3) -> (bool, f32) {
@@ -197,7 +198,7 @@ impl Renderer {
             assert!(dim_x.1 > dim_x.0);
             assert!(dim_y.1 > dim_y.0);
             assert!(dim_z.1 > dim_z.0);
-            unsafe {
+            let code = unsafe {
                 add_texture(
                     texture.get_raw(),
                     (dim_x.1 - dim_x.0) as u32,
@@ -205,6 +206,9 @@ impl Renderer {
                     (dim_z.1 - dim_z.0) as u32,
                 )
             };
+            if code != 0 {
+                panic!("ERROR: Adding texture failed",);
+            }
         }
 
         let render_tick_info = RenderTickInfo {

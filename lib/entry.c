@@ -104,6 +104,7 @@ void cleanup(void) {
 	vkDestroyFence(glbl.device, glbl.frame_in_flight_fence[i], NULL);
 	vkDestroySemaphore(glbl.device, glbl.secondary_finished_semaphore[i], NULL);
     }
+    vkDestroyFence(glbl.device, glbl.texture_upload_finished_fence, NULL);
 
     vkDestroyBuffer(glbl.device, glbl.cube_vertex_buffer, NULL);
     vkDestroyBuffer(glbl.device, glbl.cube_index_buffer, NULL);
@@ -159,11 +160,15 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	return -1;
     }
 
+    if (glbl.graphics_pending_descriptor_writes[glbl.current_frame].sType == VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET) {
+	vkUpdateDescriptorSets(glbl.device, 1, &glbl.graphics_pending_descriptor_writes[glbl.current_frame], 0, NULL);
+	glbl.graphics_pending_descriptor_writes[glbl.current_frame].sType = 0;
+    }
+
     vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame]);
     vkResetCommandBuffer(glbl.graphics_command_buffers[glbl.current_frame], 0);
     vkResetCommandBuffer(glbl.secondary_command_buffers[glbl.current_frame], 0);
     record_graphics_command_buffer(glbl.graphics_command_buffers[glbl.current_frame], image_index, render_tick_info);
-
 
     VkPipelineStageFlags wait_stages[2] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
     VkSemaphore wait_semaphores[2] = {glbl.image_available_semaphore[glbl.current_frame], glbl.secondary_finished_semaphore[glbl.current_frame]};
@@ -180,9 +185,10 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = &glbl.secondary_finished_semaphore[glbl.current_frame];
 
-	vkQueueSubmit(glbl.queue, 1, &submit_info, VK_NULL_HANDLE);
+	vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.secondary_finished_fence);
 
 	glbl.secondary_queue_size = 0;
+	glbl.secondary_finished_fence = VK_NULL_HANDLE;
 	did_secondary = 1;
     }
 

@@ -98,21 +98,20 @@ result create_texture_sampler(void) {
 
 result update_descriptors(void) {
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
-	VkDescriptorImageInfo image_info = {0};
-	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	image_info.imageView = glbl.texture_image_views[0];
-	image_info.sampler = glbl.texture_sampler;
+	glbl.graphics_pending_descriptor_write_infos[i].image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	glbl.graphics_pending_descriptor_write_infos[i].image_info.imageView = glbl.texture_image_views[glbl.texture_image_count - 1];
+	glbl.graphics_pending_descriptor_write_infos[i].image_info.sampler = glbl.texture_sampler;
 
-	VkWriteDescriptorSet descriptor_write = {0};
-	descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_write.dstSet = glbl.graphics_descriptor_sets[i];
-	descriptor_write.dstBinding = 0;
-	descriptor_write.dstArrayElement = 0;
-	descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptor_write.descriptorCount = 1;
-	descriptor_write.pImageInfo = &image_info;
-
-	vkUpdateDescriptorSets(glbl.device, 1, &descriptor_write, 0, NULL);
+	glbl.graphics_pending_descriptor_writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	glbl.graphics_pending_descriptor_writes[i].pNext = NULL;
+	glbl.graphics_pending_descriptor_writes[i].dstSet = glbl.graphics_descriptor_sets[i];
+	glbl.graphics_pending_descriptor_writes[i].dstBinding = 0;
+	glbl.graphics_pending_descriptor_writes[i].dstArrayElement = 0;
+	glbl.graphics_pending_descriptor_writes[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	glbl.graphics_pending_descriptor_writes[i].descriptorCount = 1;
+	glbl.graphics_pending_descriptor_writes[i].pImageInfo = &glbl.graphics_pending_descriptor_write_infos[i].image_info;
+	glbl.graphics_pending_descriptor_writes[i].pBufferInfo = NULL;
+	glbl.graphics_pending_descriptor_writes[i].pTexelBufferView = NULL;
     }
 
     return SUCCESS;

@@ -33,5 +33,7 @@ result create_synchronization(void) {
 	PROPAGATE_VK(vkCreateSemaphore(glbl.device, &semaphore_info, NULL, &glbl.secondary_finished_semaphore[i]));
     }
 
+    PROPAGATE_VK(vkCreateFence(glbl.device, &fence_info, NULL, &glbl.texture_upload_finished_fence));
+
     return SUCCESS;
 }

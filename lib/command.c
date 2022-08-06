@@ -183,3 +183,14 @@ result queue_secondary_command(secondary_command command) {
 
     return SUCCESS;
 }
+
+result set_secondary_fence(VkFence fence) {
+    if (glbl.secondary_finished_fence != VK_NULL_HANDLE) {
+	fprintf(stderr, "ERROR: Attempted to set secondary command fence when it's already set");
+	return CUSTOM_ERROR;
+    }
+
+    glbl.secondary_finished_fence = fence;
+    
+    return SUCCESS;
+}

@@ -20,7 +20,8 @@ mod voxel;
 mod world;
 
 fn main() {
-    let mut texture = voxel::load("assets/Treasure.vox");
+    let mut texture1 = voxel::load("assets/Treasure.vox");
+    let mut texture2 = voxel::load("assets/AncientTemple.vox");
 
     let mut world = world::WorldState::new();
     let renderer = std::sync::Arc::new(std::sync::Mutex::new(render::Renderer::new(&world)));
@@ -28,8 +29,11 @@ fn main() {
     renderer
         .lock()
         .unwrap()
-        .add_texture(Box::new(texture.remove(0)));
-    renderer.lock().unwrap().update_descriptor();
+        .add_texture(Box::new(texture1.remove(0)));
+    renderer
+        .lock()
+        .unwrap()
+        .add_texture(Box::new(texture2.remove(0)));
 
     let input_ptr = renderer.lock().unwrap().get_input_data_pointer();
 

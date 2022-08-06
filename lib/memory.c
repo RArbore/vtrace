@@ -221,11 +221,11 @@ result create_instance_buffer(void) {
     return SUCCESS;
 }
 
-void update_instances(const float* instances, uint32_t instance_count) {
+int32_t update_instances(const float* instances, uint32_t instance_count) {
     glbl.instance_count = instance_count;
     if (instance_count > glbl.instance_capacity) {
 	cleanup_instance_buffer();
-	create_instance_buffer();
+	PROPAGATE_C(create_instance_buffer());
     }
 
     void* instance_data;
@@ -240,7 +240,9 @@ void update_instances(const float* instances, uint32_t instance_count) {
     copy_command.copy_buffer_buffer.dst_buffer = glbl.instance_buffer;
     copy_command.copy_buffer_buffer.copy_region.size = instance_count * sizeof(float) * 4 * 4;
 
-    queue_secondary_command(copy_command);
+    PROPAGATE_C(queue_secondary_command(copy_command));
+
+    return 0;
 }
 
 result create_staging_texture_buffer(void) {
@@ -259,6 +261,9 @@ result create_texture_resources(void) {
 }
 
 int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth) {
+    vkWaitForFences(glbl.device, 1, &glbl.texture_upload_finished_fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(glbl.device, 1, &glbl.texture_upload_finished_fence);
+    
     uint32_t upload_size = 4 * width * height * depth;
     if (upload_size > glbl.staging_texture_size) {
 	glbl.staging_texture_size = round_up_p2(upload_size);
@@ -297,10 +302,11 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     if (needed_size > glbl.texture_memory_allocated) {
 	// TODO: Allocate new memory, queue copy, queue freeing of old memory
 	cleanup_texture_resources();
-	glbl.texture_memory_allocated = needed_size;
+	glbl.texture_memory_allocated = needed_size * 2;
 	PROPAGATE_C(create_texture_resources());
     }
     else {
+	// TODO: Fix trying to bind with too little memory
 	PROPAGATE_VK_C(vkBindImageMemory(glbl.device, image, glbl.texture_memory, desired_offset));
     }
 
@@ -352,6 +358,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     queue_secondary_command(transition_command);
 
     PROPAGATE_C(update_descriptors());
+    PROPAGATE_C(set_secondary_fence(glbl.texture_upload_finished_fence));
 
     return 0;
 }

@@ -119,6 +119,11 @@ typedef struct user_input {
     double last_mouse_y;
 } user_input;
 
+typedef union descriptor_info {
+    VkDescriptorImageInfo image_info;
+    VkDescriptorBufferInfo buffer_info;
+} descriptor_info;
+
 typedef struct renderer {
     uint32_t current_frame;
     uint32_t num_frames_elapsed;
@@ -145,6 +150,8 @@ typedef struct renderer {
     VkDescriptorPool descriptor_pool;
     VkDescriptorSetLayout graphics_descriptor_set_layout;
     VkDescriptorSet graphics_descriptor_sets[FRAMES_IN_FLIGHT];
+    VkWriteDescriptorSet graphics_pending_descriptor_writes[FRAMES_IN_FLIGHT];
+    descriptor_info graphics_pending_descriptor_write_infos[FRAMES_IN_FLIGHT];
 
     VkPipelineLayout graphics_pipeline_layout;
     VkRenderPass render_pass;
@@ -183,6 +190,7 @@ typedef struct renderer {
     VkImageView* texture_image_views;
     VkDeviceMemory texture_memory;
     VkSampler texture_sampler;
+    VkFence texture_upload_finished_fence;
 
     VkSemaphore image_available_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore render_finished_semaphore[FRAMES_IN_FLIGHT];
@@ -192,6 +200,7 @@ typedef struct renderer {
     VkSemaphore secondary_intercommand_semaphore[FRAMES_IN_FLIGHT];
     uint32_t secondary_queue_size;
     secondary_command secondary_queue[COMMAND_QUEUE_SIZE];
+    VkFence secondary_finished_fence;
 } renderer;
 
 typedef struct swapchain_support {
@@ -271,7 +280,7 @@ result create_cube_buffer(void);
 
 result create_instance_buffer(void);
 
-void update_instances(const float* instances, uint32_t instance_count);
+int32_t update_instances(const float* instances, uint32_t instance_count);
 
 result create_staging_texture_buffer(void);
 
@@ -286,6 +295,8 @@ result update_descriptors(void);
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
 result queue_secondary_command(secondary_command command);
+
+result set_secondary_fence(VkFence fence);
 
 result find_memory_type(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t* type);
 
