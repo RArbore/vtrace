@@ -154,7 +154,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     uint32_t image_index;
     VkResult acquire_image_result = vkAcquireNextImageKHR(glbl.device, glbl.swapchain, UINT64_MAX, glbl.image_available_semaphore[glbl.current_frame], VK_NULL_HANDLE, &image_index);
     if (acquire_image_result == VK_ERROR_OUT_OF_DATE_KHR) {
-	recreate_swapchain();
+	PROPAGATE_C(recreate_swapchain());
 	return 0;
     } else if (acquire_image_result != VK_SUCCESS && acquire_image_result != VK_SUBOPTIMAL_KHR) {
 	return -1;
@@ -168,7 +168,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame]);
     vkResetCommandBuffer(glbl.graphics_command_buffers[glbl.current_frame], 0);
     vkResetCommandBuffer(glbl.secondary_command_buffers[glbl.current_frame], 0);
-    record_graphics_command_buffer(glbl.graphics_command_buffers[glbl.current_frame], image_index, render_tick_info);
+    PROPAGATE_C(record_graphics_command_buffer(glbl.graphics_command_buffers[glbl.current_frame], image_index, render_tick_info));
 
     VkPipelineStageFlags wait_stages[2] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
     VkSemaphore wait_semaphores[2] = {glbl.image_available_semaphore[glbl.current_frame], glbl.secondary_finished_semaphore[glbl.current_frame]};
@@ -176,7 +176,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     uint32_t did_secondary = 0;
     if (glbl.secondary_queue_size > 0) {
 	vkResetCommandBuffer(glbl.secondary_command_buffers[glbl.current_frame], 0);
-	record_secondary_command_buffer(glbl.secondary_command_buffers[glbl.current_frame], glbl.secondary_queue_size, glbl.secondary_queue);
+	PROPAGATE_C(record_secondary_command_buffer(glbl.secondary_command_buffers[glbl.current_frame], glbl.secondary_queue_size, glbl.secondary_queue));
 
 	VkSubmitInfo submit_info = {0};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -185,7 +185,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = &glbl.secondary_finished_semaphore[glbl.current_frame];
 
-	vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.secondary_finished_fence);
+	PROPAGATE_VK_C(vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.secondary_finished_fence));
 
 	glbl.secondary_queue_size = 0;
 	glbl.secondary_finished_fence = VK_NULL_HANDLE;
@@ -202,7 +202,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &glbl.graphics_command_buffers[glbl.current_frame];
 
-    vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.frame_in_flight_fence[glbl.current_frame]);
+    PROPAGATE_VK_C(vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.frame_in_flight_fence[glbl.current_frame]));
 
     VkPresentInfoKHR present_info = {0};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;

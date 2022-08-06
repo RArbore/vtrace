@@ -114,17 +114,17 @@ result create_texture_sampler(void) {
     return SUCCESS;
 }
 
-result update_descriptors(void) {
+result update_descriptors(uint32_t update_texture) {
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
 	glbl.graphics_pending_descriptor_write_infos[i].image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	glbl.graphics_pending_descriptor_write_infos[i].image_info.imageView = glbl.texture_image_views[glbl.texture_image_count - 1];
+	glbl.graphics_pending_descriptor_write_infos[i].image_info.imageView = glbl.texture_image_views[update_texture];
 	glbl.graphics_pending_descriptor_write_infos[i].image_info.sampler = glbl.texture_sampler;
 
 	glbl.graphics_pending_descriptor_writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	glbl.graphics_pending_descriptor_writes[i].pNext = NULL;
 	glbl.graphics_pending_descriptor_writes[i].dstSet = glbl.graphics_descriptor_sets[i];
 	glbl.graphics_pending_descriptor_writes[i].dstBinding = 0;
-	glbl.graphics_pending_descriptor_writes[i].dstArrayElement = 0;
+	glbl.graphics_pending_descriptor_writes[i].dstArrayElement = update_texture;
 	glbl.graphics_pending_descriptor_writes[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	glbl.graphics_pending_descriptor_writes[i].descriptorCount = 1;
 	glbl.graphics_pending_descriptor_writes[i].pImageInfo = &glbl.graphics_pending_descriptor_write_infos[i].image_info;

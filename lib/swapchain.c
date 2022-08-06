@@ -126,7 +126,7 @@ result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* 
     return SUCCESS;
 }
 
-void recreate_swapchain(void) {
+result recreate_swapchain(void) {
     int width = 0, height = 0;
     glfwGetFramebufferSize(glbl.window, &width, &height);
     while (width == 0 || height == 0) {
@@ -140,9 +140,11 @@ void recreate_swapchain(void) {
 
     cleanup_swapchain();
 
-    create_swapchain();
-    create_depth_resources();
-    create_framebuffers();
+    PROPAGATE(create_swapchain());
+    PROPAGATE(create_depth_resources());
+    PROPAGATE(create_framebuffers());
+
+    return SUCCESS;
 }
 
 void cleanup_swapchain(void) {

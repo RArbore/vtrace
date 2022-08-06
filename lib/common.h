@@ -293,7 +293,7 @@ result create_texture_sampler(void);
 
 int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth);
 
-result update_descriptors(void);
+result update_descriptors(uint32_t update_texture);
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_description, VkVertexInputAttributeDescription* vertex_input_attribute_description);
 
@@ -307,7 +307,7 @@ result create_synchronization(void);
 
 void cleanup(void);
 
-void recreate_swapchain(void);
+result recreate_swapchain(void);
 
 void cleanup_swapchain(void);
 
