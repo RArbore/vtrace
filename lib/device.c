@@ -23,7 +23,8 @@ static const char* validation_layers[] = {
 };
 
 static const char* device_extensions[] = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    "VK_KHR_swapchain",
+    "VK_EXT_descriptor_indexing"
 };
 
 result create_instance(void) {

@@ -21,13 +21,14 @@
 result create_descriptor_pool(void) {
     VkDescriptorPoolSize pool_size = {0};
     pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    pool_size.descriptorCount = FRAMES_IN_FLIGHT;
+    pool_size.descriptorCount = FRAMES_IN_FLIGHT * MAX_TEXTURES;
 
     VkDescriptorPoolCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    create_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT;
     create_info.poolSizeCount = 1;
     create_info.pPoolSizes = &pool_size;
-    create_info.maxSets = FRAMES_IN_FLIGHT;
+    create_info.maxSets = FRAMES_IN_FLIGHT * MAX_TEXTURES;
 
     PROPAGATE_VK(vkCreateDescriptorPool(glbl.device, &create_info, NULL, &glbl.descriptor_pool));
 
@@ -37,15 +38,24 @@ result create_descriptor_pool(void) {
 result create_descriptor_layouts(void) {
     VkDescriptorSetLayoutBinding sampler_layout_binding = {0};
     sampler_layout_binding.binding = 0;
-    sampler_layout_binding.descriptorCount = 1;
+    sampler_layout_binding.descriptorCount = MAX_TEXTURES;
     sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     sampler_layout_binding.pImmutableSamplers = NULL;
     sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     VkDescriptorSetLayoutBinding bindings[] = {sampler_layout_binding};
+
+    VkDescriptorBindingFlags bindless_flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfoEXT layout_binding_flags_create_info = {0};
+    layout_binding_flags_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
+    layout_binding_flags_create_info.bindingCount = 1;
+    layout_binding_flags_create_info.pBindingFlags = &bindless_flags;
     
     VkDescriptorSetLayoutCreateInfo layout_create_info = {0};
     layout_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layout_create_info.pNext = &layout_binding_flags_create_info;
+    layout_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
     layout_create_info.bindingCount = sizeof(bindings) / sizeof(bindings[0]);
     layout_create_info.pBindings = bindings;
 
@@ -60,8 +70,16 @@ result create_descriptor_sets(void) {
 	layouts[i] = glbl.graphics_descriptor_set_layout;
     }
 
+    uint32_t max_variable_count = MAX_TEXTURES;
+    
+    VkDescriptorSetVariableDescriptorCountAllocateInfoEXT variable_count_allocate_info = {0};
+    variable_count_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT;
+    variable_count_allocate_info.descriptorSetCount = FRAMES_IN_FLIGHT;
+    variable_count_allocate_info.pDescriptorCounts = &max_variable_count;
+    
     VkDescriptorSetAllocateInfo allocate_info = {0};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocate_info.pNext = &variable_count_allocate_info;
     allocate_info.descriptorPool = glbl.descriptor_pool;
     allocate_info.descriptorSetCount = FRAMES_IN_FLIGHT;
     allocate_info.pSetLayouts = layouts;
