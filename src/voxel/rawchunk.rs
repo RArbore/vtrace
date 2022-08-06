@@ -117,7 +117,7 @@ impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> FromVoxelIterator
     }
 }
 
-impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> VoxelFormat<T>
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> VoxelData<T>
     for RawStaticChunk<T, X, Y, Z>
 {
     fn dim_x(&self) -> (i32, i32) {
@@ -155,7 +155,12 @@ impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> VoxelFormat<T>
     }
 }
 
-impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> RawVoxelFormat<T>
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> VoxelFormat<T>
+    for RawStaticChunk<T, X, Y, Z>
+{
+}
+
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> RawVoxelData<T>
     for RawStaticChunk<T, X, Y, Z>
 {
     fn get_raw(&self) -> *const T {
@@ -165,6 +170,11 @@ impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> RawVoxelFormat<T>
     fn get_raw_mut(&mut self) -> *mut T {
         self.data[0][0].as_mut_ptr()
     }
+}
+
+impl<T: Voxel, const X: usize, const Y: usize, const Z: usize> RawVoxelFormat<T>
+    for RawStaticChunk<T, X, Y, Z>
+{
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -261,7 +271,7 @@ impl<'a, T: Voxel> FromVoxelIterator<T> for RawDynamicChunk<T> {
     }
 }
 
-impl<T: Voxel> VoxelFormat<T> for RawDynamicChunk<T> {
+impl<T: Voxel> VoxelData<T> for RawDynamicChunk<T> {
     fn dim_x(&self) -> (i32, i32) {
         (0, self.dim_x as i32)
     }
@@ -297,7 +307,9 @@ impl<T: Voxel> VoxelFormat<T> for RawDynamicChunk<T> {
     }
 }
 
-impl<T: Voxel> RawVoxelFormat<T> for RawDynamicChunk<T> {
+impl<T: Voxel> VoxelFormat<T> for RawDynamicChunk<T> {}
+
+impl<T: Voxel> RawVoxelData<T> for RawDynamicChunk<T> {
     fn get_raw(&self) -> *const T {
         self.data.as_ptr()
     }
@@ -306,6 +318,8 @@ impl<T: Voxel> RawVoxelFormat<T> for RawDynamicChunk<T> {
         self.data.as_mut_ptr()
     }
 }
+
+impl<T: Voxel> RawVoxelFormat<T> for RawDynamicChunk<T> {}
 
 #[cfg(test)]
 mod tests {

@@ -123,6 +123,7 @@ pub struct Renderer {
     prev_time: Instant,
     prev_frame_time: Instant,
     prev_frame_num: usize,
+    texture_upload_queue: Vec<Box<dyn RawVoxelData<Color> + Send>>,
 }
 
 #[repr(C)]
@@ -152,6 +153,7 @@ impl Renderer {
             prev_time: Instant::now(),
             prev_frame_time: Instant::now(),
             prev_frame_num: 0,
+            texture_upload_queue: vec![],
         }
     }
 
@@ -176,21 +178,8 @@ impl Renderer {
         unsafe { get_input_data_pointer() }
     }
 
-    pub fn add_texture<T: RawVoxelFormat<Color>>(&mut self, texture: T) {
-        let dim_x = texture.dim_x();
-        let dim_y = texture.dim_y();
-        let dim_z = texture.dim_z();
-        assert!(dim_x.1 > dim_x.0);
-        assert!(dim_y.1 > dim_y.0);
-        assert!(dim_z.1 > dim_z.0);
-        unsafe {
-            add_texture(
-                texture.get_raw(),
-                (dim_x.1 - dim_x.0) as u32,
-                (dim_y.1 - dim_y.0) as u32,
-                (dim_z.1 - dim_z.0) as u32,
-            )
-        };
+    pub fn add_texture(&mut self, texture: Box<dyn RawVoxelData<Color> + Send>) {
+        self.texture_upload_queue.push(texture);
     }
 
     pub fn update_descriptor(&mut self) {}
@@ -200,6 +189,24 @@ impl Renderer {
     }
 
     pub fn render_tick(&mut self, pos: &Vec3, dir: &Vec3) -> (bool, f32) {
+        if !self.texture_upload_queue.is_empty() {
+            let texture = self.texture_upload_queue.remove(0);
+            let dim_x = texture.dim_x();
+            let dim_y = texture.dim_y();
+            let dim_z = texture.dim_z();
+            assert!(dim_x.1 > dim_x.0);
+            assert!(dim_y.1 > dim_y.0);
+            assert!(dim_z.1 > dim_z.0);
+            unsafe {
+                add_texture(
+                    texture.get_raw(),
+                    (dim_x.1 - dim_x.0) as u32,
+                    (dim_y.1 - dim_y.0) as u32,
+                    (dim_z.1 - dim_z.0) as u32,
+                )
+            };
+        }
+
         let render_tick_info = RenderTickInfo {
             perspective: &mut self.perspective,
             camera: &mut self.camera,
