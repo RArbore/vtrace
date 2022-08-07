@@ -20,8 +20,8 @@ mod voxel;
 mod world;
 
 fn main() {
-    let mut texture1 = voxel::load("assets/Treasure.vox");
-    let mut texture2 = voxel::load("assets/AncientTemple.vox");
+    let mut texture1 = voxel::load("assets/AncientTemple.vox");
+    let mut texture2 = voxel::load("assets/Treasure.vox");
 
     let mut world = world::WorldState::new();
     let renderer = std::sync::Arc::new(std::sync::Mutex::new(render::Renderer::new(&world)));

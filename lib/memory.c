@@ -299,10 +299,19 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	glbl.texture_image_allocated = round_up_p2(glbl.texture_image_allocated + 1);
 	glbl.texture_images = realloc(glbl.texture_images, glbl.texture_image_allocated * sizeof(VkImage));
 	glbl.texture_image_views = realloc(glbl.texture_image_views, glbl.texture_image_allocated * sizeof(VkImageView));
+	glbl.texture_image_extents = realloc(glbl.texture_image_extents, glbl.texture_image_allocated * sizeof(VkExtent3D));
     }
 
     glbl.texture_images[glbl.texture_image_count] = image;
+    glbl.texture_image_extents[glbl.texture_image_count] = extent;
     ++glbl.texture_image_count;
+
+    VkImageSubresourceRange subresource_range; 
+    subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresource_range.baseMipLevel = 0;
+    subresource_range.levelCount = 1;
+    subresource_range.baseArrayLayer = 0;
+    subresource_range.layerCount = 1;
 
     VkMemoryRequirements requirements;
     vkGetImageMemoryRequirements(glbl.device, image, &requirements);
@@ -311,22 +320,32 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     //printf("%lu %lu %u %u\n", requirements.size, requirements.alignment, desired_offset, needed_size);
     if (needed_size > glbl.texture_memory_allocated) {
 	// TODO: Allocate new memory, queue copy, queue freeing of old memory
+	VkImage* new_images = malloc((glbl.texture_image_count) * sizeof(VkImage));
+	VkImageView* new_views = malloc((glbl.texture_image_count) * sizeof(VkImageView));
+	for (uint32_t i = 0; i < glbl.texture_image_count - 1; ++i) {
+	    PROPAGATE_C(create_image(0, VK_FORMAT_R8G8B8A8_SRGB, glbl.texture_image_extents[i], 1, 1, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &new_images[i]));
+	}
+	new_images[glbl.texture_image_count - 1] = image;
+
+	VkImage* old_images = glbl.texture_images;
+	VkImageView* old_views = glbl.texture_image_views;
+	VkDeviceMemory old_memory = glbl.texture_memory;
+	glbl.texture_images = new_images;
+	glbl.texture_image_views = new_views;
+	glbl.texture_memory = VK_NULL_HANDLE;
+	
 	cleanup_texture_resources();
 	glbl.texture_memory_allocated = needed_size * 2;
 	PROPAGATE_C(create_texture_resources());
+
+	for (uint32_t i = 0; i < glbl.texture_image_count - 1; ++i) {
+	    PROPAGATE_C(create_image_view(glbl.texture_images[i], VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, &glbl.texture_image_views[i]));
+	}
     }
     else {
-	// TODO: Fix trying to bind with too little memory
 	PROPAGATE_VK_C(vkBindImageMemory(glbl.device, image, glbl.texture_memory, desired_offset));
     }
     glbl.texture_memory_used = needed_size;
-
-    VkImageSubresourceRange subresource_range; 
-    subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    subresource_range.baseMipLevel = 0;
-    subresource_range.levelCount = 1;
-    subresource_range.baseArrayLayer = 0;
-    subresource_range.layerCount = 1;
 
     PROPAGATE_C(create_image_view(image, VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, &image_view));
     

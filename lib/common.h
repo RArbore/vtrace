@@ -189,6 +189,7 @@ typedef struct renderer {
     uint32_t texture_memory_allocated;
     VkImage* texture_images;
     VkImageView* texture_image_views;
+    VkExtent3D* texture_image_extents;
     VkDeviceMemory texture_memory;
     VkSampler texture_sampler;
     VkFence texture_upload_finished_fence;
