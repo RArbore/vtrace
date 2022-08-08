@@ -366,6 +366,11 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	transition_command.layout_transition.new = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	queue_secondary_command(transition_command);
 
+	transition_command.layout_transition.images = old_images;
+	transition_command.layout_transition.old = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	transition_command.layout_transition.new = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	queue_secondary_command(transition_command);
+
 	secondary_command copy_command = {0};
 	copy_command.type = SECONDARY_TYPE_COPY_IMAGES_IMAGES;
 	copy_command.ordering = 1;
@@ -376,6 +381,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	queue_secondary_command(copy_command);
 
 	transition_command.ordering = 2;
+	transition_command.layout_transition.images = &glbl.texture_images[0];
 	transition_command.layout_transition.old = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	transition_command.layout_transition.new = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	queue_secondary_command(transition_command);
