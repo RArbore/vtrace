@@ -21,6 +21,7 @@
 #define MAX_VK_ENUMERATIONS 16
 #define FRAMES_IN_FLIGHT 2
 #define COMMAND_QUEUE_SIZE 16
+#define COMMAND_QUEUE_DEPTH 16
 #define MAX_TEXTURES 4096
 
 #define IS_SUCCESS(res) (res.vk == SUCCESS.vk && res.custom == SUCCESS.custom)
@@ -87,11 +88,14 @@ typedef struct gpu_vertex {
 typedef enum secondary_type {
     SECONDARY_TYPE_COPY_BUFFER_BUFFER,
     SECONDARY_TYPE_COPY_BUFFER_IMAGE,
-    SECONDARY_TYPE_LAYOUT_TRANSITION
+    SECONDARY_TYPE_COPY_IMAGES_IMAGES,
+    SECONDARY_TYPE_LAYOUT_TRANSITION,
+    SECONDARY_TYPE_CLEANUP,
 } secondary_type;
 
 typedef struct secondary_command {
     secondary_type type;
+    uint32_t ordering;
     uint32_t delay;
     union {
 	struct {
@@ -105,10 +109,23 @@ typedef struct secondary_command {
 	    VkBufferImageCopy copy_region;
 	} copy_buffer_image;
 	struct {
-	    VkImage image;
+	    uint32_t image_count;
+	    VkImage* src_images;
+	    VkImage* dst_images;
+	    VkExtent3D* extents;
+	} copy_images_images;
+	struct {
+	    uint32_t image_count;
+	    VkImage* images;
 	    VkImageLayout old;
 	    VkImageLayout new;
 	} layout_transition;
+	struct {
+	    uint32_t image_count;
+	    VkImage* images;
+	    VkImageView* image_views;
+	    VkDeviceMemory memory;
+	} cleanup;
     };
 } secondary_command;
 
@@ -200,8 +217,9 @@ typedef struct renderer {
 
     VkSemaphore secondary_finished_semaphore[FRAMES_IN_FLIGHT];
     VkSemaphore secondary_intercommand_semaphore[FRAMES_IN_FLIGHT];
-    uint32_t secondary_queue_size;
-    secondary_command secondary_queue[COMMAND_QUEUE_SIZE];
+    uint32_t secondary_queue_size[COMMAND_QUEUE_DEPTH];
+    secondary_command secondary_queue[COMMAND_QUEUE_DEPTH][COMMAND_QUEUE_SIZE];
+    uint32_t secondary_queue_index;
     VkFence secondary_finished_fence;
 } renderer;
 

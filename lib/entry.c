@@ -176,9 +176,9 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     VkSemaphore wait_semaphores[2] = {glbl.image_available_semaphore[glbl.current_frame], glbl.secondary_finished_semaphore[glbl.current_frame]};
 
     uint32_t did_secondary = 0;
-    if (glbl.secondary_queue_size > 0) {
-	vkResetCommandBuffer(glbl.secondary_command_buffers[glbl.current_frame], 0);
-	PROPAGATE_C(record_secondary_command_buffer(glbl.secondary_command_buffers[glbl.current_frame], glbl.secondary_queue_size, glbl.secondary_queue));
+    if (glbl.secondary_queue_size[glbl.secondary_queue_index] > 0) {
+        vkResetCommandBuffer(glbl.secondary_command_buffers[glbl.current_frame], 0);
+	PROPAGATE_C(record_secondary_command_buffer(glbl.secondary_command_buffers[glbl.current_frame], glbl.secondary_queue_size[glbl.secondary_queue_index], glbl.secondary_queue[glbl.secondary_queue_index]));
 
 	VkSubmitInfo submit_info = {0};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -189,8 +189,9 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 
 	PROPAGATE_VK_C(vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.secondary_finished_fence));
 
-	glbl.secondary_queue_size = 0;
+	glbl.secondary_queue_size[glbl.secondary_queue_index] = 0;
 	glbl.secondary_finished_fence = VK_NULL_HANDLE;
+	glbl.secondary_queue_index = (glbl.secondary_queue_index + 1) % COMMAND_QUEUE_DEPTH;
 	did_secondary = 1;
     }
 

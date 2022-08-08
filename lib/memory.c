@@ -189,7 +189,7 @@ result create_cube_buffer(void) {
 
     secondary_command copy_command = {0};
     copy_command.type = SECONDARY_TYPE_COPY_BUFFER_BUFFER;
-    copy_command.delay = 0;
+    copy_command.ordering = 0;
     copy_command.copy_buffer_buffer.src_buffer = glbl.staging_cube_vertex_buffer;
     copy_command.copy_buffer_buffer.dst_buffer = glbl.cube_vertex_buffer;
     copy_command.copy_buffer_buffer.copy_region.size = vertex_buffer_size;
@@ -239,7 +239,7 @@ int32_t update_instances(const float* instances, uint32_t instance_count) {
 
     secondary_command copy_command = {0};
     copy_command.type = SECONDARY_TYPE_COPY_BUFFER_BUFFER;
-    copy_command.delay = 0;
+    copy_command.ordering = 0;
     copy_command.copy_buffer_buffer.src_buffer = glbl.staging_instance_buffer;
     copy_command.copy_buffer_buffer.dst_buffer = glbl.instance_buffer;
     copy_command.copy_buffer_buffer.copy_region.size = instance_count * sizeof(float) * 4 * 4;
@@ -293,7 +293,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     extent.height = height;
     extent.depth = depth;
     
-    PROPAGATE_C(create_image(0, VK_FORMAT_R8G8B8A8_SRGB, extent, 1, 1, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &image));
+    PROPAGATE_C(create_image(0, VK_FORMAT_R8G8B8A8_SRGB, extent, 1, 1, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &image));
 
     if (glbl.texture_image_count >= glbl.texture_image_allocated) {
 	glbl.texture_image_allocated = round_up_p2(glbl.texture_image_allocated + 1);
@@ -317,8 +317,12 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     vkGetImageMemoryRequirements(glbl.device, image, &requirements);
     uint32_t desired_offset = round_up(glbl.texture_memory_used, requirements.alignment);
     uint32_t needed_size = desired_offset + requirements.size;
-    //printf("%lu %lu %u %u\n", requirements.size, requirements.alignment, desired_offset, needed_size);
-    if (needed_size > glbl.texture_memory_allocated) {
+    if (glbl.texture_memory_allocated == 0) {
+	cleanup_texture_resources();
+	glbl.texture_memory_allocated = needed_size * 2;
+	PROPAGATE_C(create_texture_resources());
+    }
+    else if (needed_size > glbl.texture_memory_allocated) {
 	// TODO: Allocate new memory, queue copy, queue freeing of old memory
 	VkImage* new_images = malloc((glbl.texture_image_count) * sizeof(VkImage));
 	VkImageView* new_views = malloc((glbl.texture_image_count) * sizeof(VkImageView));
@@ -330,6 +334,17 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	VkImage* old_images = glbl.texture_images;
 	VkImageView* old_views = glbl.texture_image_views;
 	VkDeviceMemory old_memory = glbl.texture_memory;
+
+	secondary_command cleanup_command = {0};
+	cleanup_command.type = SECONDARY_TYPE_CLEANUP;
+	cleanup_command.ordering = 0;
+	cleanup_command.delay = FRAMES_IN_FLIGHT;
+	cleanup_command.cleanup.image_count = glbl.texture_image_count - 1;
+	cleanup_command.cleanup.images = old_images;
+	cleanup_command.cleanup.image_views = old_views;
+	cleanup_command.cleanup.memory = old_memory;
+	queue_secondary_command(cleanup_command);
+	
 	glbl.texture_images = new_images;
 	glbl.texture_image_views = new_views;
 	glbl.texture_memory = VK_NULL_HANDLE;
@@ -341,6 +356,29 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	for (uint32_t i = 0; i < glbl.texture_image_count - 1; ++i) {
 	    PROPAGATE_C(create_image_view(glbl.texture_images[i], VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, &glbl.texture_image_views[i]));
 	}
+
+	secondary_command transition_command = {0};
+	transition_command.type = SECONDARY_TYPE_LAYOUT_TRANSITION;
+	transition_command.ordering = 0;
+	transition_command.layout_transition.image_count = glbl.texture_image_count - 1;
+	transition_command.layout_transition.images = &glbl.texture_images[0];
+	transition_command.layout_transition.old = VK_IMAGE_LAYOUT_UNDEFINED;
+	transition_command.layout_transition.new = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	queue_secondary_command(transition_command);
+
+	secondary_command copy_command = {0};
+	copy_command.type = SECONDARY_TYPE_COPY_IMAGES_IMAGES;
+	copy_command.ordering = 1;
+	copy_command.copy_images_images.image_count = glbl.texture_image_count - 1;
+	copy_command.copy_images_images.src_images = old_images;
+	copy_command.copy_images_images.dst_images = &glbl.texture_images[0];
+	copy_command.copy_images_images.extents = &glbl.texture_image_extents[0];
+	queue_secondary_command(copy_command);
+
+	transition_command.ordering = 2;
+	transition_command.layout_transition.old = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	transition_command.layout_transition.new = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	queue_secondary_command(transition_command);
     }
     else {
 	PROPAGATE_VK_C(vkBindImageMemory(glbl.device, image, glbl.texture_memory, desired_offset));
@@ -351,10 +389,11 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     
     glbl.texture_image_views[glbl.texture_image_count - 1] = image_view;
 
-    secondary_command transition_command;
+    secondary_command transition_command = {0};
     transition_command.type = SECONDARY_TYPE_LAYOUT_TRANSITION;
-    transition_command.delay = 0;
-    transition_command.layout_transition.image = glbl.texture_images[glbl.texture_image_count - 1];
+    transition_command.ordering = 0;
+    transition_command.layout_transition.image_count = 1;
+    transition_command.layout_transition.images = &glbl.texture_images[glbl.texture_image_count - 1];
     transition_command.layout_transition.old = VK_IMAGE_LAYOUT_UNDEFINED;
     transition_command.layout_transition.new = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     queue_secondary_command(transition_command);
@@ -374,15 +413,15 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     region.imageOffset.z = 0;
     region.imageExtent = extent;
 
-    secondary_command copy_command;
+    secondary_command copy_command = {0};
     copy_command.type = SECONDARY_TYPE_COPY_BUFFER_IMAGE;
-    copy_command.delay = 1;
+    copy_command.ordering = 1;
     copy_command.copy_buffer_image.src_buffer = glbl.staging_texture_buffer;
     copy_command.copy_buffer_image.dst_image = image;
     copy_command.copy_buffer_image.copy_region = region;
     queue_secondary_command(copy_command);
 
-    transition_command.delay = 2;
+    transition_command.ordering = 2;
     transition_command.layout_transition.old = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     transition_command.layout_transition.new = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     queue_secondary_command(transition_command);

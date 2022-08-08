@@ -22,6 +22,8 @@ mod world;
 fn main() {
     let mut texture1 = voxel::load("assets/AncientTemple.vox");
     let mut texture2 = voxel::load("assets/Treasure.vox");
+    let mut texture3 = voxel::load("assets/AncientTemple.vox");
+    let mut texture4 = voxel::load("assets/Treasure.vox");
 
     let mut world = world::WorldState::new();
     let renderer = std::sync::Arc::new(std::sync::Mutex::new(render::Renderer::new(&world)));
@@ -34,6 +36,14 @@ fn main() {
         .lock()
         .unwrap()
         .add_texture(Box::new(texture2.remove(0)));
+    renderer
+        .lock()
+        .unwrap()
+        .add_texture(Box::new(texture3.remove(0)));
+    renderer
+        .lock()
+        .unwrap()
+        .add_texture(Box::new(texture4.remove(0)));
 
     let input_ptr = renderer.lock().unwrap().get_input_data_pointer();
 
@@ -45,7 +55,7 @@ fn main() {
                 &glm::Vec3::new(0.0, 1.0, 0.0),
                 &glm::Vec3::new(0.0, 0.0, 0.0),
                 &glm::Vec3::new(x as f32 * 1.5, 0.0, z as f32 * 1.5),
-                ((x & 1) ^ (z & 1)) as u32,
+                (x + z + 200) as u32 % 4,
             ));
         }
     }
