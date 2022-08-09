@@ -26,9 +26,9 @@ struct GPUVertex {
 }
 
 #[repr(C)]
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct GPUInstance {
-    model: [f32; 16],
+    model: Matrix4<f32>,
 }
 
 #[repr(C)]
@@ -63,33 +63,38 @@ impl GPUInstance {
         );
         let rotate = glm::ext::rotate(&identity, rotate_angle, *rotate_axis);
         let scale = glm::ext::scale(&rotate, *scale);
-        let translate = glm::ext::translate(&rotate, *translate);
-        GPUInstance {
-            model: [
-                translate[0][0],
-                translate[0][1],
-                translate[0][2],
-                translate[0][3],
-                translate[1][0],
-                translate[1][1],
-                translate[1][2],
-                translate[1][3],
-                translate[2][0],
-                translate[2][1],
-                translate[2][2],
-                translate[2][3],
-                translate[3][0],
-                translate[3][1],
-                translate[3][2],
-                unsafe { std::mem::transmute(model_id) },
-            ],
-        }
+        let mut translate = glm::ext::translate(&rotate, *translate);
+        translate[3][3] = unsafe { std::mem::transmute(model_id) };
+        GPUInstance { model: translate }
     }
 
     pub fn translate(&mut self, translate: &Vec3) {
-        self.model[12] += translate.x;
-        self.model[13] += translate.y;
-        self.model[14] += translate.z;
+        self.model[3][0] += translate.x;
+        self.model[3][1] += translate.y;
+        self.model[3][2] += translate.z;
+    }
+
+    pub fn scale(&mut self, scale: &Vec3) {
+        self.model[0][0] *= scale.x;
+        self.model[1][1] *= scale.y;
+        self.model[2][2] *= scale.z;
+    }
+
+    pub fn rotate(&mut self, angle: f32, axis: &Vec3) {
+        self.model = glm::ext::rotate(&self.model, angle, normalize(*axis));
+    }
+}
+
+impl Default for GPUInstance {
+    fn default() -> Self {
+        GPUInstance {
+            model: Matrix4::new(
+                Vec4::new(1.0, 0.0, 0.0, 0.0),
+                Vec4::new(0.0, 1.0, 0.0, 0.0),
+                Vec4::new(0.0, 0.0, 1.0, 0.0),
+                Vec4::new(0.0, 0.0, 0.0, 1.0),
+            ),
+        }
     }
 }
 
