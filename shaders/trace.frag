@@ -20,7 +20,7 @@ layout (location = 0) in vec4 screen_position;
 layout (location = 1) in vec4 world_position;
 layout (location = 2) in vec4 model_position;
 layout (location = 3) in flat uint object_id;
-layout (location = 4) in flat uint model_id;
+layout (location = 4) in flat uint texture_id;
 layout (location = 5) in flat mat4 model_matrix;
 
 layout (push_constant) uniform PushConstants {
@@ -62,7 +62,7 @@ void main() {
 
     int lod = min(int(LOD_SCALE * length(cam_pos - ray_pos)), LOD_MAX);
 
-    ivec3 i_model_size = textureSize(tex[model_id], lod);
+    ivec3 i_model_size = textureSize(tex[texture_id], lod);
     vec3 model_size = vec3(i_model_size);
     vec3 model_ray_dir = (inverse(model_matrix) * vec4(ray_dir, 0.0)).xyz;
     vec3 model_ray_pos = (model_position.xyz + 0.5) * model_size;
@@ -75,7 +75,7 @@ void main() {
     uint steps = 0;
     uint max_steps = i_model_size.x + i_model_size.y + i_model_size.z;
     while (steps < max_steps && all(greaterThanEqual(model_ray_voxel, ivec3(0))) && all(lessThan(model_ray_voxel, i_model_size))) {
-	vec4 texSample = texture(tex[model_id], model_ray_voxel / model_size);
+	vec4 texSample = texture(tex[texture_id], model_ray_voxel / model_size);
 
 	if (texSample.w > 0.0) {
 	    color = texSample;

@@ -53,7 +53,7 @@ impl GPUInstance {
         rotate_axis: &Vec3,
         scale: &Vec3,
         translate: &Vec3,
-        model_id: u32,
+        texture_id: u32,
     ) -> GPUInstance {
         let identity = Matrix4::new(
             Vec4::new(1.0, 0.0, 0.0, 0.0),
@@ -64,7 +64,7 @@ impl GPUInstance {
         let rotate = glm::ext::rotate(&identity, rotate_angle, *rotate_axis);
         let scale = glm::ext::scale(&rotate, *scale);
         let mut translate = glm::ext::translate(&rotate, *translate);
-        translate[3][3] = unsafe { std::mem::transmute(model_id) };
+        translate[3][3] = unsafe { std::mem::transmute(texture_id) };
         GPUInstance { model: translate }
     }
 

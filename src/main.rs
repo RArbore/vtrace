@@ -16,6 +16,7 @@
 #![allow(unused_variables)]
 
 mod render;
+mod scene;
 mod voxel;
 mod world;
 
