@@ -168,8 +168,10 @@ typedef struct renderer {
     VkDescriptorPool descriptor_pool;
     VkDescriptorSetLayout graphics_descriptor_set_layout;
     VkDescriptorSet graphics_descriptor_sets[FRAMES_IN_FLIGHT];
-    VkWriteDescriptorSet graphics_pending_descriptor_writes[FRAMES_IN_FLIGHT][FRAMES_IN_FLIGHT];
-    descriptor_info graphics_pending_descriptor_write_infos[FRAMES_IN_FLIGHT][FRAMES_IN_FLIGHT];
+    uint32_t graphics_pending_descriptor_write_count[FRAMES_IN_FLIGHT];
+    uint32_t graphics_pending_descriptor_write_allocated[FRAMES_IN_FLIGHT];
+    VkWriteDescriptorSet* graphics_pending_descriptor_writes[FRAMES_IN_FLIGHT];
+    descriptor_info* graphics_pending_descriptor_write_infos[FRAMES_IN_FLIGHT];
 
     VkPipelineLayout graphics_pipeline_layout;
     VkRenderPass render_pass;
@@ -341,3 +343,9 @@ void cleanup_texture_resources(void);
 user_input* get_input_data_pointer(void);
 
 int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_tick_info* render_tick_info);
+
+__attribute__((unused)) static inline uint32_t round_up_p2(uint32_t x) {
+    uint32_t rounded = 1;
+    while (rounded < x) rounded *= 2;
+    return rounded;
+}

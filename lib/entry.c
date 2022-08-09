@@ -160,11 +160,9 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	return -1;
     }
 
-    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
-	if (glbl.graphics_pending_descriptor_writes[glbl.current_frame][i].sType == VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET) {
-	    vkUpdateDescriptorSets(glbl.device, 1, &glbl.graphics_pending_descriptor_writes[glbl.current_frame][i], 0, NULL);
-	    glbl.graphics_pending_descriptor_writes[glbl.current_frame][i].sType = 0;
-	}
+    if (glbl.graphics_pending_descriptor_write_count[glbl.current_frame] > 0) {
+	vkUpdateDescriptorSets(glbl.device, glbl.graphics_pending_descriptor_write_count[glbl.current_frame], glbl.graphics_pending_descriptor_writes[glbl.current_frame], 0, NULL);
+	glbl.graphics_pending_descriptor_write_count[glbl.current_frame] = 0;
     }
 
     vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame]);

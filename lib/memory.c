@@ -205,12 +205,6 @@ result create_cube_buffer(void) {
     return SUCCESS;
 }
 
-static uint32_t round_up_p2(uint32_t x) {
-    uint32_t rounded = 1;
-    while (rounded < x) rounded *= 2;
-    return rounded;
-}
-
 result create_instance_buffer(void) {
     uint32_t instance_capacity = round_up_p2(glbl.instance_count + 1);
     
@@ -355,6 +349,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 
 	for (uint32_t i = 0; i < glbl.texture_image_count - 1; ++i) {
 	    PROPAGATE_C(create_image_view(glbl.texture_images[i], VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, &glbl.texture_image_views[i]));
+	    PROPAGATE_C(update_descriptors(i));
 	}
 
 	secondary_command transition_command = {0};
