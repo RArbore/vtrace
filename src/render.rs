@@ -167,16 +167,7 @@ impl Renderer {
     }
 
     fn create_camera(position: &Vec3, direction: &Vec3, frame_num: usize) -> Matrix4<f32> {
-        let offset = Vec3::new(
-            (frame_num >> 0 & 1) as f32 * 0.0002 - 0.0001,
-            (frame_num >> 1 & 1) as f32 * 0.0002 - 0.0001,
-            (frame_num >> 2 & 1) as f32 * 0.0002 - 0.0001,
-        );
-        glm::ext::look_at(
-            *position,
-            *position + *direction + offset,
-            Vec3::new(0.0, 1.0, 0.0),
-        )
+        glm::ext::look_at(*position, *position + *direction, Vec3::new(0.0, 1.0, 0.0))
     }
 
     pub fn get_input_data_pointer(&self) -> *const UserInput {

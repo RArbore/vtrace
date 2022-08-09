@@ -110,8 +110,8 @@ impl WorldState {
         for x in -100..=100 {
             for z in -100..=100 {
                 new_instances[i] = old_instances[i];
-                new_instances[i].translate(&glm::Vec3::new(0.0, (x + z) as f32 * dt / 10.0, 0.0));
-                new_instances[i].rotate(dt, &vec3(x as f32 / 10.0, 1.0, z as f32 / 10.0));
+                //new_instances[i].translate(&glm::Vec3::new(0.0, (x + z) as f32 * dt / 10.0, 0.0));
+                //new_instances[i].rotate(dt, &vec3(x as f32 / 10.0, 1.0, z as f32 / 10.0));
                 i += 1;
             }
         }
