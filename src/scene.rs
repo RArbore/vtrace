@@ -29,7 +29,7 @@ pub enum SceneGraph {
 }
 
 impl SceneGraph {
-    fn new() -> Self {
+    pub fn new() -> Self {
         SceneGraph::Parent {
             model: Matrix4::new(
                 Vec4::new(1.0, 0.0, 0.0, 0.0),
@@ -42,7 +42,11 @@ impl SceneGraph {
         }
     }
 
-    fn get_model(&self) -> &Matrix4<f32> {
+    pub fn new_child(model: Matrix4<f32>, texture_id: u32) -> Self {
+        SceneGraph::Child { model, texture_id }
+    }
+
+    pub fn get_model(&self) -> &Matrix4<f32> {
         match self {
             SceneGraph::Parent {
                 model,
@@ -53,7 +57,7 @@ impl SceneGraph {
         }
     }
 
-    fn get_model_mut(&mut self) -> &mut Matrix4<f32> {
+    pub fn get_model_mut(&mut self) -> &mut Matrix4<f32> {
         match self {
             SceneGraph::Parent {
                 model,
@@ -64,7 +68,7 @@ impl SceneGraph {
         }
     }
 
-    fn add_child(&mut self, child: SceneGraph) {
+    pub fn add_child(&mut self, child: SceneGraph) {
         match self {
             SceneGraph::Parent {
                 model,
@@ -95,7 +99,7 @@ impl SceneGraph {
         };
     }
 
-    fn num_total_children(&self) -> u32 {
+    pub fn num_total_children(&self) -> u32 {
         match self {
             SceneGraph::Parent {
                 model,
@@ -112,12 +116,16 @@ impl IntoIterator for SceneGraph {
     type IntoIter = SceneGraphIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        SceneGraphIter { scene: vec![self] }
+        SceneGraphIter {
+            scene: vec![self],
+            model_stack: vec![],
+        }
     }
 }
 
 pub struct SceneGraphIter {
     scene: Vec<SceneGraph>,
+    model_stack: Vec<Matrix4<f32>>,
 }
 
 impl Iterator for SceneGraphIter {
@@ -134,11 +142,22 @@ impl Iterator for SceneGraphIter {
                 for child in children.into_iter().rev() {
                     self.scene.push(child);
                 }
+                self.model_stack
+                    .push(if let Some(prev) = self.model_stack.last() {
+                        *prev * model
+                    } else {
+                        model
+                    });
                 self.next()
             }
-            SceneGraph::Child { model, texture_id } => {
-                Some(GPUInstance::from_model(model, texture_id))
-            }
+            SceneGraph::Child { model, texture_id } => Some(GPUInstance::from_model(
+                if let Some(prev) = self.model_stack.last() {
+                    *prev * model
+                } else {
+                    model
+                },
+                texture_id,
+            )),
         }
     }
 }

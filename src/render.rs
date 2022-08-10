@@ -16,6 +16,7 @@ use glm::*;
 
 use std::time::*;
 
+use crate::scene::*;
 use crate::voxel::*;
 use crate::world::*;
 
@@ -186,16 +187,19 @@ impl Renderer {
         self.texture_upload_queue.push(texture);
     }
 
-    pub fn update_instances(&mut self, instances: &Vec<GPUInstance>) {
-        let mut ptr = unsafe { start_update_instances(instances.len() as u32) };
+    pub fn update_instances(&mut self, scene: SceneGraph) {
+        let instance_count = scene.num_total_children();
+        let mut ptr = unsafe { start_update_instances(instance_count) };
         if ptr == 0 as *mut GPUInstance {
             panic!("ERROR: Updating instances failed",);
         }
-        for instance in instances {
-            unsafe { *ptr = *instance };
+        let mut i = 0;
+        for instance in scene {
+            unsafe { *ptr = instance };
             ptr = unsafe { ptr.offset(1) };
+            i += 1;
         }
-        let code = unsafe { end_update_instances(instances.len() as u32) };
+        let code = unsafe { end_update_instances(instance_count) };
         if code != 0 {
             panic!("ERROR: Updating instances failed",);
         }

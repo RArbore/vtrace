@@ -16,8 +16,9 @@ use glm::builtin::*;
 use glm::*;
 
 use crate::render::*;
+use crate::scene::*;
 
-const MOVE_SPEED: f32 = 50.0;
+const MOVE_SPEED: f32 = 5.0;
 const SENSITIVITY: f32 = 0.02;
 const PI: f32 = 3.14159265358979323846;
 
@@ -28,7 +29,7 @@ pub struct WorldState {
     pub camera_phi: f32,
     accum_time_frac: f32,
     accum_time_whole: i32,
-    frame_num: i32,
+    pub frame_num: i32,
 }
 
 impl WorldState {
@@ -55,13 +56,7 @@ impl WorldState {
         vec3(cos(self.camera_theta), 0.0, sin(self.camera_theta))
     }
 
-    pub fn update(
-        &mut self,
-        dt: f32,
-        old_instances: &Vec<GPUInstance>,
-        new_instances: &mut Vec<GPUInstance>,
-        user_input: UserInput,
-    ) {
+    pub fn update(&mut self, dt: f32, user_input: UserInput) -> SceneGraph {
         self.accum_time_frac += dt;
         if self.accum_time_frac > 1.0 {
             self.accum_time_frac -= 1.0;
@@ -106,16 +101,37 @@ impl WorldState {
             self.camera_phi = PI - 0.1;
         }
 
-        let mut i = 0;
+        let mut scene = SceneGraph::new();
+        *scene.get_model_mut() = ext::translate(
+            scene.get_model(),
+            vec3(
+                0.0,
+                0.0,
+                self.accum_time_whole as f32 + self.accum_time_frac,
+            ),
+        );
         for x in -100..=100 {
             for z in -100..=100 {
-                new_instances[i] = old_instances[i];
-                //new_instances[i].translate(&glm::Vec3::new(0.0, (x + z) as f32 * dt / 10.0, 0.0));
-                //new_instances[i].rotate(dt, &vec3(x as f32 / 10.0, 1.0, z as f32 / 10.0));
-                i += 1;
+                let identity = Matrix4::new(
+                    Vec4::new(1.0, 0.0, 0.0, 0.0),
+                    Vec4::new(0.0, 1.0, 0.0, 0.0),
+                    Vec4::new(0.0, 0.0, 1.0, 0.0),
+                    Vec4::new(0.0, 0.0, 0.0, 1.0),
+                );
+                let translated =
+                    ext::translate(&identity, vec3(x as f32 * 1.5, 0.0, z as f32 * 1.5));
+                let model = ext::rotate(
+                    &translated,
+                    self.accum_time_whole as f32 + self.accum_time_frac,
+                    vec3(0.0, 1.0, 0.0),
+                );
+                let texture_id = ((x + z + 200) as u32) % 2;
+                scene.add_child(SceneGraph::new_child(model, texture_id));
             }
         }
 
         self.frame_num += 1;
+
+        scene
     }
 }
