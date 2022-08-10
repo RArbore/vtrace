@@ -6,5 +6,3 @@ edition = "2021"
 [dependencies]
 dot_vox = "4.1.0"
 glm = "0.2.3"
-image = "0.24.2"
-winit = "0.26.1"
