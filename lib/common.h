@@ -304,7 +304,9 @@ result create_cube_buffer(void);
 
 result create_instance_buffer(void);
 
-int32_t update_instances(const float* instances, uint32_t instance_count);
+float* start_update_instances(uint32_t instance_count);
+
+int32_t end_update_instances(uint32_t instance_count);
 
 result create_staging_texture_buffer(void);
 

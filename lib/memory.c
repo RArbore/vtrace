@@ -219,16 +219,20 @@ result create_instance_buffer(void) {
     return SUCCESS;
 }
 
-int32_t update_instances(const float* instances, uint32_t instance_count) {
+float* start_update_instances(uint32_t instance_count) {
     glbl.instance_count = instance_count;
     if (instance_count > glbl.instance_capacity) {
 	cleanup_instance_buffer();
-	PROPAGATE_C(create_instance_buffer());
+	result result = create_instance_buffer();
+	if (!IS_SUCCESS(result)) return NULL;
     }
 
     void* instance_data;
     vkMapMemory(glbl.device, glbl.staging_instance_memory, 0, instance_count * sizeof(float) * 4 * 4, 0, &instance_data);
-    memcpy(instance_data, instances, instance_count * sizeof(float) * 4 * 4);
+    return instance_data;
+}
+
+int32_t end_update_instances(uint32_t instance_count) {
     vkUnmapMemory(glbl.device, glbl.staging_instance_memory);
 
     secondary_command copy_command = {0};

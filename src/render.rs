@@ -117,7 +117,9 @@ extern "C" {
 
     fn add_texture(data: *const Color, width: u32, height: u32, depth: u32) -> i32;
 
-    fn update_instances(instances: *const GPUInstance, instance_count: u32) -> i32;
+    fn start_update_instances(instance_count: u32) -> *mut GPUInstance;
+
+    fn end_update_instances(instance_count: u32) -> i32;
 
     fn cleanup();
 }
@@ -185,7 +187,15 @@ impl Renderer {
     }
 
     pub fn update_instances(&mut self, instances: &Vec<GPUInstance>) {
-        let code = unsafe { update_instances(instances.as_ptr(), instances.len() as u32) };
+        let mut ptr = unsafe { start_update_instances(instances.len() as u32) };
+        if ptr == 0 as *mut GPUInstance {
+            panic!("ERROR: Updating instances failed",);
+        }
+        for instance in instances {
+            unsafe { *ptr = *instance };
+            ptr = unsafe { ptr.offset(1) };
+        }
+        let code = unsafe { end_update_instances(instances.len() as u32) };
         if code != 0 {
             panic!("ERROR: Updating instances failed",);
         }
