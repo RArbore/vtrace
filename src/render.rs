@@ -54,7 +54,7 @@ impl GPUInstance {
         scale: &Vec3,
         translate: &Vec3,
         texture_id: u32,
-    ) -> GPUInstance {
+    ) -> Self {
         let identity = Matrix4::new(
             Vec4::new(1.0, 0.0, 0.0, 0.0),
             Vec4::new(0.0, 1.0, 0.0, 0.0),
@@ -66,6 +66,12 @@ impl GPUInstance {
         let mut translate = glm::ext::translate(&rotate, *translate);
         translate[3][3] = unsafe { std::mem::transmute(texture_id) };
         GPUInstance { model: translate }
+    }
+
+    pub fn from_model(model: Matrix4<f32>, texture_id: u32) -> Self {
+        let mut merged = model;
+        merged[3][3] = unsafe { std::mem::transmute(texture_id) };
+        GPUInstance { model: merged }
     }
 
     pub fn translate(&mut self, translate: &Vec3) {
