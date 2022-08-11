@@ -102,14 +102,6 @@ impl WorldState {
         }
 
         let mut scene = SceneGraph::new();
-        *scene.get_model_mut() = ext::translate(
-            scene.get_model(),
-            vec3(
-                0.0,
-                0.0,
-                self.accum_time_whole as f32 + self.accum_time_frac,
-            ),
-        );
         for x in -100..=100 {
             for z in -100..=100 {
                 let identity = Matrix4::new(
@@ -118,13 +110,7 @@ impl WorldState {
                     Vec4::new(0.0, 0.0, 1.0, 0.0),
                     Vec4::new(0.0, 0.0, 0.0, 1.0),
                 );
-                let translated =
-                    ext::translate(&identity, vec3(x as f32 * 1.5, 0.0, z as f32 * 1.5));
-                let model = ext::rotate(
-                    &translated,
-                    self.accum_time_whole as f32 + self.accum_time_frac,
-                    vec3(0.0, 1.0, 0.0),
-                );
+                let model = ext::translate(&identity, vec3(x as f32, 0.0, z as f32));
                 let texture_id = ((x + z + 200) as u32) % 3;
                 scene.add_child(SceneGraph::new_child(model, texture_id));
             }

@@ -20,17 +20,18 @@ const CHUNK_SIZE: usize = 16;
 
 pub struct TerrainGenerator {
     seed: u32,
-    open_simplex_frequency: f64,
     open_simplex: OpenSimplex,
+    billow: Billow,
 }
 
 impl TerrainGenerator {
     pub fn new(seed: u32) -> Self {
         let open_simplex = OpenSimplex::new().set_seed(seed);
+        let billow = Billow::new().set_seed(seed);
         TerrainGenerator {
             seed,
-            open_simplex_frequency: 0.1,
             open_simplex,
+            billow,
         }
     }
 
@@ -44,19 +45,27 @@ impl TerrainGenerator {
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE {
-                    let noise = self.open_simplex.get([
-                        (x as i32 + chunk_x * CHUNK_SIZE as i32) as f64
-                            * self.open_simplex_frequency,
-                        (y as i32 + chunk_y * CHUNK_SIZE as i32) as f64
-                            * self.open_simplex_frequency,
-                        (z as i32 + chunk_z * CHUNK_SIZE as i32) as f64
-                            * self.open_simplex_frequency,
-                    ]);
-                    *chunk.at_mut(x as i32, y as i32, z as i32).unwrap() = if noise > 0.0 {
-                        Color::new(100, 100, 100, 255)
-                    } else {
-                        Color::new(0, 0, 0, 0)
-                    };
+                    let (wx, wy, wz) = (
+                        (x as i32 + chunk_x * CHUNK_SIZE as i32) as f64,
+                        (y as i32 + chunk_y * CHUNK_SIZE as i32) as f64,
+                        (z as i32 + chunk_z * CHUNK_SIZE as i32) as f64,
+                    );
+
+                    let open_simplex_sample = self.open_simplex.get([wx * 0.1, wy * 0.1, wz * 0.1]);
+                    let billow_sample = self.billow.get([wx * 0.1, wy * 0.1, wz * 0.1]);
+
+                    *chunk.at_mut(x as i32, y as i32, z as i32).unwrap() =
+                        if open_simplex_sample > 0.0 {
+                            let tone = 0.5 * billow_sample + 0.5;
+                            Color::new(
+                                (tone * 255.0) as u8,
+                                (tone * 255.0) as u8,
+                                (tone * 255.0) as u8,
+                                255,
+                            )
+                        } else {
+                            Color::new(0, 0, 0, 0)
+                        };
                 }
             }
         }
