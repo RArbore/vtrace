@@ -12,8 +12,14 @@
  * along with vtrace. If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub mod pager;
-pub mod terrain;
+use std::collections::HashMap;
 
-pub use pager::*;
-pub use terrain::*;
+use crate::voxel::*;
+
+pub const CHUNK_SIZE: usize = 16;
+
+pub type Chunk = rawchunk::RawStaticChunk<Color, CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE>;
+
+pub struct WorldPager {
+    chunks: HashMap<(i32, i32, i32), Option<Chunk>>,
+}

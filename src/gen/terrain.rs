@@ -14,9 +14,8 @@
 
 use noise::*;
 
+use crate::gen::pager::*;
 use crate::voxel::*;
-
-const CHUNK_SIZE: usize = 16;
 
 pub struct TerrainGenerator {
     seed: u32,
@@ -35,13 +34,10 @@ impl TerrainGenerator {
         }
     }
 
-    pub fn gen_chunk(
-        &self,
-        chunk_x: i32,
-        chunk_y: i32,
-        chunk_z: i32,
-    ) -> rawchunk::RawStaticChunk<Color, CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE> {
+    pub fn gen_chunk(&self, chunk_x: i32, chunk_y: i32, chunk_z: i32) -> Option<Chunk> {
         let mut chunk = rawchunk::RawStaticChunk::new(Default::default());
+
+        let mut any_filled = false;
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE {
@@ -57,6 +53,7 @@ impl TerrainGenerator {
                     *chunk.at_mut(x as i32, y as i32, z as i32).unwrap() =
                         if open_simplex_sample > 0.0 {
                             let tone = 0.5 * billow_sample + 0.5;
+                            any_filled = true;
                             Color::new(
                                 (tone * 255.0) as u8,
                                 (tone * 255.0) as u8,
@@ -69,6 +66,11 @@ impl TerrainGenerator {
                 }
             }
         }
-        chunk
+
+        if any_filled {
+            Some(chunk)
+        } else {
+            None
+        }
     }
 }

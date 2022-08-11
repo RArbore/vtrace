@@ -24,30 +24,21 @@ mod voxel;
 mod world;
 
 fn main() {
-    let mut texture1 = voxel::load("assets/AncientTemple.vox");
-    let mut texture2 = voxel::load("assets/Treasure.vox");
+    let mut texture = voxel::load("assets/Treasure.vox");
 
     let terrain_generator = gen::TerrainGenerator::new(0);
 
     let mut world = world::WorldState::new();
     let renderer = Arc::new(Mutex::new(render::Renderer::new(&world)));
 
-    renderer
+    let handle = renderer
         .lock()
         .unwrap()
-        .add_texture(Box::new(texture1.remove(0)));
-    renderer
-        .lock()
-        .unwrap()
-        .add_texture(Box::new(texture2.remove(0)));
-    renderer
-        .lock()
-        .unwrap()
-        .add_texture(Box::new(terrain_generator.gen_chunk(0, 0, 0)));
+        .add_texture(Box::new(texture.remove(0)));
 
     let input_ptr = renderer.lock().unwrap().get_input_data_pointer();
 
-    let mut scene = world.update(0.0, unsafe { *input_ptr });
+    let mut scene = world.update(0.0, unsafe { *input_ptr }, handle);
 
     let (mut code, mut dt) = (true, 0.0);
     while code {
@@ -57,15 +48,15 @@ fn main() {
         renderer.lock().unwrap().update_instances(scene);
         let renderer_clone = renderer.clone();
 
-        let handle = std::thread::spawn(move || {
+        let thread_handle = std::thread::spawn(move || {
             renderer_clone
                 .lock()
                 .unwrap()
                 .render_tick(&render_camera_pos, &render_camera_dir)
         });
 
-        scene = world.update(dt, unsafe { *input_ptr });
+        scene = world.update(dt, unsafe { *input_ptr }, handle);
 
-        (code, dt) = handle.join().unwrap();
+        (code, dt) = thread_handle.join().unwrap();
     }
 }

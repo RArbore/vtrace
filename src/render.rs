@@ -14,6 +14,7 @@
 
 use glm::*;
 
+use std::collections::HashMap;
 use std::time::*;
 
 use crate::scene::*;
@@ -125,6 +126,11 @@ extern "C" {
     fn cleanup();
 }
 
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub struct TextureHandle {
+    id: u32,
+}
+
 pub struct Renderer {
     window_width: i32,
     window_height: i32,
@@ -137,7 +143,9 @@ pub struct Renderer {
     prev_time: Instant,
     prev_frame_time: Instant,
     prev_frame_num: usize,
-    texture_upload_queue: Vec<Box<dyn RawVoxelData<Color> + Send>>,
+    texture_upload_queue: Vec<(Box<dyn RawVoxelData<Color> + Send>, TextureHandle)>,
+    num_textures_created: u32,
+    texture_handle_lookup: HashMap<TextureHandle, u32>,
 }
 
 #[repr(C)]
@@ -168,6 +176,8 @@ impl Renderer {
             prev_frame_time: Instant::now(),
             prev_frame_num: 0,
             texture_upload_queue: vec![],
+            num_textures_created: 0,
+            texture_handle_lookup: HashMap::new(),
         }
     }
 
@@ -183,8 +193,13 @@ impl Renderer {
         unsafe { get_input_data_pointer() }
     }
 
-    pub fn add_texture(&mut self, texture: Box<dyn RawVoxelData<Color> + Send>) {
-        self.texture_upload_queue.push(texture);
+    pub fn add_texture(&mut self, texture: Box<dyn RawVoxelData<Color> + Send>) -> TextureHandle {
+        let handle = TextureHandle {
+            id: self.num_textures_created,
+        };
+        self.num_textures_created += 1;
+        self.texture_upload_queue.push((texture, handle));
+        handle
     }
 
     pub fn update_instances(&mut self, scene: SceneGraph) {
@@ -193,13 +208,15 @@ impl Renderer {
         if ptr == 0 as *mut GPUInstance {
             panic!("ERROR: Updating instances failed",);
         }
-        let mut i = 0;
-        for instance in scene {
-            unsafe { *ptr = instance };
-            ptr = unsafe { ptr.offset(1) };
-            i += 1;
+        let mut true_instance_count = 0;
+        for (model, texture_handle) in scene {
+            if let Some(texture_id) = self.texture_handle_lookup.get(&texture_handle) {
+                unsafe { *ptr = GPUInstance::from_model(model, *texture_id) };
+                ptr = unsafe { ptr.offset(1) };
+                true_instance_count += 1;
+            }
         }
-        let code = unsafe { end_update_instances(instance_count) };
+        let code = unsafe { end_update_instances(true_instance_count) };
         if code != 0 {
             panic!("ERROR: Updating instances failed",);
         }
@@ -207,14 +224,16 @@ impl Renderer {
 
     pub fn render_tick(&mut self, pos: &Vec3, dir: &Vec3) -> (bool, f32) {
         if !self.texture_upload_queue.is_empty() {
-            let texture = self.texture_upload_queue.remove(0);
+            let (texture, handle) = self.texture_upload_queue.remove(0);
+
             let dim_x = texture.dim_x();
             let dim_y = texture.dim_y();
             let dim_z = texture.dim_z();
             assert!(dim_x.1 > dim_x.0);
             assert!(dim_y.1 > dim_y.0);
             assert!(dim_z.1 > dim_z.0);
-            let code = unsafe {
+
+            let texture_id = unsafe {
                 add_texture(
                     texture.get_raw(),
                     (dim_x.1 - dim_x.0) as u32,
@@ -222,9 +241,12 @@ impl Renderer {
                     (dim_z.1 - dim_z.0) as u32,
                 )
             };
-            if code != 0 {
+
+            if texture_id < 0 {
                 panic!("ERROR: Adding texture failed",);
             }
+
+            self.texture_handle_lookup.insert(handle, texture_id as u32);
         }
 
         let render_tick_info = RenderTickInfo {

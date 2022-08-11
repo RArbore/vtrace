@@ -56,7 +56,7 @@ impl WorldState {
         vec3(cos(self.camera_theta), 0.0, sin(self.camera_theta))
     }
 
-    pub fn update(&mut self, dt: f32, user_input: UserInput) -> SceneGraph {
+    pub fn update(&mut self, dt: f32, user_input: UserInput, handle: TextureHandle) -> SceneGraph {
         self.accum_time_frac += dt;
         if self.accum_time_frac > 1.0 {
             self.accum_time_frac -= 1.0;
@@ -111,8 +111,7 @@ impl WorldState {
                     Vec4::new(0.0, 0.0, 0.0, 1.0),
                 );
                 let model = ext::translate(&identity, vec3(x as f32, 0.0, z as f32));
-                let texture_id = ((x + z + 200) as u32) % 3;
-                scene.add_child(SceneGraph::new_child(model, texture_id));
+                scene.add_child(SceneGraph::new_child(model, handle));
             }
         }
 

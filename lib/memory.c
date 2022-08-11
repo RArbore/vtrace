@@ -235,6 +235,8 @@ float* start_update_instances(uint32_t instance_count) {
 int32_t end_update_instances(uint32_t instance_count) {
     vkUnmapMemory(glbl.device, glbl.staging_instance_memory);
 
+    glbl.instance_count = instance_count;
+
     secondary_command copy_command = {0};
     copy_command.type = SECONDARY_TYPE_COPY_BUFFER_BUFFER;
     copy_command.ordering = 0;
@@ -265,7 +267,7 @@ result create_texture_resources(void) {
 int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth) {
     if (glbl.texture_image_count >= MAX_TEXTURES) {
 	fprintf(stderr, "ERROR: Tried allocating too many textures");
-	return 1;
+	return -1;
     }
     
     vkWaitForFences(glbl.device, 1, &glbl.texture_upload_finished_fence, VK_TRUE, UINT64_MAX);
@@ -321,7 +323,6 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	PROPAGATE_C(create_texture_resources());
     }
     else if (needed_size > glbl.texture_memory_allocated) {
-	// TODO: Allocate new memory, queue copy, queue freeing of old memory
 	VkImage* new_images = malloc((glbl.texture_image_count) * sizeof(VkImage));
 	VkImageView* new_views = malloc((glbl.texture_image_count) * sizeof(VkImageView));
 	for (uint32_t i = 0; i < glbl.texture_image_count - 1; ++i) {
@@ -434,7 +435,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     PROPAGATE_C(update_descriptors(glbl.texture_image_count - 1));
     PROPAGATE_C(set_secondary_fence(glbl.texture_upload_finished_fence));
 
-    return 0;
+    return glbl.texture_image_count - 1;
 }
 
 void get_vertex_input_descriptions(VkVertexInputBindingDescription* vertex_input_binding_descriptions, VkVertexInputAttributeDescription* vertex_input_attribute_descriptions) {

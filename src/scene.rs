@@ -14,7 +14,7 @@
 
 use glm::*;
 
-use crate::render::GPUInstance;
+use crate::render::*;
 
 pub enum SceneGraph {
     Parent {
@@ -24,7 +24,7 @@ pub enum SceneGraph {
     },
     Child {
         model: Matrix4<f32>,
-        texture_id: u32,
+        texture_handle: TextureHandle,
     },
 }
 
@@ -42,8 +42,11 @@ impl SceneGraph {
         }
     }
 
-    pub fn new_child(model: Matrix4<f32>, texture_id: u32) -> Self {
-        SceneGraph::Child { model, texture_id }
+    pub fn new_child(model: Matrix4<f32>, texture_handle: TextureHandle) -> Self {
+        SceneGraph::Child {
+            model,
+            texture_handle,
+        }
     }
 
     pub fn get_model(&self) -> &Matrix4<f32> {
@@ -53,7 +56,10 @@ impl SceneGraph {
                 total_children,
                 children,
             } => model,
-            SceneGraph::Child { model, texture_id } => model,
+            SceneGraph::Child {
+                model,
+                texture_handle,
+            } => model,
         }
     }
 
@@ -64,7 +70,10 @@ impl SceneGraph {
                 total_children,
                 children,
             } => model,
-            SceneGraph::Child { model, texture_id } => model,
+            SceneGraph::Child {
+                model,
+                texture_handle,
+            } => model,
         }
     }
 
@@ -78,7 +87,10 @@ impl SceneGraph {
                 *total_children += child.num_total_children();
                 children.push(child);
             }
-            SceneGraph::Child { model, texture_id } => {
+            SceneGraph::Child {
+                model,
+                texture_handle,
+            } => {
                 *self = SceneGraph::Parent {
                     model: *model,
                     total_children: 1 + child.num_total_children(),
@@ -90,7 +102,7 @@ impl SceneGraph {
                                 Vec4::new(0.0, 0.0, 1.0, 0.0),
                                 Vec4::new(0.0, 0.0, 0.0, 1.0),
                             ),
-                            texture_id: *texture_id,
+                            texture_handle: *texture_handle,
                         },
                         child,
                     ],
@@ -106,13 +118,16 @@ impl SceneGraph {
                 total_children,
                 children,
             } => *total_children,
-            SceneGraph::Child { model, texture_id } => 1,
+            SceneGraph::Child {
+                model,
+                texture_handle,
+            } => 1,
         }
     }
 }
 
 impl IntoIterator for SceneGraph {
-    type Item = GPUInstance;
+    type Item = (Matrix4<f32>, TextureHandle);
     type IntoIter = SceneGraphIter;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -129,7 +144,7 @@ pub struct SceneGraphIter {
 }
 
 impl Iterator for SceneGraphIter {
-    type Item = GPUInstance;
+    type Item = (Matrix4<f32>, TextureHandle);
 
     fn next(&mut self) -> Option<Self::Item> {
         let scene = self.scene.pop()?;
@@ -150,13 +165,16 @@ impl Iterator for SceneGraphIter {
                     });
                 self.next()
             }
-            SceneGraph::Child { model, texture_id } => Some(GPUInstance::from_model(
+            SceneGraph::Child {
+                model,
+                texture_handle,
+            } => Some((
                 if let Some(prev) = self.model_stack.last() {
                     *prev * model
                 } else {
                     model
                 },
-                texture_id,
+                texture_handle,
             )),
         }
     }
