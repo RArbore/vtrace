@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 dot_vox = "4.1.0"
 glm = "0.2.3"
+noise = "0.7.0"

@@ -15,6 +15,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
+mod gen;
 mod render;
 mod scene;
 mod voxel;
