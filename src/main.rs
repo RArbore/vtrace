@@ -15,6 +15,8 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
+use std::sync::*;
+
 mod gen;
 mod render;
 mod scene;
@@ -25,8 +27,10 @@ fn main() {
     let mut texture1 = voxel::load("assets/AncientTemple.vox");
     let mut texture2 = voxel::load("assets/Treasure.vox");
 
+    let terrain_generator = gen::TerrainGenerator::new(0);
+
     let mut world = world::WorldState::new();
-    let renderer = std::sync::Arc::new(std::sync::Mutex::new(render::Renderer::new(&world)));
+    let renderer = Arc::new(Mutex::new(render::Renderer::new(&world)));
 
     renderer
         .lock()
@@ -36,6 +40,10 @@ fn main() {
         .lock()
         .unwrap()
         .add_texture(Box::new(texture2.remove(0)));
+    renderer
+        .lock()
+        .unwrap()
+        .add_texture(Box::new(terrain_generator.gen_chunk(0, 0, 0)));
 
     let input_ptr = renderer.lock().unwrap().get_input_data_pointer();
 

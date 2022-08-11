@@ -125,7 +125,7 @@ impl WorldState {
                     self.accum_time_whole as f32 + self.accum_time_frac,
                     vec3(0.0, 1.0, 0.0),
                 );
-                let texture_id = ((x + z + 200) as u32) % 2;
+                let texture_id = ((x + z + 200) as u32) % 3;
                 scene.add_child(SceneGraph::new_child(model, texture_id));
             }
         }
