@@ -24,8 +24,6 @@ mod voxel;
 mod world;
 
 fn main() {
-    let terrain_generator = gen::TerrainGenerator::new(0);
-
     let renderer = Arc::new(Mutex::new(render::Renderer::new()));
     let mut world = world::WorldState::new(renderer.clone());
 
