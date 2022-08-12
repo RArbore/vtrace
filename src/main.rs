@@ -24,21 +24,14 @@ mod voxel;
 mod world;
 
 fn main() {
-    let mut texture = voxel::load("assets/Treasure.vox");
-
     let terrain_generator = gen::TerrainGenerator::new(0);
 
-    let mut world = world::WorldState::new();
-    let renderer = Arc::new(Mutex::new(render::Renderer::new(&world)));
-
-    let handle = renderer
-        .lock()
-        .unwrap()
-        .add_texture(Box::new(texture.remove(0)));
+    let renderer = Arc::new(Mutex::new(render::Renderer::new()));
+    let mut world = world::WorldState::new(renderer.clone());
 
     let input_ptr = renderer.lock().unwrap().get_input_data_pointer();
 
-    let mut scene = world.update(0.0, unsafe { *input_ptr }, handle);
+    let mut scene = world.update(0.0, unsafe { *input_ptr });
 
     let (mut code, mut dt) = (true, 0.0);
     while code {
@@ -55,7 +48,7 @@ fn main() {
                 .render_tick(&render_camera_pos, &render_camera_dir)
         });
 
-        scene = world.update(dt, unsafe { *input_ptr }, handle);
+        scene = world.update(dt, unsafe { *input_ptr });
 
         (code, dt) = thread_handle.join().unwrap();
     }

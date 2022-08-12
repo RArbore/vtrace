@@ -15,14 +15,17 @@
 use glm::builtin::*;
 use glm::*;
 
+use std::collections::HashMap;
+use std::sync::*;
+
 use crate::render::*;
 use crate::scene::*;
+use crate::voxel::*;
 
 const MOVE_SPEED: f32 = 5.0;
 const SENSITIVITY: f32 = 0.02;
 const PI: f32 = 3.14159265358979323846;
 
-#[derive(Debug)]
 pub struct WorldState {
     pub camera_position: Vec3,
     pub camera_theta: f32,
@@ -30,10 +33,22 @@ pub struct WorldState {
     accum_time_frac: f32,
     accum_time_whole: i32,
     pub frame_num: i32,
+    texture_registry: HashMap<&'static str, TextureHandle>,
 }
 
 impl WorldState {
-    pub fn new() -> WorldState {
+    pub fn new(renderer: Arc<Mutex<Renderer>>) -> WorldState {
+        let mut texture_registry = HashMap::new();
+
+        let mut texture = load_magica_voxel("assets/Treasure.vox");
+
+        let handle = renderer
+            .lock()
+            .unwrap()
+            .add_texture(Box::new(texture.remove(0)));
+
+        texture_registry.insert("Treasure", handle);
+
         WorldState {
             camera_position: vec3(0.0, 0.0, 0.0),
             camera_theta: 0.0,
@@ -41,6 +56,7 @@ impl WorldState {
             accum_time_frac: 0.0,
             accum_time_whole: 0,
             frame_num: 0,
+            texture_registry,
         }
     }
 
@@ -56,7 +72,7 @@ impl WorldState {
         vec3(cos(self.camera_theta), 0.0, sin(self.camera_theta))
     }
 
-    pub fn update(&mut self, dt: f32, user_input: UserInput, handle: TextureHandle) -> SceneGraph {
+    pub fn update(&mut self, dt: f32, user_input: UserInput) -> SceneGraph {
         self.accum_time_frac += dt;
         if self.accum_time_frac > 1.0 {
             self.accum_time_frac -= 1.0;
@@ -100,6 +116,8 @@ impl WorldState {
         if self.camera_phi >= PI - 0.1 {
             self.camera_phi = PI - 0.1;
         }
+
+        let handle = *self.texture_registry.get("Treasure").unwrap();
 
         let mut scene = SceneGraph::new();
         for x in -100..=100 {

@@ -19,7 +19,6 @@ use std::time::*;
 
 use crate::scene::*;
 use crate::voxel::*;
-use crate::world::*;
 
 #[repr(C)]
 #[derive(Default, Copy, Clone)]
@@ -155,7 +154,7 @@ struct RenderTickInfo {
 }
 
 impl Renderer {
-    pub fn new(world: &WorldState) -> Self {
+    pub fn new() -> Self {
         let code = unsafe { entry() };
         if code != 0 {
             panic!("ERROR: Vulkan initialization failed",);
@@ -171,7 +170,7 @@ impl Renderer {
             fov,
             frame_num: 0,
             perspective: Self::create_perspective(fov, 1.0),
-            camera: Self::create_camera(&world.camera_position, &world.get_camera_direction(), 0),
+            camera: Self::create_camera(&vec3(0.0, 0.0, 0.0), &vec3(1.0, 0.0, 0.0), 0),
             prev_time: Instant::now(),
             prev_frame_time: Instant::now(),
             prev_frame_num: 0,

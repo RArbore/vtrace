@@ -15,7 +15,7 @@
 use super::common::*;
 use super::rawchunk::*;
 
-pub fn load(filepath: &str) -> Vec<RawDynamicChunk<Color>> {
+pub fn load_magica_voxel(filepath: &str) -> Vec<RawDynamicChunk<Color>> {
     let dot_vox_data = dot_vox::load(filepath).unwrap();
 
     let mut chunks = vec![];
