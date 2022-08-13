@@ -95,15 +95,15 @@ result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* 
 	return CUSTOM_ERROR;
     }
 
-    uint32_t present_mode_index;
-    for (present_mode_index = 0; present_mode_index < support->num_present_modes; ++present_mode_index) {
-	if (support->present_modes[present_mode_index] == VK_PRESENT_MODE_MAILBOX_KHR) {
-	    *present_mode = support->present_modes[present_mode_index];
+    *present_mode = VK_PRESENT_MODE_FIFO_KHR;
+    for (uint32_t present_mode_index = 0; present_mode_index < support->num_present_modes; ++present_mode_index) {
+	if (support->present_modes[present_mode_index] == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+	    *present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+	}
+	else if (support->present_modes[present_mode_index] == VK_PRESENT_MODE_MAILBOX_KHR) {
+	    *present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
 	    break;
 	}
-    }
-    if (present_mode_index >= support->num_present_modes) {
-	*present_mode = VK_PRESENT_MODE_FIFO_KHR;
     }
 
     if (support->capabilities.currentExtent.width != UINT32_MAX) {
