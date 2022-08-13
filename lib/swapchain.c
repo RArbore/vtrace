@@ -103,8 +103,7 @@ result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* 
 	}
     }
     if (present_mode_index >= support->num_present_modes) {
-	fprintf(stderr, "ERROR: Queried present mode not found to be available\n");
-	return CUSTOM_ERROR;
+	*present_mode = VK_PRESENT_MODE_FIFO_KHR;
     }
 
     if (support->capabilities.currentExtent.width != UINT32_MAX) {
