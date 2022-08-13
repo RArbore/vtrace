@@ -90,7 +90,7 @@ impl WorldState {
         texture_upload_queue: Arc<Mutex<TextureUploadQueue>>,
     ) -> SceneGraph {
         if self.frame_num == 0 {
-            self.load_texture_from_file(texture_upload_queue, "AncientTemple");
+            self.load_texture_from_file(texture_upload_queue.clone(), "AncientTemple");
         }
 
         self.accum_time_frac += dt;
@@ -160,6 +160,44 @@ impl WorldState {
                         handle2
                     },
                 ));
+            }
+        }
+
+        let chunk_pos = get_chunk_pos(self.camera_position);
+        for x in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
+            //for y in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
+            for y in CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
+                for z in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
+                    let chunk_handle = self.world_pager.page(
+                        chunk_pos.0 + x,
+                        chunk_pos.1 + y,
+                        chunk_pos.2 + z,
+                        texture_upload_queue.clone(),
+                    );
+
+                    if let Some(concrete_chunk_handle) = chunk_handle {
+                        let identity = Matrix4::new(
+                            Vec4::new(1.0, 0.0, 0.0, 0.0),
+                            Vec4::new(0.0, 1.0, 0.0, 0.0),
+                            Vec4::new(0.0, 0.0, 1.0, 0.0),
+                            Vec4::new(0.0, 0.0, 0.0, 1.0),
+                        );
+                        let translate = ext::translate(
+                            &identity,
+                            vec3(
+                                (chunk_pos.0 + x) as f32 * CHUNK_WORLD_SIZE,
+                                (chunk_pos.1 + y) as f32 * CHUNK_WORLD_SIZE,
+                                (chunk_pos.2 + z) as f32 * CHUNK_WORLD_SIZE,
+                            ),
+                        );
+                        let model = ext::scale(
+                            &translate,
+                            vec3(CHUNK_WORLD_SIZE, CHUNK_WORLD_SIZE, CHUNK_WORLD_SIZE),
+                        );
+                        scene_terrain
+                            .add_child(SceneGraph::new_child(model, concrete_chunk_handle));
+                    }
+                }
             }
         }
 

@@ -12,6 +12,8 @@
  * along with vtrace. If not, see <https://www.gnu.org/licenses/>.
  */
 
+use glm::*;
+
 use std::collections::HashMap;
 use std::sync::*;
 
@@ -21,6 +23,15 @@ use crate::voxel::*;
 
 pub const CHUNK_VOXEL_SIZE: usize = 16;
 pub const CHUNK_WORLD_SIZE: f32 = 4.0;
+pub const CHUNK_LOAD_DIST: i32 = 1;
+
+pub fn get_chunk_pos(pos: Vec3) -> (i32, i32, i32) {
+    (
+        (pos.x / CHUNK_WORLD_SIZE).floor() as i32,
+        (pos.y / CHUNK_WORLD_SIZE).floor() as i32,
+        (pos.z / CHUNK_WORLD_SIZE).floor() as i32,
+    )
+}
 
 pub type Chunk =
     rawchunk::RawStaticChunk<Color, CHUNK_VOXEL_SIZE, CHUNK_VOXEL_SIZE, CHUNK_VOXEL_SIZE>;
@@ -44,9 +55,10 @@ impl WorldPager {
         chunk_y: i32,
         chunk_z: i32,
         texture_upload_queue: Arc<Mutex<TextureUploadQueue>>,
-    ) {
+    ) -> Option<TextureHandle> {
         match self.chunks.get(&(chunk_x, chunk_y, chunk_z)) {
-            Some(_) => {}
+            Some(Some((_, handle))) => Some(*handle),
+            Some(None) => None,
             None => {
                 let chunk = self.terrain_generator.gen_chunk(chunk_x, chunk_y, chunk_z);
                 if let Some(concrete_chunk) = chunk {
@@ -56,8 +68,10 @@ impl WorldPager {
                         .add_texture(concrete_chunk.clone());
                     self.chunks
                         .insert((chunk_x, chunk_y, chunk_z), Some((concrete_chunk, handle)));
+                    Some(handle)
                 } else {
                     self.chunks.insert((chunk_x, chunk_y, chunk_z), None);
+                    None
                 }
             }
         }
