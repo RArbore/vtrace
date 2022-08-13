@@ -38,13 +38,13 @@ impl TerrainGenerator {
         let mut chunk = rawchunk::RawStaticChunk::new(Default::default());
 
         let mut any_filled = false;
-        for x in 0..CHUNK_SIZE {
-            for y in 0..CHUNK_SIZE {
-                for z in 0..CHUNK_SIZE {
+        for x in 0..CHUNK_VOXEL_SIZE {
+            for y in 0..CHUNK_VOXEL_SIZE {
+                for z in 0..CHUNK_VOXEL_SIZE {
                     let (wx, wy, wz) = (
-                        (x as i32 + chunk_x * CHUNK_SIZE as i32) as f64,
-                        (y as i32 + chunk_y * CHUNK_SIZE as i32) as f64,
-                        (z as i32 + chunk_z * CHUNK_SIZE as i32) as f64,
+                        (x as i32 + chunk_x * CHUNK_VOXEL_SIZE as i32) as f64,
+                        (y as i32 + chunk_y * CHUNK_VOXEL_SIZE as i32) as f64,
+                        (z as i32 + chunk_z * CHUNK_VOXEL_SIZE as i32) as f64,
                     );
 
                     let open_simplex_sample = self.open_simplex.get([wx * 0.1, wy * 0.1, wz * 0.1]);

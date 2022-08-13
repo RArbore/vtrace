@@ -18,6 +18,7 @@ use glm::*;
 use std::collections::HashMap;
 use std::sync::*;
 
+use crate::gen::*;
 use crate::render::*;
 use crate::scene::*;
 use crate::voxel::*;
@@ -33,31 +34,41 @@ pub struct WorldState {
     accum_time_frac: f32,
     accum_time_whole: i32,
     pub frame_num: i32,
-    texture_registry: HashMap<&'static str, TextureHandle>,
+    entity_texture_registry: HashMap<&'static str, TextureHandle>,
+    world_pager: WorldPager,
 }
 
 impl WorldState {
     pub fn new(renderer: Arc<Mutex<Renderer>>) -> WorldState {
-        let mut texture_registry = HashMap::new();
-
-        let mut texture = load_magica_voxel("assets/Treasure.vox");
-
-        let handle = renderer
-            .lock()
-            .unwrap()
-            .add_texture(Box::new(texture.remove(0)));
-
-        texture_registry.insert("Treasure", handle);
-
-        WorldState {
+        let mut world = WorldState {
             camera_position: vec3(0.0, 0.0, 0.0),
             camera_theta: 0.0,
             camera_phi: PI / 2.0,
             accum_time_frac: 0.0,
             accum_time_whole: 0,
             frame_num: 0,
-            texture_registry,
-        }
+            entity_texture_registry: HashMap::new(),
+            world_pager: WorldPager::new(),
+        };
+
+        world.load_texture_from_file(renderer, "Treasure");
+
+        world
+    }
+
+    fn load_texture_from_file(
+        &mut self,
+        renderer: Arc<Mutex<Renderer>>,
+        texture_name: &'static str,
+    ) {
+        let mut texture = load_magica_voxel(format!("assets/{}.vox", texture_name).as_str());
+
+        let handle = renderer
+            .lock()
+            .unwrap()
+            .add_texture(Box::new(texture.remove(0)));
+
+        self.entity_texture_registry.insert(texture_name, handle);
     }
 
     pub fn get_camera_direction(&self) -> Vec3 {
@@ -117,21 +128,26 @@ impl WorldState {
             self.camera_phi = PI - 0.1;
         }
 
-        let handle = *self.texture_registry.get("Treasure").unwrap();
-
         let mut scene = SceneGraph::new();
-        for x in -100..=100 {
-            for z in -100..=100 {
+        let mut scene_entities = SceneGraph::new();
+        let mut scene_terrain = SceneGraph::new();
+
+        let handle = *self.entity_texture_registry.get("Treasure").unwrap();
+        for x in -5..=5 {
+            for z in -5..=5 {
                 let identity = Matrix4::new(
                     Vec4::new(1.0, 0.0, 0.0, 0.0),
                     Vec4::new(0.0, 1.0, 0.0, 0.0),
                     Vec4::new(0.0, 0.0, 1.0, 0.0),
                     Vec4::new(0.0, 0.0, 0.0, 1.0),
                 );
-                let model = ext::translate(&identity, vec3(x as f32, 0.0, z as f32));
-                scene.add_child(SceneGraph::new_child(model, handle));
+                let model = ext::translate(&identity, vec3(x as f32 * 1.5, 5.0, z as f32 * 1.5));
+                scene_entities.add_child(SceneGraph::new_child(model, handle));
             }
         }
+
+        scene.add_child(scene_entities);
+        scene.add_child(scene_terrain);
 
         self.frame_num += 1;
 

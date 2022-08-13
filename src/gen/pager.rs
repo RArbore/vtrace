@@ -17,9 +17,11 @@ use std::collections::HashMap;
 use crate::gen::terrain::*;
 use crate::voxel::*;
 
-pub const CHUNK_SIZE: usize = 16;
+pub const CHUNK_VOXEL_SIZE: usize = 16;
+pub const CHUNK_WORLD_SIZE: f32 = 4.0;
 
-pub type Chunk = rawchunk::RawStaticChunk<Color, CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE>;
+pub type Chunk =
+    rawchunk::RawStaticChunk<Color, CHUNK_VOXEL_SIZE, CHUNK_VOXEL_SIZE, CHUNK_VOXEL_SIZE>;
 pub type WrappedChunk = Option<Box<Chunk>>;
 
 pub struct WorldPager {
@@ -28,6 +30,13 @@ pub struct WorldPager {
 }
 
 impl WorldPager {
+    pub fn new() -> Self {
+        WorldPager {
+            chunks: HashMap::new(),
+            terrain_generator: TerrainGenerator::new(0),
+        }
+    }
+
     pub fn page(&mut self, chunk_x: i32, chunk_y: i32, chunk_z: i32) {
         match self.chunks.get(&(chunk_x, chunk_y, chunk_z)) {
             Some(_) => {}
