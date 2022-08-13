@@ -34,7 +34,7 @@ impl TerrainGenerator {
         }
     }
 
-    pub fn gen_chunk(&self, chunk_x: i32, chunk_y: i32, chunk_z: i32) -> WrappedChunk {
+    pub fn gen_chunk(&self, chunk_x: i32, chunk_y: i32, chunk_z: i32) -> Option<Box<Chunk>> {
         let mut chunk = rawchunk::RawStaticChunk::new(Default::default());
 
         let mut any_filled = false;

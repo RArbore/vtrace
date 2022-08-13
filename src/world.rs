@@ -151,7 +151,7 @@ impl WorldState {
                     Vec4::new(0.0, 0.0, 1.0, 0.0),
                     Vec4::new(0.0, 0.0, 0.0, 1.0),
                 );
-                let model = ext::translate(&identity, vec3(x as f32 * 1.5, 5.0, z as f32 * 1.5));
+                let model = ext::translate(&identity, vec3(x as f32 * 1.5, -5.0, z as f32 * 1.5));
                 scene_entities.add_child(SceneGraph::new_child(
                     model,
                     if (x + z + 10) as u32 % 2 == 0 {

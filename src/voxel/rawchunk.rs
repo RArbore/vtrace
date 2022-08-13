@@ -14,7 +14,7 @@
 
 use super::common::*;
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct RawStaticChunk<T: Voxel, const X: usize, const Y: usize, const Z: usize> {
     data: [[[T; Z]; Y]; X],
 }
