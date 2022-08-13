@@ -25,11 +25,12 @@ mod world;
 
 fn main() {
     let renderer = Arc::new(Mutex::new(render::Renderer::new()));
-    let mut world = world::WorldState::new(renderer.clone());
+    let texture_upload_queue = Arc::new(Mutex::new(render::TextureUploadQueue::new()));
+    let mut world = world::WorldState::new(texture_upload_queue.clone());
 
     let input_ptr = renderer.lock().unwrap().get_input_data_pointer();
 
-    let mut scene = world.update(0.0, unsafe { *input_ptr });
+    let mut scene = world.update(0.0, unsafe { *input_ptr }, texture_upload_queue.clone());
 
     let (mut code, mut dt) = (true, 0.0);
     while code {
@@ -38,15 +39,17 @@ fn main() {
 
         renderer.lock().unwrap().update_instances(scene);
         let renderer_clone = renderer.clone();
+        let texture_upload_queue_clone = texture_upload_queue.clone();
 
         let thread_handle = std::thread::spawn(move || {
-            renderer_clone
-                .lock()
-                .unwrap()
-                .render_tick(&render_camera_pos, &render_camera_dir)
+            renderer_clone.lock().unwrap().render_tick(
+                &render_camera_pos,
+                &render_camera_dir,
+                texture_upload_queue_clone,
+            )
         });
 
-        scene = world.update(dt, unsafe { *input_ptr });
+        scene = world.update(dt, unsafe { *input_ptr }, texture_upload_queue.clone());
 
         (code, dt) = thread_handle.join().unwrap();
     }

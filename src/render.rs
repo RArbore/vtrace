@@ -15,6 +15,8 @@
 use glm::*;
 
 use std::collections::HashMap;
+use std::collections::VecDeque;
+use std::sync::*;
 use std::time::*;
 
 use crate::scene::*;
@@ -142,9 +144,34 @@ pub struct Renderer {
     prev_time: Instant,
     prev_frame_time: Instant,
     prev_frame_num: usize,
-    texture_upload_queue: Vec<(Box<dyn RawVoxelData<Color> + Send>, TextureHandle)>,
-    num_textures_created: u32,
     texture_handle_lookup: HashMap<TextureHandle, u32>,
+}
+
+pub struct TextureUploadQueue {
+    num_textures_created: u32,
+    texture_upload_queue: VecDeque<(Box<dyn RawVoxelData<Color> + Send>, TextureHandle)>,
+}
+
+impl TextureUploadQueue {
+    pub fn new() -> Self {
+        TextureUploadQueue {
+            num_textures_created: 0,
+            texture_upload_queue: VecDeque::new(),
+        }
+    }
+
+    pub fn add_texture(&mut self, texture: Box<dyn RawVoxelData<Color> + Send>) -> TextureHandle {
+        let handle = TextureHandle {
+            id: self.num_textures_created,
+        };
+        self.num_textures_created += 1;
+        self.texture_upload_queue.push_back((texture, handle));
+        handle
+    }
+
+    pub fn pop(&mut self) -> Option<(Box<dyn RawVoxelData<Color> + Send>, TextureHandle)> {
+        self.texture_upload_queue.pop_front()
+    }
 }
 
 #[repr(C)]
@@ -174,8 +201,6 @@ impl Renderer {
             prev_time: Instant::now(),
             prev_frame_time: Instant::now(),
             prev_frame_num: 0,
-            texture_upload_queue: vec![],
-            num_textures_created: 0,
             texture_handle_lookup: HashMap::new(),
         }
     }
@@ -190,15 +215,6 @@ impl Renderer {
 
     pub fn get_input_data_pointer(&self) -> *const UserInput {
         unsafe { get_input_data_pointer() }
-    }
-
-    pub fn add_texture(&mut self, texture: Box<dyn RawVoxelData<Color> + Send>) -> TextureHandle {
-        let handle = TextureHandle {
-            id: self.num_textures_created,
-        };
-        self.num_textures_created += 1;
-        self.texture_upload_queue.push((texture, handle));
-        handle
     }
 
     pub fn update_instances(&mut self, scene: SceneGraph) {
@@ -221,10 +237,13 @@ impl Renderer {
         }
     }
 
-    pub fn render_tick(&mut self, pos: &Vec3, dir: &Vec3) -> (bool, f32) {
-        if !self.texture_upload_queue.is_empty() {
-            let (texture, handle) = self.texture_upload_queue.remove(0);
-
+    pub fn render_tick(
+        &mut self,
+        pos: &Vec3,
+        dir: &Vec3,
+        texture_upload_queue: Arc<Mutex<TextureUploadQueue>>,
+    ) -> (bool, f32) {
+        if let Some((texture, handle)) = texture_upload_queue.lock().unwrap().pop() {
             let dim_x = texture.dim_x();
             let dim_y = texture.dim_y();
             let dim_z = texture.dim_z();

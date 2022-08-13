@@ -39,7 +39,7 @@ pub struct WorldState {
 }
 
 impl WorldState {
-    pub fn new(renderer: Arc<Mutex<Renderer>>) -> WorldState {
+    pub fn new(texture_upload_queue: Arc<Mutex<TextureUploadQueue>>) -> WorldState {
         let mut world = WorldState {
             camera_position: vec3(0.0, 0.0, 0.0),
             camera_theta: 0.0,
@@ -51,19 +51,19 @@ impl WorldState {
             world_pager: WorldPager::new(),
         };
 
-        world.load_texture_from_file(renderer, "Treasure");
+        world.load_texture_from_file(texture_upload_queue, "Treasure");
 
         world
     }
 
     fn load_texture_from_file(
         &mut self,
-        renderer: Arc<Mutex<Renderer>>,
+        texture_upload_queue: Arc<Mutex<TextureUploadQueue>>,
         texture_name: &'static str,
     ) {
         let mut texture = load_magica_voxel(format!("assets/{}.vox", texture_name).as_str());
 
-        let handle = renderer
+        let handle = texture_upload_queue
             .lock()
             .unwrap()
             .add_texture(Box::new(texture.remove(0)));
@@ -83,7 +83,16 @@ impl WorldState {
         vec3(cos(self.camera_theta), 0.0, sin(self.camera_theta))
     }
 
-    pub fn update(&mut self, dt: f32, user_input: UserInput) -> SceneGraph {
+    pub fn update(
+        &mut self,
+        dt: f32,
+        user_input: UserInput,
+        texture_upload_queue: Arc<Mutex<TextureUploadQueue>>,
+    ) -> SceneGraph {
+        if self.frame_num == 0 {
+            self.load_texture_from_file(texture_upload_queue, "AncientTemple");
+        }
+
         self.accum_time_frac += dt;
         if self.accum_time_frac > 1.0 {
             self.accum_time_frac -= 1.0;
@@ -132,7 +141,8 @@ impl WorldState {
         let mut scene_entities = SceneGraph::new();
         let mut scene_terrain = SceneGraph::new();
 
-        let handle = *self.entity_texture_registry.get("Treasure").unwrap();
+        let handle1 = *self.entity_texture_registry.get("Treasure").unwrap();
+        let handle2 = *self.entity_texture_registry.get("AncientTemple").unwrap();
         for x in -5..=5 {
             for z in -5..=5 {
                 let identity = Matrix4::new(
@@ -142,7 +152,14 @@ impl WorldState {
                     Vec4::new(0.0, 0.0, 0.0, 1.0),
                 );
                 let model = ext::translate(&identity, vec3(x as f32 * 1.5, 5.0, z as f32 * 1.5));
-                scene_entities.add_child(SceneGraph::new_child(model, handle));
+                scene_entities.add_child(SceneGraph::new_child(
+                    model,
+                    if (x + z + 10) as u32 % 2 == 0 {
+                        handle1
+                    } else {
+                        handle2
+                    },
+                ));
             }
         }
 
