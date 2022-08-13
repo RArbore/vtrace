@@ -220,6 +220,8 @@ result create_instance_buffer(void) {
 }
 
 float* start_update_instances(uint32_t instance_count) {
+    if (instance_count == 0) instance_count = 1;
+    
     glbl.instance_count = instance_count;
     if (instance_count > glbl.instance_capacity) {
 	cleanup_instance_buffer();
@@ -233,6 +235,8 @@ float* start_update_instances(uint32_t instance_count) {
 }
 
 int32_t end_update_instances(uint32_t instance_count) {
+    if (instance_count == 0) instance_count = 1;
+
     vkUnmapMemory(glbl.device, glbl.staging_instance_memory);
 
     glbl.instance_count = instance_count;

@@ -98,7 +98,7 @@ result choose_swapchain_options(swapchain_support* support, VkSurfaceFormatKHR* 
     *present_mode = VK_PRESENT_MODE_FIFO_KHR;
     for (uint32_t present_mode_index = 0; present_mode_index < support->num_present_modes; ++present_mode_index) {
 	if (support->present_modes[present_mode_index] == VK_PRESENT_MODE_IMMEDIATE_KHR) {
-	    *present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+	    *present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 	}
 	else if (support->present_modes[present_mode_index] == VK_PRESENT_MODE_MAILBOX_KHR) {
 	    *present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
