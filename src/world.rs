@@ -51,7 +51,12 @@ impl WorldState {
             world_pager: WorldPager::new(),
         };
 
-        world.load_texture_from_file(texture_upload_queue, "Treasure");
+        world.load_texture_from_file(texture_upload_queue.clone(), "AncientTemple");
+        world.load_texture_from_file(texture_upload_queue.clone(), "Treasure");
+        /*world.load_texture_from_file(texture_upload_queue.clone(), "AncientTemple");
+        world.load_texture_from_file(texture_upload_queue.clone(), "Treasure");
+        world.load_texture_from_file(texture_upload_queue.clone(), "AncientTemple");
+        world.load_texture_from_file(texture_upload_queue.clone(), "Treasure");*/
 
         world
     }
@@ -89,10 +94,6 @@ impl WorldState {
         user_input: UserInput,
         texture_upload_queue: Arc<Mutex<TextureUploadQueue>>,
     ) -> SceneGraph {
-        if self.frame_num == 0 {
-            self.load_texture_from_file(texture_upload_queue.clone(), "AncientTemple");
-        }
-
         self.accum_time_frac += dt;
         if self.accum_time_frac > 1.0 {
             self.accum_time_frac -= 1.0;
@@ -163,7 +164,7 @@ impl WorldState {
             }
         }
 
-        let chunk_pos = get_chunk_pos(self.camera_position);
+        /*let chunk_pos = get_chunk_pos(self.camera_position);
         for x in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
             //for y in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
             for y in CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
@@ -199,10 +200,10 @@ impl WorldState {
                     }
                 }
             }
-        }
+        }*/
 
         scene.add_child(scene_entities);
-        scene.add_child(scene_terrain);
+        //scene.add_child(scene_terrain);
 
         self.frame_num += 1;
 

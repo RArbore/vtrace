@@ -118,7 +118,7 @@ result update_descriptors(uint32_t update_texture) {
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
 	uint32_t j = glbl.graphics_pending_descriptor_write_count[i];
 	if (j >= glbl.graphics_pending_descriptor_write_allocated[i]) {
-	    glbl.graphics_pending_descriptor_write_allocated[i] = round_up_p2(glbl.graphics_pending_descriptor_write_allocated[i] + 4);
+	    glbl.graphics_pending_descriptor_write_allocated[i] = round_up_p2(glbl.graphics_pending_descriptor_write_allocated[i] + 8);
 	    glbl.graphics_pending_descriptor_write_infos[i] = realloc(glbl.graphics_pending_descriptor_write_infos[i], glbl.graphics_pending_descriptor_write_allocated[i] * sizeof(descriptor_info));
 	    glbl.graphics_pending_descriptor_writes[i] = realloc(glbl.graphics_pending_descriptor_writes[i], glbl.graphics_pending_descriptor_write_allocated[i] * sizeof(VkWriteDescriptorSet));
 	}
