@@ -327,8 +327,8 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	PROPAGATE_C(create_texture_resources());
     }
     else if (needed_size > glbl.texture_memory_allocated) {
-	VkImage* new_images = malloc((glbl.texture_image_count) * sizeof(VkImage));
-	VkImageView* new_views = malloc((glbl.texture_image_count) * sizeof(VkImageView));
+	VkImage* new_images = malloc((glbl.texture_image_allocated) * sizeof(VkImage));
+	VkImageView* new_views = malloc((glbl.texture_image_allocated) * sizeof(VkImageView));
 	for (uint32_t i = 0; i < glbl.texture_image_count - 1; ++i) {
 	    PROPAGATE_C(create_image(0, VK_FORMAT_R8G8B8A8_SRGB, glbl.texture_image_extents[i], 1, 1, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, &new_images[i]));
 	}

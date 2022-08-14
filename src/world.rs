@@ -53,10 +53,6 @@ impl WorldState {
 
         world.load_texture_from_file(texture_upload_queue.clone(), "AncientTemple");
         world.load_texture_from_file(texture_upload_queue.clone(), "Treasure");
-        /*world.load_texture_from_file(texture_upload_queue.clone(), "AncientTemple");
-        world.load_texture_from_file(texture_upload_queue.clone(), "Treasure");
-        world.load_texture_from_file(texture_upload_queue.clone(), "AncientTemple");
-        world.load_texture_from_file(texture_upload_queue.clone(), "Treasure");*/
 
         world
     }
