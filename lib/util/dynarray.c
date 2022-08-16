@@ -50,3 +50,12 @@ result dynarray_pop(void* pop_data, dynarray* dynarray) {
     if (pop_data) memcpy(pop_data, (char*) dynarray->data + dynarray->size, dynarray->elem_size);
     return SUCCESS;
 }
+
+void* dynarray_index(uint32_t index, dynarray* dynarray) {
+    return index < dynarray->size / dynarray->elem_size ? (void*) ((char*) dynarray->data + index * dynarray->elem_size) : NULL;
+}
+
+result dynarray_destroy(dynarray* dynarray) {
+    free(dynarray->data);
+    return SUCCESS;
+}

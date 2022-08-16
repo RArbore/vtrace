@@ -16,6 +16,8 @@
 
 #include "../common.h"
 
+#define INDEX(i, dynarray, T) (*(T*) dynarray_index(i, dynarray))
+
 typedef struct dynarray {
     void* data;
     uint32_t size;
@@ -28,3 +30,7 @@ result dynarray_create(uint32_t elem_size, uint32_t init_alloc_num, dynarray* dy
 result dynarray_push(void* push_data, dynarray* dynarray);
 
 result dynarray_pop(void* pop_data, dynarray* dynarray);
+
+void* dynarray_index(uint32_t index, dynarray* dynarray);
+
+result dynarray_destroy(dynarray* dynarray);
