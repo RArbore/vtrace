@@ -30,6 +30,7 @@ fn main() {
         "command.c",
         "memory.c",
         "sync.c",
+        "util/dynarray.c",
     ];
 
     let o_files = [
@@ -41,6 +42,7 @@ fn main() {
         "command.o",
         "memory.o",
         "sync.o",
+        "dynarray.o",
     ];
 
     for (c_file, o_file) in std::iter::zip(c_files, o_files) {
