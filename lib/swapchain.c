@@ -51,13 +51,15 @@ result create_swapchain(void) {
     PROPAGATE_VK(vkCreateSwapchainKHR(glbl.device, &create_info, NULL, &glbl.swapchain));
 
     vkGetSwapchainImagesKHR(glbl.device, glbl.swapchain, &image_count, NULL);
-    glbl.swapchain_images = malloc(image_count * sizeof(VkImage));
-    vkGetSwapchainImagesKHR(glbl.device, glbl.swapchain, &image_count, glbl.swapchain_images);
+    PROPAGATE(dynarray_create(sizeof(VkImage), image_count, &glbl.swapchain_images));
+    for (uint32_t i = 0; i < image_count; ++i) PROPAGATE(dynarray_push(NULL, &glbl.swapchain_images));
+    vkGetSwapchainImagesKHR(glbl.device, glbl.swapchain, &image_count, dynarray_index(0, &glbl.swapchain_images));
 
     glbl.swapchain_format = surface_format.format;
     glbl.swapchain_extent = swap_extent;
 
-    glbl.swapchain_image_views = malloc(image_count * sizeof(VkImageView));
+    PROPAGATE(dynarray_create(sizeof(VkImageView), image_count, &glbl.swapchain_image_views));
+    for (uint32_t i = 0; i < image_count; ++i) PROPAGATE(dynarray_push(NULL, &glbl.swapchain_image_views));
 
     VkImageViewCreateInfo image_view_create_info = {0};
     image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -73,12 +75,10 @@ result create_swapchain(void) {
     image_view_create_info.subresourceRange.baseArrayLayer = 0;
     image_view_create_info.subresourceRange.layerCount = 1;
     for (uint32_t image_index = 0; image_index < image_count; ++image_index) {
-	image_view_create_info.image = glbl.swapchain_images[image_index];
-	PROPAGATE_VK(vkCreateImageView(glbl.device, &image_view_create_info, NULL, &glbl.swapchain_image_views[image_index]));
+	image_view_create_info.image = INDEX(image_index, glbl.swapchain_images, VkImage);
+	PROPAGATE_VK(vkCreateImageView(glbl.device, &image_view_create_info, NULL, dynarray_index(image_index, &glbl.swapchain_image_views)));
     }
 
-    glbl.swapchain_size = image_count;
-    
     return SUCCESS;
 }
 
@@ -147,19 +147,19 @@ result recreate_swapchain(void) {
 }
 
 void cleanup_swapchain(void) {
-    for (uint32_t framebuffer_index = 0; framebuffer_index < glbl.swapchain_size; ++framebuffer_index) {
-	vkDestroyFramebuffer(glbl.device, glbl.framebuffers[framebuffer_index], NULL);
+    for (uint32_t framebuffer_index = 0; framebuffer_index < dynarray_len(&glbl.framebuffers); ++framebuffer_index) {
+	vkDestroyFramebuffer(glbl.device, INDEX(framebuffer_index, glbl.framebuffers, VkFramebuffer), NULL);
     }
 
-    for (uint32_t image_index = 0; image_index < glbl.swapchain_size; ++image_index) {
-	vkDestroyImageView(glbl.device, glbl.swapchain_image_views[image_index], NULL);
+    for (uint32_t image_index = 0; image_index < dynarray_len(&glbl.swapchain_images); ++image_index) {
+	vkDestroyImageView(glbl.device, INDEX(image_index, glbl.swapchain_image_views, VkImageView), NULL);
     }
 
     vkDestroyImageView(glbl.device, glbl.depth_image_view, NULL);
     vkDestroyImage(glbl.device, glbl.depth_image, NULL);
     vkFreeMemory(glbl.device, glbl.depth_image_memory, NULL);
 
-    free(glbl.swapchain_image_views);
-    free(glbl.swapchain_images);
+    dynarray_destroy(&glbl.swapchain_image_views);
+    dynarray_destroy(&glbl.swapchain_images);
     vkDestroySwapchainKHR(glbl.device, glbl.swapchain, NULL);
 }

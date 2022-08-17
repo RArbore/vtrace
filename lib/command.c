@@ -64,7 +64,7 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     VkRenderPassBeginInfo render_pass_begin_info = {0};
     render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     render_pass_begin_info.renderPass = glbl.render_pass;
-    render_pass_begin_info.framebuffer = glbl.framebuffers[image_index];
+    render_pass_begin_info.framebuffer = INDEX(image_index, glbl.framebuffers, VkFramebuffer);
     render_pass_begin_info.renderArea.offset.x = 0;
     render_pass_begin_info.renderArea.offset.y = 0;
     render_pass_begin_info.renderArea.extent = glbl.swapchain_extent;
@@ -151,14 +151,16 @@ result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t 
 		region.dstOffset.y = 0;
 		region.dstOffset.z = 0;
 
-		for (uint32_t j = 0; j < commands[i].copy_images_images.image_count; ++j) {
-		    region.extent = commands[i].copy_images_images.extents[j];
-        	    vkCmdCopyImage(command_buffer, commands[i].copy_images_images.src_images[j], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, commands[i].copy_images_images.dst_images[j], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+		for (uint32_t j = 0; j < dynarray_len(&commands[i].copy_images_images.src_images); ++j) {
+		    region.extent = INDEX(j, commands[i].copy_images_images.extents, VkExtent3D);
+        	    vkCmdCopyImage(command_buffer, INDEX(j, commands[i].copy_images_images.src_images, VkImage), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, INDEX(j, commands[i].copy_images_images.dst_images, VkImage), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 		}
+
 		break;
 	    }
 	    case SECONDARY_TYPE_LAYOUT_TRANSITION: {
 		VkImageMemoryBarrier barrier = {0};
+		
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		barrier.oldLayout = commands[i].layout_transition.old;
 		barrier.newLayout = commands[i].layout_transition.new;
@@ -169,8 +171,9 @@ result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t 
 		barrier.subresourceRange.levelCount = 1;
 		barrier.subresourceRange.baseArrayLayer = 0;
 		barrier.subresourceRange.layerCount = 1;
-		for (uint32_t j = 0; j < commands[i].layout_transition.image_count; ++j) {
-		    barrier.image = commands[i].layout_transition.images[j];
+		
+		for (uint32_t j = 0; j < dynarray_len(&commands[i].layout_transition.images); ++j) {
+		    barrier.image = INDEX(j, commands[i].layout_transition.images, VkImage);
 		    
 		    if (commands[i].layout_transition.old == VK_IMAGE_LAYOUT_UNDEFINED && commands[i].layout_transition.new == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
 			barrier.srcAccessMask = 0;
@@ -188,16 +191,19 @@ result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t 
 			vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
 		    }
 		}
+
 		break;
 	    }
 	    case SECONDARY_TYPE_CLEANUP: {
-		for (uint32_t j = 0; j < commands[i].cleanup.image_count; ++j) {
-		    if (commands[i].cleanup.images) vkDestroyImage(glbl.device, commands[i].cleanup.images[j], NULL);
-		    if (commands[i].cleanup.image_views) vkDestroyImageView(glbl.device, commands[i].cleanup.image_views[j], NULL);
+		for (uint32_t j = 0; j < dynarray_len(&commands[i].cleanup.images); ++j) {
+		    if (commands[i].cleanup.images.size > 0) vkDestroyImage(glbl.device, INDEX(j, commands[i].cleanup.images, VkImage), NULL);
+		    if (commands[i].cleanup.image_views.size > 0) vkDestroyImageView(glbl.device, INDEX(j, commands[i].cleanup.image_views, VkImageView), NULL);
 		}
+
 		if (commands[i].cleanup.memory) vkFreeMemory(glbl.device, commands[i].cleanup.memory, NULL);
-		free(commands[i].cleanup.images);
-		free(commands[i].cleanup.image_views);
+
+		dynarray_destroy(&commands[i].cleanup.images);
+		dynarray_destroy(&commands[i].cleanup.image_views);
 		break;
 	    }
 	    }

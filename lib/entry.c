@@ -160,9 +160,9 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	return -1;
     }
 
-    if (glbl.graphics_pending_descriptor_write_count[glbl.current_frame] > 0) {
-	vkUpdateDescriptorSets(glbl.device, glbl.graphics_pending_descriptor_write_count[glbl.current_frame], glbl.graphics_pending_descriptor_writes[glbl.current_frame], 0, NULL);
-	glbl.graphics_pending_descriptor_write_count[glbl.current_frame] = 0;
+    if (dynarray_len(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]) > 0) {
+	vkUpdateDescriptorSets(glbl.device, dynarray_len(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]), glbl.graphics_pending_descriptor_writes[glbl.current_frame].data, 0, NULL);
+	dynarray_clear(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]);
     }
 
     vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame]);

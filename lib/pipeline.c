@@ -239,7 +239,7 @@ result create_graphics_pipeline(void) {
 }
 
 result create_framebuffers(void) {
-    glbl.framebuffers = malloc(glbl.swapchain_size * sizeof(VkFramebuffer));
+    PROPAGATE(dynarray_create(sizeof(VkFramebuffer), dynarray_len(&glbl.swapchain_images), &glbl.framebuffers));
 
     VkFramebufferCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -249,12 +249,11 @@ result create_framebuffers(void) {
     create_info.height = glbl.swapchain_extent.height;
     create_info.layers = 1;
 
-    for (uint32_t i = 0; i < glbl.swapchain_size; ++i) {
-	VkImageView attachments[] = {glbl.swapchain_image_views[i], glbl.depth_image_view};
+    for (uint32_t i = 0; i < dynarray_len(&glbl.swapchain_images); ++i) {
+	VkImageView attachments[] = {INDEX(i, glbl.swapchain_image_views, VkImageView), glbl.depth_image_view};
 	create_info.pAttachments = attachments;
-	PROPAGATE_VK_CLEAN(vkCreateFramebuffer(glbl.device, &create_info, NULL, &glbl.framebuffers[i]));
-	free(glbl.framebuffers);
-	PROPAGATE_VK_END();
+	PROPAGATE(dynarray_push(NULL, &glbl.framebuffers));
+	PROPAGATE_VK(vkCreateFramebuffer(glbl.device, &create_info, NULL, dynarray_index(i, &glbl.framebuffers)));
     }
 
     return SUCCESS;

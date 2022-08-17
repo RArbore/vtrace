@@ -12,11 +12,21 @@
  * along with vtrace. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifndef COMMON_H
+#define COMMON_H
+
 #include <stdint.h>
 
 #define GLFW_INCLUDE_VULKAN
 
 #include <GLFW/glfw3.h>
+
+typedef struct result {
+    VkResult vk;
+    int32_t custom;
+} result;
+
+#include "util/dynarray.h"
 
 #define MAX_VK_ENUMERATIONS 16
 #define FRAMES_IN_FLIGHT 2
@@ -109,21 +119,18 @@ typedef struct secondary_command {
 	    VkBufferImageCopy copy_region;
 	} copy_buffer_image;
 	struct {
-	    uint32_t image_count;
-	    VkImage* src_images;
-	    VkImage* dst_images;
-	    VkExtent3D* extents;
+	    dynarray src_images;
+	    dynarray dst_images;
+	    dynarray extents;
 	} copy_images_images;
 	struct {
-	    uint32_t image_count;
-	    VkImage* images;
+	    dynarray images;
 	    VkImageLayout old;
 	    VkImageLayout new;
 	} layout_transition;
 	struct {
-	    uint32_t image_count;
-	    VkImage* images;
-	    VkImageView* image_views;
+	    dynarray images;
+	    dynarray image_views;
 	    VkDeviceMemory memory;
 	} cleanup;
     };
@@ -159,24 +166,21 @@ typedef struct renderer {
     VkQueue queue;
 
     VkSwapchainKHR swapchain;
-    uint32_t swapchain_size;
-    VkImage* swapchain_images;
+    dynarray swapchain_images;
     VkFormat swapchain_format;
     VkExtent2D swapchain_extent;
-    VkImageView* swapchain_image_views;
+    dynarray swapchain_image_views;
 
     VkDescriptorPool descriptor_pool;
     VkDescriptorSetLayout graphics_descriptor_set_layout;
     VkDescriptorSet graphics_descriptor_sets[FRAMES_IN_FLIGHT];
-    uint32_t graphics_pending_descriptor_write_count[FRAMES_IN_FLIGHT];
-    uint32_t graphics_pending_descriptor_write_allocated[FRAMES_IN_FLIGHT];
-    VkWriteDescriptorSet* graphics_pending_descriptor_writes[FRAMES_IN_FLIGHT];
-    descriptor_info* graphics_pending_descriptor_write_infos[FRAMES_IN_FLIGHT];
+    dynarray graphics_pending_descriptor_writes[FRAMES_IN_FLIGHT];
+    dynarray graphics_pending_descriptor_write_infos[FRAMES_IN_FLIGHT];
 
     VkPipelineLayout graphics_pipeline_layout;
     VkRenderPass render_pass;
     VkPipeline graphics_pipeline;
-    VkFramebuffer* framebuffers;
+    dynarray framebuffers;
     VkImage depth_image;
     VkDeviceMemory depth_image_memory;
     VkImageView depth_image_view;
@@ -202,13 +206,11 @@ typedef struct renderer {
     uint32_t staging_texture_size;
     VkBuffer staging_texture_buffer;
     VkDeviceMemory staging_texture_memory;
-    uint32_t texture_image_count;
-    uint32_t texture_image_allocated;
     uint32_t texture_memory_used;
     uint32_t texture_memory_allocated;
-    VkImage* texture_images;
-    VkImageView* texture_image_views;
-    VkExtent3D* texture_image_extents;
+    dynarray texture_images;
+    dynarray texture_image_views;
+    dynarray texture_image_extents;
     VkDeviceMemory texture_memory;
     VkSampler texture_sampler;
     VkFence texture_upload_finished_fence;
@@ -232,11 +234,6 @@ typedef struct swapchain_support {
     uint32_t num_formats;
     uint32_t num_present_modes;
 } swapchain_support;
-
-typedef struct result {
-    VkResult vk;
-    int32_t custom;
-} result;
 
 __attribute__((unused)) static const result SUCCESS = {.vk = VK_SUCCESS, .custom = 0};
 __attribute__((unused)) static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .custom = 1};
@@ -351,3 +348,5 @@ __attribute__((unused)) static inline uint32_t round_up_p2(uint32_t x) {
     while (rounded < x) rounded *= 2;
     return rounded;
 }
+
+#endif

@@ -14,10 +14,12 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "dynarray.h"
 
 result dynarray_create(uint32_t elem_size, uint32_t init_alloc_num, dynarray* dynarray) {
+    if (init_alloc_num == 0 || elem_size == 0) return CUSTOM_ERROR;
     dynarray->size = 0;
     dynarray->alloc = init_alloc_num * elem_size;
     dynarray->elem_size = elem_size;
@@ -27,7 +29,17 @@ result dynarray_create(uint32_t elem_size, uint32_t init_alloc_num, dynarray* dy
     return SUCCESS;
 }
 
+dynarray dynarray_create_singleton(void* contents, uint32_t elem_size) {
+    dynarray dynarray = {0};
+    dynarray.data = contents;
+    dynarray.size = elem_size;
+    dynarray.alloc = 0;
+    dynarray.elem_size = elem_size;
+    return dynarray;
+}
+
 result dynarray_push(void* push_data, dynarray* dynarray) {
+    if (dynarray->alloc == 0) return CUSTOM_ERROR;
     if (dynarray->size >= dynarray->alloc) {
 	dynarray->alloc *= 2;
 	void* attempt = realloc(dynarray->data, dynarray->alloc);
@@ -39,7 +51,12 @@ result dynarray_push(void* push_data, dynarray* dynarray) {
 	dynarray->data = attempt;
     }
 
-    memcpy((char*) dynarray->data + dynarray->size, push_data, dynarray->elem_size);
+    if (push_data) {
+	memcpy((char*) dynarray->data + dynarray->size, push_data, dynarray->elem_size);
+    }
+    else {
+	memset((char*) dynarray->data + dynarray->size, 0, dynarray->elem_size);
+    }
     dynarray->size += dynarray->elem_size;
     return SUCCESS;
 }
@@ -51,11 +68,31 @@ result dynarray_pop(void* pop_data, dynarray* dynarray) {
     return SUCCESS;
 }
 
+result dynarray_clear(dynarray* dynarray) {
+    dynarray->size = 0;
+}
+
+uint32_t dynarray_len(dynarray* dynarray) {
+    return dynarray->size / dynarray->elem_size;
+}
+
 void* dynarray_index(uint32_t index, dynarray* dynarray) {
-    return index < dynarray->size / dynarray->elem_size ? (void*) ((char*) dynarray->data + index * dynarray->elem_size) : NULL;
+    return index < dynarray_len(dynarray) ? (void*) ((char*) dynarray->data + index * dynarray->elem_size) : NULL;
+}
+
+void* dynarray_first(dynarray* dynarray) {
+    return dynarray->size >= dynarray->elem_size ? dynarray_index(0, dynarray) : NULL;
+}
+
+void* dynarray_last(dynarray* dynarray) {
+    return dynarray->size >= dynarray->elem_size ? dynarray_index(dynarray_len(dynarray) - 1, dynarray) : NULL;
 }
 
 result dynarray_destroy(dynarray* dynarray) {
     free(dynarray->data);
     return SUCCESS;
+}
+
+void dynarray_debug(dynarray* dynarray) {
+    fprintf(stderr, "DEBUG (dynarray)   size (bytes): %u   allocated (bytes): %u   element size (bytes): %u", dynarray->size, dynarray->alloc, dynarray->elem_size);
 }

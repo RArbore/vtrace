@@ -160,7 +160,7 @@ impl WorldState {
             }
         }
 
-        /*let chunk_pos = get_chunk_pos(self.camera_position);
+        let chunk_pos = get_chunk_pos(self.camera_position);
         for x in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
             //for y in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
             for y in CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
@@ -196,10 +196,10 @@ impl WorldState {
                     }
                 }
             }
-        }*/
+        }
 
         scene.add_child(scene_entities);
-        //scene.add_child(scene_terrain);
+        scene.add_child(scene_terrain);
 
         self.frame_num += 1;
 
