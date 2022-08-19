@@ -121,8 +121,8 @@ result create_texture_sampler(void) {
 
 result update_descriptors(uint32_t update_texture) {
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
-	dynarray_push(NULL, &glbl.graphics_pending_descriptor_write_infos[i]);
-	dynarray_push(NULL, &glbl.graphics_pending_descriptor_writes[i]);
+	PROPAGATE(dynarray_push(NULL, &glbl.graphics_pending_descriptor_write_infos[i]));
+	PROPAGATE(dynarray_push(NULL, &glbl.graphics_pending_descriptor_writes[i]));
 
 	descriptor_info* write_info = dynarray_last(&glbl.graphics_pending_descriptor_write_infos[i]);
 	VkWriteDescriptorSet* write = dynarray_last(&glbl.graphics_pending_descriptor_writes[i]);
@@ -138,7 +138,7 @@ result update_descriptors(uint32_t update_texture) {
 	write->dstArrayElement = update_texture;
 	write->descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	write->descriptorCount = 1;
-	write->pImageInfo = &write_info->image_info;
+	write->pImageInfo = NULL;
 	write->pBufferInfo = NULL;
 	write->pTexelBufferView = NULL;
     }

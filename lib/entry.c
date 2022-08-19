@@ -161,8 +161,12 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     }
 
     if (dynarray_len(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]) > 0) {
+	for (uint32_t i = 0; i < dynarray_len(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]); ++i) {
+	    INDEX(i, glbl.graphics_pending_descriptor_writes[glbl.current_frame], VkWriteDescriptorSet).pImageInfo = &INDEX(i, glbl.graphics_pending_descriptor_write_infos[glbl.current_frame], descriptor_info).image_info;
+	}
 	vkUpdateDescriptorSets(glbl.device, dynarray_len(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]), glbl.graphics_pending_descriptor_writes[glbl.current_frame].data, 0, NULL);
 	dynarray_clear(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]);
+	dynarray_clear(&glbl.graphics_pending_descriptor_write_infos[glbl.current_frame]);
     }
 
     vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame]);
