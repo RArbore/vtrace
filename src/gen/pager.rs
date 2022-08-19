@@ -22,8 +22,8 @@ use crate::render::*;
 use crate::voxel::*;
 
 pub const CHUNK_VOXEL_SIZE: usize = 16;
-pub const CHUNK_WORLD_SIZE: f32 = 4.0;
-pub const CHUNK_LOAD_DIST: i32 = 1;
+pub const CHUNK_WORLD_SIZE: f32 = 2.0;
+pub const CHUNK_LOAD_DIST: i32 = 8;
 
 pub fn get_chunk_pos(pos: Vec3) -> (i32, i32, i32) {
     (

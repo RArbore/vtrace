@@ -162,8 +162,7 @@ impl WorldState {
 
         let chunk_pos = get_chunk_pos(self.camera_position);
         for x in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
-            //for y in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
-            for y in CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
+            for y in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
                 for z in -CHUNK_LOAD_DIST..=CHUNK_LOAD_DIST {
                     let chunk_handle = self.world_pager.page(
                         chunk_pos.0 + x,
