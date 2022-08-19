@@ -362,10 +362,12 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	    PROPAGATE_C(update_descriptors(i));
 	}
 
+	dynarray new_copied_images = glbl.texture_images;
+	PROPAGATE_C(dynarray_pop(NULL, &new_copied_images));
 	secondary_command transition_command = {0};
 	transition_command.type = SECONDARY_TYPE_LAYOUT_TRANSITION;
 	transition_command.ordering = 0;
-	transition_command.layout_transition.images = glbl.texture_images;
+	transition_command.layout_transition.images = new_copied_images;
 	transition_command.layout_transition.old = VK_IMAGE_LAYOUT_UNDEFINED;
 	transition_command.layout_transition.new = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	queue_secondary_command(transition_command);
@@ -379,12 +381,12 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	copy_command.type = SECONDARY_TYPE_COPY_IMAGES_IMAGES;
 	copy_command.ordering = 1;
 	copy_command.copy_images_images.src_images = old_images;
-	copy_command.copy_images_images.dst_images = glbl.texture_images;
+	copy_command.copy_images_images.dst_images = new_copied_images;
 	copy_command.copy_images_images.extents = glbl.texture_image_extents;
 	queue_secondary_command(copy_command);
 
 	transition_command.ordering = 2;
-	transition_command.layout_transition.images = glbl.texture_images;
+	transition_command.layout_transition.images = new_copied_images;
 	transition_command.layout_transition.old = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	transition_command.layout_transition.new = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	queue_secondary_command(transition_command);
