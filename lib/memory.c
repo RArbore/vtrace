@@ -333,6 +333,7 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 	    PROPAGATE_C(create_image(0, VK_FORMAT_R8G8B8A8_SRGB, INDEX(i, glbl.texture_image_extents, VkExtent3D), 1, 1, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, dynarray_index(i, &new_images)));
 	}
 	PROPAGATE_C(dynarray_push(&image, &new_images));
+	PROPAGATE_C(dynarray_pop(NULL, &glbl.texture_images));
 
 	dynarray old_images = glbl.texture_images;
 	dynarray old_views = glbl.texture_image_views;
