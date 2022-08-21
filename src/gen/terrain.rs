@@ -40,14 +40,8 @@ impl TerrainGenerator {
         if wx * wx + wy * wy + wz * wz > 50.0 * 50.0 {
             return Color::new(0, 0, 0, 0);
         }
-        return Color::new(
-            ((wx + 50.0) * 255.0 / 100.0) as u8,
-            ((wy + 50.0) * 255.0 / 100.0) as u8,
-            ((wz + 50.0) * 255.0 / 100.0) as u8,
-            255,
-        );
 
-        /*let open_simplex_sample = self.open_simplex.get([wx * 0.1, wy * 0.1, wz * 0.1]);
+        let open_simplex_sample = self.open_simplex.get([wx * 0.1, wy * 0.1, wz * 0.1]);
         let billow_sample = self.billow.get([wx * 0.1, wy * 0.1, wz * 0.1]);
 
         if open_simplex_sample > 0.0 {
@@ -60,7 +54,7 @@ impl TerrainGenerator {
             )
         } else {
             Color::new(0, 0, 0, 0)
-        }*/
+        }
     }
 
     pub fn gen_chunk(&self, chunk_x: i32, chunk_y: i32, chunk_z: i32) -> Option<Box<Chunk>> {
