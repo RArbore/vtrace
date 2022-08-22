@@ -32,7 +32,7 @@ typedef struct result {
 #define FRAMES_IN_FLIGHT 2
 #define COMMAND_QUEUE_SIZE 16
 #define COMMAND_QUEUE_DEPTH 16
-#define MAX_TEXTURES 4096
+#define MAX_TEXTURES 65536
 
 #define IS_SUCCESS(res) (res.vk == SUCCESS.vk && res.custom == SUCCESS.custom)
 
@@ -206,8 +206,8 @@ typedef struct renderer {
     uint32_t staging_texture_size;
     VkBuffer staging_texture_buffer;
     VkDeviceMemory staging_texture_memory;
-    uint32_t texture_memory_used;
-    uint32_t texture_memory_allocated;
+    uint32_t last_texture_memory_used;
+    uint32_t last_texture_memory_allocated;
     dynarray texture_images;
     dynarray texture_image_views;
     dynarray texture_image_extents;

@@ -38,11 +38,12 @@ impl TerrainGenerator {
         let (wx, wy, wz) = (voxel_x as f64, voxel_y as f64, voxel_z as f64);
         let (above_wx, above_wy, above_wz) = (voxel_x as f64, (voxel_y - 4) as f64, voxel_z as f64);
 
-        if wx * wx + wy * wy + wz * wz > 50.0 * 50.0 {
+        if wx * wx + wy * wy + wz * wz > 100.0 * 100.0 {
             return Color::new(0, 0, 0, 0);
         }
 
-        let surface = above_wx * above_wx + above_wy * above_wy + above_wz * above_wz > 50.0 * 50.0;
+        let surface =
+            above_wx * above_wx + above_wy * above_wy + above_wz * above_wz > 100.0 * 100.0;
 
         let open_simplex_sample = self.open_simplex.get([wx * 0.1, wy * 0.1, wz * 0.1]);
         let billow_sample = self.billow.get([wx * 0.1, wy * 0.1, wz * 0.1]);

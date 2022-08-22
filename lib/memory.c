@@ -265,16 +265,16 @@ result create_staging_texture_buffer(void) {
 }
 
 result add_new_texture_memory(void* images, uint32_t num_images) {
-    glbl.texture_memory_allocated *= 2;
+    glbl.last_texture_memory_allocated *= 2;
     PROPAGATE(dynarray_push(NULL, &glbl.texture_memories));
-    PROPAGATE(create_image_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, dynarray_last(&glbl.texture_memories), images, num_images, NULL, &glbl.texture_memory_allocated));
+    PROPAGATE(create_image_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, dynarray_last(&glbl.texture_memories), images, num_images, NULL, &glbl.last_texture_memory_allocated));
 
     return SUCCESS;
 }
 
 int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth) {
     if (dynarray_len(&glbl.texture_images) >= MAX_TEXTURES) {
-	fprintf(stderr, "ERROR: Tried allocating too many textures");
+	fprintf(stderr, "ERROR: Tried allocating too many textures\n");
 	return -1;
     }
 
@@ -317,15 +317,15 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
 
     VkMemoryRequirements requirements;
     vkGetImageMemoryRequirements(glbl.device, image, &requirements);
-    uint32_t desired_offset = round_up(glbl.texture_memory_used, requirements.alignment);
+    uint32_t desired_offset = round_up(glbl.last_texture_memory_used, requirements.alignment);
     uint32_t needed_size = desired_offset + requirements.size;
-    if (needed_size > glbl.texture_memory_allocated) {
+    if (needed_size > glbl.last_texture_memory_allocated) {
 	PROPAGATE_C(add_new_texture_memory(&image, 1));
     }
     else {
 	PROPAGATE_VK_C(vkBindImageMemory(glbl.device, image, *((VkDeviceMemory*) dynarray_last(&glbl.texture_memories)), desired_offset));
     }
-    glbl.texture_memory_used = needed_size;
+    glbl.last_texture_memory_used = needed_size;
 
     PROPAGATE_C(create_image_view(image, VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, &image_view));
     
