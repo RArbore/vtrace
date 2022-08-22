@@ -94,7 +94,7 @@ result create_descriptor_sets(void) {
     return SUCCESS;
 }
 
-result create_texture_sampler(void) {
+result create_texture_singletons(void) {
     VkSamplerCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     create_info.magFilter = VK_FILTER_NEAREST;
@@ -115,6 +115,11 @@ result create_texture_sampler(void) {
     create_info.maxLod = 0.0f;
 
     PROPAGATE_VK(vkCreateSampler(glbl.device, &create_info, NULL, &glbl.texture_sampler));
+
+    PROPAGATE(dynarray_create(sizeof(VkDeviceMemory), 1, &glbl.texture_memories));
+    dynarray_create(sizeof(VkImage), 8, &glbl.texture_images);
+    dynarray_create(sizeof(VkImageView), 8, &glbl.texture_image_views);
+    dynarray_create(sizeof(VkExtent3D), 8, &glbl.texture_image_extents);
     
     return SUCCESS;
 }

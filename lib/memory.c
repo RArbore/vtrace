@@ -127,7 +127,7 @@ result create_image_view(VkImage image, VkImageViewType type, VkFormat format, V
     return SUCCESS;
 }
 
-result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkImage* images, uint32_t num_images, uint32_t* offsets, uint32_t minimum_size) {
+result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkImage* images, uint32_t num_images, uint32_t* offsets, uint32_t* requested_size) {
     uint32_t allocate_size = 0;
     uint32_t memory_type_bits = 0;
     uint32_t local_offsets[num_images];
@@ -145,7 +145,7 @@ result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* mem
 	memory_type_bits |= requirements.memoryTypeBits;
     }
 
-    if (allocate_size < minimum_size) allocate_size = minimum_size;
+    if (requested_size && allocate_size < *requested_size) allocate_size = *requested_size;
 
     VkMemoryAllocateInfo allocate_info = {0};
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -156,6 +156,8 @@ result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* mem
     for (uint32_t i = 0; i < num_images; ++i) {
 	PROPAGATE_VK(vkBindImageMemory(glbl.device, images[i], *memory, offsets[i]));
     }
+
+    if (requested_size) *requested_size = allocate_size;
 
     return SUCCESS;
 }
@@ -262,13 +264,11 @@ result create_staging_texture_buffer(void) {
     return SUCCESS;
 }
 
-result create_texture_resources(void) {
-    if (glbl.texture_memory_allocated > 0) PROPAGATE(create_image_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.texture_memory, glbl.texture_images.data, dynarray_len(&glbl.texture_images), NULL, glbl.texture_memory_allocated));
+result add_new_texture_memory(void* images, uint32_t num_images) {
+    glbl.texture_memory_allocated *= 2;
+    PROPAGATE(dynarray_push(NULL, &glbl.texture_memories));
+    PROPAGATE(create_image_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, dynarray_last(&glbl.texture_memories), images, num_images, NULL, &glbl.texture_memory_allocated));
 
-    if (glbl.texture_images.alloc == 0) dynarray_create(sizeof(VkImage), 8, &glbl.texture_images);
-    if (glbl.texture_image_views.alloc == 0) dynarray_create(sizeof(VkImageView), 8, &glbl.texture_image_views);
-    if (glbl.texture_image_extents.alloc == 0) dynarray_create(sizeof(VkExtent3D), 8, &glbl.texture_image_extents);
-    
     return SUCCESS;
 }
 
@@ -319,80 +319,11 @@ int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32
     vkGetImageMemoryRequirements(glbl.device, image, &requirements);
     uint32_t desired_offset = round_up(glbl.texture_memory_used, requirements.alignment);
     uint32_t needed_size = desired_offset + requirements.size;
-    if (glbl.texture_memory_allocated == 0) {
-	cleanup_texture_resources();
-	glbl.texture_memory_allocated = needed_size * 2;
-	PROPAGATE_C(create_texture_resources());
-    }
-    else if (needed_size > glbl.texture_memory_allocated) {
-	dynarray new_images, new_views;
-	PROPAGATE_C(dynarray_create(sizeof(VkImage), glbl.texture_images.alloc / glbl.texture_images.elem_size, &new_images));
-	PROPAGATE_C(dynarray_create(sizeof(VkImageView), glbl.texture_image_views.alloc / glbl.texture_image_views.elem_size, &new_views));
-	for (uint32_t i = 0; i < prior_len; ++i) {
-	    PROPAGATE_C(dynarray_push(NULL, &new_images));
-	    PROPAGATE_C(create_image(0, VK_FORMAT_R8G8B8A8_SRGB, INDEX(i, glbl.texture_image_extents, VkExtent3D), 1, 1, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, dynarray_index(i, &new_images)));
-	}
-	PROPAGATE_C(dynarray_push(&image, &new_images));
-	PROPAGATE_C(dynarray_pop(NULL, &glbl.texture_images));
-
-	dynarray old_images = glbl.texture_images;
-	dynarray old_views = glbl.texture_image_views;
-	VkDeviceMemory old_memory = glbl.texture_memory;
-
-	secondary_command cleanup_command = {0};
-	cleanup_command.type = SECONDARY_TYPE_CLEANUP;
-	cleanup_command.ordering = 0;
-	cleanup_command.delay = FRAMES_IN_FLIGHT;
-	cleanup_command.cleanup.images = old_images;
-	cleanup_command.cleanup.image_views = old_views;
-	cleanup_command.cleanup.memory = old_memory;
-	queue_secondary_command(cleanup_command);
-	
-	glbl.texture_images = new_images;
-	glbl.texture_image_views = new_views;
-	glbl.texture_memory = VK_NULL_HANDLE;
-	
-	cleanup_texture_resources();
-	glbl.texture_memory_allocated = needed_size * 2;
-	PROPAGATE_C(create_texture_resources());
-
-	for (uint32_t i = 0; i < prior_len; ++i) {
-	    PROPAGATE_C(dynarray_push(NULL, &glbl.texture_image_views));
-	    PROPAGATE_C(create_image_view(INDEX(i, glbl.texture_images, VkImage), VK_IMAGE_VIEW_TYPE_3D, VK_FORMAT_R8G8B8A8_SRGB, subresource_range, dynarray_index(i, &glbl.texture_image_views)));
-	    PROPAGATE_C(update_descriptors(i));
-	}
-
-	dynarray new_copied_images = glbl.texture_images;
-	PROPAGATE_C(dynarray_pop(NULL, &new_copied_images));
-	secondary_command transition_command = {0};
-	transition_command.type = SECONDARY_TYPE_LAYOUT_TRANSITION;
-	transition_command.ordering = 0;
-	transition_command.layout_transition.images = new_copied_images;
-	transition_command.layout_transition.old = VK_IMAGE_LAYOUT_UNDEFINED;
-	transition_command.layout_transition.new = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	queue_secondary_command(transition_command);
-
-	transition_command.layout_transition.images = old_images;
-	transition_command.layout_transition.old = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	transition_command.layout_transition.new = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	queue_secondary_command(transition_command);
-
-	secondary_command copy_command = {0};
-	copy_command.type = SECONDARY_TYPE_COPY_IMAGES_IMAGES;
-	copy_command.ordering = 1;
-	copy_command.copy_images_images.src_images = old_images;
-	copy_command.copy_images_images.dst_images = new_copied_images;
-	copy_command.copy_images_images.extents = glbl.texture_image_extents;
-	queue_secondary_command(copy_command);
-
-	transition_command.ordering = 2;
-	transition_command.layout_transition.images = new_copied_images;
-	transition_command.layout_transition.old = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	transition_command.layout_transition.new = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	queue_secondary_command(transition_command);
+    if (needed_size > glbl.texture_memory_allocated) {
+	PROPAGATE_C(add_new_texture_memory(&image, 1));
     }
     else {
-	PROPAGATE_VK_C(vkBindImageMemory(glbl.device, image, glbl.texture_memory, desired_offset));
+	PROPAGATE_VK_C(vkBindImageMemory(glbl.device, image, *((VkDeviceMemory*) dynarray_last(&glbl.texture_memories)), desired_offset));
     }
     glbl.texture_memory_used = needed_size;
 
@@ -501,8 +432,4 @@ void cleanup_texture_images(void) {
     }
     dynarray_destroy(&glbl.texture_images);
     dynarray_destroy(&glbl.texture_image_views);
-}
-
-void cleanup_texture_resources(void) {
-    vkFreeMemory(glbl.device, glbl.texture_memory, NULL);
 }

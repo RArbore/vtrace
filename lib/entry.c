@@ -80,8 +80,7 @@ result init(void) {
     PROPAGATE(create_cube_buffer());
     PROPAGATE(create_instance_buffer());
     PROPAGATE(create_staging_texture_buffer());
-    PROPAGATE(create_texture_resources());
-    PROPAGATE(create_texture_sampler());
+    PROPAGATE(create_texture_singletons());
     PROPAGATE(create_synchronization());
 
     return SUCCESS;
@@ -94,7 +93,10 @@ void cleanup(void) {
     cleanup_instance_buffer();
     cleanup_staging_texture_buffer();
     cleanup_texture_images();
-    cleanup_texture_resources();
+
+    for (uint32_t i = 0; i < dynarray_len(&glbl.texture_memories); ++i) {
+	vkFreeMemory(glbl.device, INDEX(i, glbl.texture_memories, VkDeviceMemory), NULL);
+    }
 
     vkDestroySampler(glbl.device, glbl.texture_sampler, NULL);
 

@@ -211,7 +211,7 @@ typedef struct renderer {
     dynarray texture_images;
     dynarray texture_image_views;
     dynarray texture_image_extents;
-    VkDeviceMemory texture_memory;
+    dynarray texture_memories;
     VkSampler texture_sampler;
     VkFence texture_upload_finished_fence;
 
@@ -295,7 +295,7 @@ result create_image(VkImageCreateFlags flags, VkFormat format, VkExtent3D extent
 
 result create_image_view(VkImage image, VkImageViewType type, VkFormat format, VkImageSubresourceRange subresource_range, VkImageView* view);
 
-result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkImage* images, uint32_t num_images, uint32_t* offsets, uint32_t minimum_size);
+result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkImage* images, uint32_t num_images, uint32_t* offsets, uint32_t* requested_size);
 
 result create_cube_buffer(void);
 
@@ -307,9 +307,9 @@ int32_t end_update_instances(uint32_t instance_count);
 
 result create_staging_texture_buffer(void);
 
-result create_texture_resources(void);
+result add_new_texture_memory(void* images, uint32_t num_images);
 
-result create_texture_sampler(void);
+result create_texture_singletons(void);
 
 int32_t add_texture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t depth);
 
