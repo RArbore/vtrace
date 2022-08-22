@@ -36,20 +36,27 @@ impl TerrainGenerator {
 
     fn gen_voxel(&self, voxel_x: i32, voxel_y: i32, voxel_z: i32) -> Color {
         let (wx, wy, wz) = (voxel_x as f64, voxel_y as f64, voxel_z as f64);
+        let (above_wx, above_wy, above_wz) = (voxel_x as f64, (voxel_y - 4) as f64, voxel_z as f64);
 
         if wx * wx + wy * wy + wz * wz > 50.0 * 50.0 {
             return Color::new(0, 0, 0, 0);
         }
 
+        let surface = above_wx * above_wx + above_wy * above_wy + above_wz * above_wz > 50.0 * 50.0;
+
         let open_simplex_sample = self.open_simplex.get([wx * 0.1, wy * 0.1, wz * 0.1]);
         let billow_sample = self.billow.get([wx * 0.1, wy * 0.1, wz * 0.1]);
+
+        let stone_color = (150.0, 150.0, 150.0);
+        let dirt_color = (255.0, 200.0, 100.0);
+        let color = if surface { dirt_color } else { stone_color };
 
         if open_simplex_sample > 0.0 {
             let tone = 0.5 * billow_sample + 0.5;
             Color::new(
-                (tone * 255.0) as u8,
-                (tone * 255.0) as u8,
-                (tone * 255.0) as u8,
+                (tone * color.0) as u8,
+                (tone * color.1) as u8,
+                (tone * color.2) as u8,
                 255,
             )
         } else {
