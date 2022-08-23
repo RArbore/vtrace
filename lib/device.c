@@ -24,7 +24,9 @@ static const char* validation_layers[] = {
 
 static const char* device_extensions[] = {
     "VK_KHR_swapchain",
-    "VK_EXT_descriptor_indexing"
+    "VK_KHR_ray_tracing_pipeline",
+    "VK_KHR_acceleration_structure",
+    "VK_EXT_descriptor_indexing",
 };
 
 result create_instance(void) {
@@ -143,8 +145,8 @@ int32_t physical_score(VkPhysicalDevice physical) {
 	return -1;
     }
 
-    result bindless_check = physical_check_bindless_support(physical);
-    if (!IS_SUCCESS(bindless_check)) {
+    result features_check = physical_check_features_support(physical);
+    if (!IS_SUCCESS(features_check)) {
 	return -1;
     }
 
@@ -221,9 +223,17 @@ result physical_check_swapchain_support(VkPhysicalDevice physical, swapchain_sup
     return SUCCESS;
 }
 
-result physical_check_bindless_support(VkPhysicalDevice physical) {
+result physical_check_features_support(VkPhysicalDevice physical) {
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_features = {0};
+    acceleration_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_features = {0};
+    ray_tracing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+    ray_tracing_features.pNext = &acceleration_features;
+    
     VkPhysicalDeviceDescriptorIndexingFeatures indexing_features = {0};
     indexing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+    indexing_features.pNext = &ray_tracing_features;
 
     VkPhysicalDeviceFeatures2 device_features = {0};
     device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -231,7 +241,11 @@ result physical_check_bindless_support(VkPhysicalDevice physical) {
     
     vkGetPhysicalDeviceFeatures2(physical, &device_features);
     
-    if (indexing_features.descriptorBindingPartiallyBound && indexing_features.runtimeDescriptorArray) {
+    if (indexing_features.descriptorBindingPartiallyBound &&
+	indexing_features.runtimeDescriptorArray &&
+	ray_tracing_features.rayTracingPipeline &&
+	acceleration_features.accelerationStructure
+	) {
 	return SUCCESS;
     }
     return CUSTOM_ERROR;
@@ -249,10 +263,20 @@ result create_device(void) {
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_priority;
 
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_features = {0};
+    acceleration_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    acceleration_features.accelerationStructure = VK_TRUE;
+
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_features = {0};
+    ray_tracing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+    ray_tracing_features.pNext = &acceleration_features;
+    ray_tracing_features.rayTracingPipeline = VK_TRUE;
+
     VkPhysicalDeviceDescriptorIndexingFeatures indexing_features = {0};
     indexing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
     indexing_features.descriptorBindingPartiallyBound = VK_TRUE;
     indexing_features.runtimeDescriptorArray = VK_TRUE;
+    indexing_features.pNext = &ray_tracing_features;
 
     VkPhysicalDeviceFeatures2 device_features = {0};
     device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;

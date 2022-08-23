@@ -257,7 +257,7 @@ result physical_check_extensions(VkPhysicalDevice physical);
 
 result physical_check_swapchain_support(VkPhysicalDevice physical, swapchain_support* support);
 
-result physical_check_bindless_support(VkPhysicalDevice physical);
+result physical_check_features_support(VkPhysicalDevice physical);
 
 result create_device(void);
 
