@@ -72,7 +72,7 @@ result init(void) {
     PROPAGATE(create_descriptor_pool());
     PROPAGATE(create_descriptor_layouts());
     PROPAGATE(create_descriptor_sets());
-    PROPAGATE(create_graphics_pipeline());
+    PROPAGATE(create_raster_pipeline());
     PROPAGATE(create_depth_resources());
     PROPAGATE(create_framebuffers());
     PROPAGATE(create_command_pool());
@@ -117,10 +117,10 @@ void cleanup(void) {
  
     vkDestroyCommandPool(glbl.device, glbl.command_pool, NULL);
      
-    vkDestroyPipeline(glbl.device, glbl.graphics_pipeline, NULL);
-    vkDestroyPipelineLayout(glbl.device, glbl.graphics_pipeline_layout, NULL);
+    vkDestroyPipeline(glbl.device, glbl.raster_pipeline, NULL);
+    vkDestroyPipelineLayout(glbl.device, glbl.raster_pipeline_layout, NULL);
     vkDestroyDescriptorPool(glbl.device, glbl.descriptor_pool, NULL);
-    vkDestroyDescriptorSetLayout(glbl.device, glbl.graphics_descriptor_set_layout, NULL);
+    vkDestroyDescriptorSetLayout(glbl.device, glbl.raster_descriptor_set_layout, NULL);
 
     vkDestroyRenderPass(glbl.device, glbl.render_pass, NULL);
 
@@ -162,19 +162,19 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
 	return -1;
     }
 
-    if (dynarray_len(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]) > 0) {
-	for (uint32_t i = 0; i < dynarray_len(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]); ++i) {
-	    INDEX(i, glbl.graphics_pending_descriptor_writes[glbl.current_frame], VkWriteDescriptorSet).pImageInfo = &INDEX(i, glbl.graphics_pending_descriptor_write_infos[glbl.current_frame], descriptor_info).image_info;
+    if (dynarray_len(&glbl.raster_pending_descriptor_writes[glbl.current_frame]) > 0) {
+	for (uint32_t i = 0; i < dynarray_len(&glbl.raster_pending_descriptor_writes[glbl.current_frame]); ++i) {
+	    INDEX(i, glbl.raster_pending_descriptor_writes[glbl.current_frame], VkWriteDescriptorSet).pImageInfo = &INDEX(i, glbl.raster_pending_descriptor_write_infos[glbl.current_frame], descriptor_info).image_info;
 	}
-	vkUpdateDescriptorSets(glbl.device, dynarray_len(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]), glbl.graphics_pending_descriptor_writes[glbl.current_frame].data, 0, NULL);
-	dynarray_clear(&glbl.graphics_pending_descriptor_writes[glbl.current_frame]);
-	dynarray_clear(&glbl.graphics_pending_descriptor_write_infos[glbl.current_frame]);
+	vkUpdateDescriptorSets(glbl.device, dynarray_len(&glbl.raster_pending_descriptor_writes[glbl.current_frame]), glbl.raster_pending_descriptor_writes[glbl.current_frame].data, 0, NULL);
+	dynarray_clear(&glbl.raster_pending_descriptor_writes[glbl.current_frame]);
+	dynarray_clear(&glbl.raster_pending_descriptor_write_infos[glbl.current_frame]);
     }
 
     vkResetFences(glbl.device, 1, &glbl.frame_in_flight_fence[glbl.current_frame]);
-    vkResetCommandBuffer(glbl.graphics_command_buffers[glbl.current_frame], 0);
+    vkResetCommandBuffer(glbl.raster_command_buffers[glbl.current_frame], 0);
     vkResetCommandBuffer(glbl.secondary_command_buffers[glbl.current_frame], 0);
-    PROPAGATE_C(record_graphics_command_buffer(glbl.graphics_command_buffers[glbl.current_frame], image_index, render_tick_info));
+    PROPAGATE_C(record_raster_command_buffer(glbl.raster_command_buffers[glbl.current_frame], image_index, render_tick_info));
 
     VkPipelineStageFlags wait_stages[2] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
     VkSemaphore wait_semaphores[2] = {glbl.image_available_semaphore[glbl.current_frame], glbl.secondary_finished_semaphore[glbl.current_frame]};
@@ -207,7 +207,7 @@ int32_t render_tick(int32_t* window_width, int32_t* window_height, const render_
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &glbl.render_finished_semaphore[glbl.current_frame];
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &glbl.graphics_command_buffers[glbl.current_frame];
+    submit_info.pCommandBuffers = &glbl.raster_command_buffers[glbl.current_frame];
 
     PROPAGATE_VK_C(vkQueueSubmit(glbl.queue, 1, &submit_info, glbl.frame_in_flight_fence[glbl.current_frame]));
 

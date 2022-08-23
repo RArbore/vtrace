@@ -41,13 +41,13 @@ result create_command_buffers(void) {
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocate_info.commandBufferCount = FRAMES_IN_FLIGHT;
 
-    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.graphics_command_buffers[0]));
+    PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.raster_command_buffers[0]));
     PROPAGATE_VK(vkAllocateCommandBuffers(glbl.device, &allocate_info, &glbl.secondary_command_buffers[0]));
     
     return SUCCESS;
 }
 
-result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index, const render_tick_info* render_tick_info) {
+result record_raster_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index, const render_tick_info* render_tick_info) {
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -72,7 +72,7 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     render_pass_begin_info.pClearValues = clear_values;
 
     vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, glbl.graphics_pipeline);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, glbl.raster_pipeline);
 
     VkViewport viewport = {0};
     viewport.x = 0.0f;
@@ -94,10 +94,10 @@ result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t i
     vkCmdBindVertexBuffers(command_buffer, 1, 1, &glbl.instance_buffer, offsets);
     vkCmdBindIndexBuffer(command_buffer, glbl.cube_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-    vkCmdPushConstants(command_buffer, glbl.graphics_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(float) * 4 * 4, render_tick_info->perspective);
-    vkCmdPushConstants(command_buffer, glbl.graphics_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(float) * 4 * 4, sizeof(float) * 4 * 4, render_tick_info->camera);
+    vkCmdPushConstants(command_buffer, glbl.raster_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(float) * 4 * 4, render_tick_info->perspective);
+    vkCmdPushConstants(command_buffer, glbl.raster_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(float) * 4 * 4, sizeof(float) * 4 * 4, render_tick_info->camera);
 
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, glbl.graphics_pipeline_layout, 0, 1, &glbl.graphics_descriptor_sets[glbl.current_frame], 0, NULL);
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, glbl.raster_pipeline_layout, 0, 1, &glbl.raster_descriptor_sets[glbl.current_frame], 0, NULL);
 
     vkCmdDrawIndexed(command_buffer, NUM_CUBE_INDICES, glbl.instance_count, 0, 0, 0);
 

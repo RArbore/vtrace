@@ -66,7 +66,7 @@ result create_shader_module(VkShaderModule* module, const char* shader_path) {
     return SUCCESS;
 }
 
-result create_graphics_pipeline(void) {
+result create_raster_pipeline(void) {
     VkShaderModule vertex_shader, fragment_shader;
     PROPAGATE(create_shader_module(&vertex_shader, "shaders/trace.vert.spv"));
     PROPAGATE(create_shader_module(&fragment_shader, "shaders/trace.frag.spv"));
@@ -156,9 +156,9 @@ result create_graphics_pipeline(void) {
     pipeline_layout_create_info.pushConstantRangeCount = 1;
     pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
     pipeline_layout_create_info.setLayoutCount = 1;
-    pipeline_layout_create_info.pSetLayouts = &glbl.graphics_descriptor_set_layout;
+    pipeline_layout_create_info.pSetLayouts = &glbl.raster_descriptor_set_layout;
 
-    PROPAGATE_VK(vkCreatePipelineLayout(glbl.device, &pipeline_layout_create_info, NULL, &glbl.graphics_pipeline_layout));
+    PROPAGATE_VK(vkCreatePipelineLayout(glbl.device, &pipeline_layout_create_info, NULL, &glbl.raster_pipeline_layout));
 
     VkAttachmentDescription color_attachment = {0};
     color_attachment.format = glbl.swapchain_format;
@@ -215,22 +215,22 @@ result create_graphics_pipeline(void) {
 
     PROPAGATE_VK(vkCreateRenderPass(glbl.device, &render_pass_create_info, NULL, &glbl.render_pass));
 
-    VkGraphicsPipelineCreateInfo graphics_pipeline_create_info = {0};
-    graphics_pipeline_create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    graphics_pipeline_create_info.stageCount = 2;
-    graphics_pipeline_create_info.pStages = shader_stage_create_infos;
-    graphics_pipeline_create_info.pVertexInputState = &vertex_input_create_info;
-    graphics_pipeline_create_info.pInputAssemblyState = &input_assembly_create_info;
-    graphics_pipeline_create_info.pViewportState = &viewport_state_create_info;
-    graphics_pipeline_create_info.pRasterizationState = &rasterization_state_create_info;
-    graphics_pipeline_create_info.pColorBlendState = &color_blending_state_create_info;
-    graphics_pipeline_create_info.pDepthStencilState = &depth_stencil_state_create_info;
-    graphics_pipeline_create_info.pDynamicState = &pipeline_dynamic_state_create_info;
-    graphics_pipeline_create_info.layout = glbl.graphics_pipeline_layout;
-    graphics_pipeline_create_info.renderPass = glbl.render_pass;
-    graphics_pipeline_create_info.subpass = 0;
+    VkGraphicsPipelineCreateInfo raster_pipeline_create_info = {0};
+    raster_pipeline_create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    raster_pipeline_create_info.stageCount = 2;
+    raster_pipeline_create_info.pStages = shader_stage_create_infos;
+    raster_pipeline_create_info.pVertexInputState = &vertex_input_create_info;
+    raster_pipeline_create_info.pInputAssemblyState = &input_assembly_create_info;
+    raster_pipeline_create_info.pViewportState = &viewport_state_create_info;
+    raster_pipeline_create_info.pRasterizationState = &rasterization_state_create_info;
+    raster_pipeline_create_info.pColorBlendState = &color_blending_state_create_info;
+    raster_pipeline_create_info.pDepthStencilState = &depth_stencil_state_create_info;
+    raster_pipeline_create_info.pDynamicState = &pipeline_dynamic_state_create_info;
+    raster_pipeline_create_info.layout = glbl.raster_pipeline_layout;
+    raster_pipeline_create_info.renderPass = glbl.render_pass;
+    raster_pipeline_create_info.subpass = 0;
 
-    PROPAGATE_VK(vkCreateGraphicsPipelines(glbl.device, VK_NULL_HANDLE, 1, &graphics_pipeline_create_info, NULL, &glbl.graphics_pipeline));
+    PROPAGATE_VK(vkCreateGraphicsPipelines(glbl.device, VK_NULL_HANDLE, 1, &raster_pipeline_create_info, NULL, &glbl.raster_pipeline));
  
     vkDestroyShaderModule(glbl.device, vertex_shader, NULL);
     vkDestroyShaderModule(glbl.device, fragment_shader, NULL);

@@ -59,7 +59,7 @@ result create_descriptor_layouts(void) {
     layout_create_info.bindingCount = sizeof(bindings) / sizeof(bindings[0]);
     layout_create_info.pBindings = bindings;
 
-    PROPAGATE_VK(vkCreateDescriptorSetLayout(glbl.device, &layout_create_info, NULL, &glbl.graphics_descriptor_set_layout));
+    PROPAGATE_VK(vkCreateDescriptorSetLayout(glbl.device, &layout_create_info, NULL, &glbl.raster_descriptor_set_layout));
     
     return SUCCESS;
 }
@@ -68,7 +68,7 @@ result create_descriptor_sets(void) {
     VkDescriptorSetLayout layouts[FRAMES_IN_FLIGHT];
     uint32_t max_variable_count[FRAMES_IN_FLIGHT];
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
-	layouts[i] = glbl.graphics_descriptor_set_layout;
+	layouts[i] = glbl.raster_descriptor_set_layout;
 	max_variable_count[i] = MAX_TEXTURES;
     }
     
@@ -84,11 +84,11 @@ result create_descriptor_sets(void) {
     allocate_info.descriptorSetCount = FRAMES_IN_FLIGHT;
     allocate_info.pSetLayouts = layouts;
 
-    PROPAGATE_VK(vkAllocateDescriptorSets(glbl.device, &allocate_info, glbl.graphics_descriptor_sets));
+    PROPAGATE_VK(vkAllocateDescriptorSets(glbl.device, &allocate_info, glbl.raster_descriptor_sets));
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
-	PROPAGATE(dynarray_create(sizeof(descriptor_info), 8, &glbl.graphics_pending_descriptor_write_infos[i]));
-	PROPAGATE(dynarray_create(sizeof(VkWriteDescriptorSet), 8, &glbl.graphics_pending_descriptor_writes[i]));
+	PROPAGATE(dynarray_create(sizeof(descriptor_info), 8, &glbl.raster_pending_descriptor_write_infos[i]));
+	PROPAGATE(dynarray_create(sizeof(VkWriteDescriptorSet), 8, &glbl.raster_pending_descriptor_writes[i]));
     }
 
     return SUCCESS;
@@ -126,11 +126,11 @@ result create_texture_singletons(void) {
 
 result update_descriptors(uint32_t update_texture) {
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
-	PROPAGATE(dynarray_push(NULL, &glbl.graphics_pending_descriptor_write_infos[i]));
-	PROPAGATE(dynarray_push(NULL, &glbl.graphics_pending_descriptor_writes[i]));
+	PROPAGATE(dynarray_push(NULL, &glbl.raster_pending_descriptor_write_infos[i]));
+	PROPAGATE(dynarray_push(NULL, &glbl.raster_pending_descriptor_writes[i]));
 
-	descriptor_info* write_info = dynarray_last(&glbl.graphics_pending_descriptor_write_infos[i]);
-	VkWriteDescriptorSet* write = dynarray_last(&glbl.graphics_pending_descriptor_writes[i]);
+	descriptor_info* write_info = dynarray_last(&glbl.raster_pending_descriptor_write_infos[i]);
+	VkWriteDescriptorSet* write = dynarray_last(&glbl.raster_pending_descriptor_writes[i]);
 	
 	write_info->image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	write_info->image_info.imageView = INDEX(update_texture, glbl.texture_image_views, VkImageView);
@@ -138,7 +138,7 @@ result update_descriptors(uint32_t update_texture) {
 
 	write->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	write->pNext = NULL;
-	write->dstSet = glbl.graphics_descriptor_sets[i];
+	write->dstSet = glbl.raster_descriptor_sets[i];
 	write->dstBinding = 0;
 	write->dstArrayElement = update_texture;
 	write->descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

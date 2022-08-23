@@ -172,21 +172,21 @@ typedef struct renderer {
     dynarray swapchain_image_views;
 
     VkDescriptorPool descriptor_pool;
-    VkDescriptorSetLayout graphics_descriptor_set_layout;
-    VkDescriptorSet graphics_descriptor_sets[FRAMES_IN_FLIGHT];
-    dynarray graphics_pending_descriptor_writes[FRAMES_IN_FLIGHT];
-    dynarray graphics_pending_descriptor_write_infos[FRAMES_IN_FLIGHT];
+    VkDescriptorSetLayout raster_descriptor_set_layout;
+    VkDescriptorSet raster_descriptor_sets[FRAMES_IN_FLIGHT];
+    dynarray raster_pending_descriptor_writes[FRAMES_IN_FLIGHT];
+    dynarray raster_pending_descriptor_write_infos[FRAMES_IN_FLIGHT];
 
-    VkPipelineLayout graphics_pipeline_layout;
+    VkPipelineLayout raster_pipeline_layout;
     VkRenderPass render_pass;
-    VkPipeline graphics_pipeline;
+    VkPipeline raster_pipeline;
     dynarray framebuffers;
     VkImage depth_image;
     VkDeviceMemory depth_image_memory;
     VkImageView depth_image_view;
 
     VkCommandPool command_pool;
-    VkCommandBuffer graphics_command_buffers[FRAMES_IN_FLIGHT];
+    VkCommandBuffer raster_command_buffers[FRAMES_IN_FLIGHT];
     VkCommandBuffer secondary_command_buffers[FRAMES_IN_FLIGHT];
 
     VkBuffer staging_cube_vertex_buffer;
@@ -273,7 +273,7 @@ result create_descriptor_layouts(void);
 
 result create_descriptor_sets(void);
 
-result create_graphics_pipeline(void);
+result create_raster_pipeline(void);
 
 result create_framebuffers(void);
 
@@ -283,7 +283,7 @@ result create_command_pool(void);
 
 result create_command_buffers(void);
 
-result record_graphics_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index, const render_tick_info* render_tick_info);
+result record_raster_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index, const render_tick_info* render_tick_info);
 
 result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t num_commands, secondary_command* commands);
 
