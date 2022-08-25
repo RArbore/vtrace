@@ -279,6 +279,8 @@ result create_framebuffers(void);
 
 result create_depth_resources(void);
 
+result create_ray_tracing_objects(void);
+
 result create_command_pool(void);
 
 result create_command_buffers(void);

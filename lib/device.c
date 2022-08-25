@@ -244,7 +244,8 @@ result physical_check_features_support(VkPhysicalDevice physical) {
     if (indexing_features.descriptorBindingPartiallyBound &&
 	indexing_features.runtimeDescriptorArray &&
 	ray_tracing_features.rayTracingPipeline &&
-	acceleration_features.accelerationStructure
+	acceleration_features.accelerationStructure &&
+	acceleration_features.descriptorBindingAccelerationStructureUpdateAfterBind
 	) {
 	return SUCCESS;
     }
@@ -266,6 +267,7 @@ result create_device(void) {
     VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_features = {0};
     acceleration_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
     acceleration_features.accelerationStructure = VK_TRUE;
+    acceleration_features.descriptorBindingAccelerationStructureUpdateAfterBind = VK_TRUE;
 
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_features = {0};
     ray_tracing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;

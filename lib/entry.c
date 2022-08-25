@@ -75,6 +75,7 @@ result init(void) {
     PROPAGATE(create_raster_pipeline());
     PROPAGATE(create_depth_resources());
     PROPAGATE(create_framebuffers());
+    PROPAGATE(create_ray_tracing_objects());
     PROPAGATE(create_command_pool());
     PROPAGATE(create_command_buffers());
     PROPAGATE(create_cube_buffer());
