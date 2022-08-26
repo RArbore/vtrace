@@ -28,8 +28,6 @@ layout (push_constant) uniform PushConstants {
     mat4 camera;
 } push;
 
-//layout(set = 0, binding = 0) uniform sampler2D history_read;
-//layout(set = 0, binding = 1) uniform sampler3D tex[];
 layout(set = 0, binding = 0) uniform sampler3D tex[];
 
 layout (location = 0) out vec4 color;
