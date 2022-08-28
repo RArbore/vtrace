@@ -19,6 +19,7 @@
 #include "common.h"
 
 renderer glbl = {0};
+PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizes;
 
 static void glfw_framebuffer_resize_callback(__attribute__((unused)) GLFWwindow* window, __attribute__((unused)) int width, __attribute__((unused)) int height) {
     glbl.resized = 1;
@@ -68,6 +69,9 @@ result init(void) {
     PROPAGATE(create_surface());
     PROPAGATE(create_physical());
     PROPAGATE(create_device());
+
+    vkGetAccelerationStructureBuildSizes = (PFN_vkGetAccelerationStructureBuildSizesKHR) vkGetDeviceProcAddr(glbl.device, "vkGetAccelerationStructureBuildSizesKHR");
+
     PROPAGATE(create_swapchain());
     PROPAGATE(create_descriptor_pool());
     PROPAGATE(create_descriptor_layouts());
@@ -75,11 +79,11 @@ result init(void) {
     PROPAGATE(create_raster_pipeline());
     PROPAGATE(create_depth_resources());
     PROPAGATE(create_framebuffers());
-    PROPAGATE(create_ray_tracing_objects());
     PROPAGATE(create_command_pool());
     PROPAGATE(create_command_buffers());
     PROPAGATE(create_cube_buffer());
     PROPAGATE(create_instance_buffer());
+    PROPAGATE(create_ray_tracing_objects());
     PROPAGATE(create_staging_texture_buffer());
     PROPAGATE(create_texture_singletons());
     PROPAGATE(create_synchronization());

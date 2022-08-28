@@ -237,7 +237,9 @@ typedef struct swapchain_support {
 
 __attribute__((unused)) static const result SUCCESS = {.vk = VK_SUCCESS, .custom = 0};
 __attribute__((unused)) static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .custom = 1};
+
 extern renderer glbl;
+extern PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizes;
 
 uint64_t entry(void);
 
