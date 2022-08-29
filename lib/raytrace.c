@@ -54,11 +54,15 @@ result create_ray_tracing_objects(void) {
     PROPAGATE(create_buffer(build_size.accelerationStructureSize, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, &buffer));
     PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &buffer_memory, &buffer, 1, NULL, build_size.accelerationStructureSize));
     
-    /*VkAccelerationStructureCreateInfoKHR create_info = {0};
+    VkAccelerationStructureCreateInfoKHR create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+    create_info.buffer = buffer;
+    create_info.offset = 0;
+    create_info.size = build_size.accelerationStructureSize;
+    create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
     
-    VkAccelerationStructureKHR tlas;
-    PROPAGATE_VK(vkCreateAccelerationStructureKHR(glbl.device, &create_info, NULL, &tlas));*/
+    VkAccelerationStructureKHR blas;
+    PROPAGATE_VK(vkCreateAccelerationStructure(glbl.device, &create_info, NULL, &blas));
 
     return SUCCESS;
 }
