@@ -26,6 +26,10 @@ static const char* device_extensions[] = {
     "VK_KHR_swapchain",
     "VK_KHR_ray_tracing_pipeline",
     "VK_KHR_acceleration_structure",
+    "VK_KHR_deferred_host_operations",
+    "VK_KHR_buffer_device_address",
+    "VK_KHR_shader_float_controls",
+    "VK_KHR_spirv_1_4",
     "VK_EXT_descriptor_indexing",
 };
 

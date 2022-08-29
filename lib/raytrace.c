@@ -37,7 +37,7 @@ result create_ray_tracing_objects(void) {
 
     VkAccelerationStructureBuildGeometryInfoKHR geometry_info = {0};
     geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
-    geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
     geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR | VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
     geometry_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     geometry_info.geometryCount = 1;
@@ -45,9 +45,15 @@ result create_ray_tracing_objects(void) {
 
     uint32_t aabb_num_primitives = 1;
     VkAccelerationStructureBuildSizesInfoKHR build_size;
+    build_size.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
     vkGetAccelerationStructureBuildSizes(glbl.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_HOST_KHR, &geometry_info, &aabb_num_primitives, &build_size);
     printf("%lu %lu %lu\n", build_size.accelerationStructureSize, build_size.updateScratchSize, build_size.buildScratchSize);
 
+    VkBuffer buffer;
+    VkDeviceMemory buffer_memory;
+    PROPAGATE(create_buffer(build_size.accelerationStructureSize, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, &buffer));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &buffer_memory, &buffer, 1, NULL, build_size.accelerationStructureSize));
+    
     /*VkAccelerationStructureCreateInfoKHR create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
     
