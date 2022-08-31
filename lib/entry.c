@@ -22,6 +22,7 @@ renderer glbl = {0};
 PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizes;
 PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructure;
 PFN_vkBuildAccelerationStructuresKHR vkBuildAccelerationStructures;
+PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructures;
 
 static void glfw_framebuffer_resize_callback(__attribute__((unused)) GLFWwindow* window, __attribute__((unused)) int width, __attribute__((unused)) int height) {
     glbl.resized = 1;
@@ -75,6 +76,7 @@ result init(void) {
     vkGetAccelerationStructureBuildSizes = (PFN_vkGetAccelerationStructureBuildSizesKHR) vkGetDeviceProcAddr(glbl.device, "vkGetAccelerationStructureBuildSizesKHR");
     vkCreateAccelerationStructure = (PFN_vkCreateAccelerationStructureKHR) vkGetDeviceProcAddr(glbl.device, "vkCreateAccelerationStructureKHR");
     vkBuildAccelerationStructures = (PFN_vkBuildAccelerationStructuresKHR) vkGetDeviceProcAddr(glbl.device, "vkBuildAccelerationStructuresKHR");
+    vkCmdBuildAccelerationStructures = (PFN_vkCmdBuildAccelerationStructuresKHR) vkGetDeviceProcAddr(glbl.device, "vkCmdBuildAccelerationStructuresKHR");
 
     PROPAGATE(create_swapchain());
     PROPAGATE(create_descriptor_pool());

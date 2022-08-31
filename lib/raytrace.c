@@ -73,9 +73,13 @@ result create_ray_tracing_objects(void) {
     range_info.primitiveOffset = 0;
     range_info.firstVertex = 0;
 
-    const VkAccelerationStructureBuildRangeInfoKHR* range_infos[] = {&range_info}; 
+    secondary_command build_command = {0};
+    build_command.type = SECONDARY_TYPE_ACCELERATION_STRUCTURE_BUILD;
+    build_command.acceleration_structure_build.geometry_info = geometry_info;
+    build_command.acceleration_structure_build.range_info = malloc(sizeof(VkAccelerationStructureBuildRangeInfoKHR ));
+    build_command.acceleration_structure_build.range_info[0] = range_info;
 
-    PROPAGATE_VK(vkBuildAccelerationStructures(glbl.device, VK_NULL_HANDLE, 1, &geometry_info, range_infos));
+    PROPAGATE(queue_secondary_command(build_command));
 
     return SUCCESS;
 }

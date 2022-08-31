@@ -100,6 +100,7 @@ typedef enum secondary_type {
     SECONDARY_TYPE_COPY_BUFFER_IMAGE,
     SECONDARY_TYPE_COPY_IMAGES_IMAGES,
     SECONDARY_TYPE_LAYOUT_TRANSITION,
+    SECONDARY_TYPE_ACCELERATION_STRUCTURE_BUILD,
     SECONDARY_TYPE_CLEANUP,
 } secondary_type;
 
@@ -128,6 +129,10 @@ typedef struct secondary_command {
 	    VkImageLayout old;
 	    VkImageLayout new;
 	} layout_transition;
+	struct {
+	    VkAccelerationStructureBuildGeometryInfoKHR geometry_info;
+	    VkAccelerationStructureBuildRangeInfoKHR* range_info;
+	} acceleration_structure_build;
 	struct {
 	    dynarray images;
 	    dynarray image_views;
@@ -242,6 +247,7 @@ extern renderer glbl;
 extern PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizes;
 extern PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructure;
 extern PFN_vkBuildAccelerationStructuresKHR vkBuildAccelerationStructures;
+extern PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructures;
 
 uint64_t entry(void);
 
