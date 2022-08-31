@@ -241,6 +241,7 @@ __attribute__((unused)) static const result CUSTOM_ERROR = {.vk = VK_SUCCESS, .c
 extern renderer glbl;
 extern PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizes;
 extern PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructure;
+extern PFN_vkBuildAccelerationStructuresKHR vkBuildAccelerationStructures;
 
 uint64_t entry(void);
 

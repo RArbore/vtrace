@@ -12,6 +12,7 @@
  * along with vtrace. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
 #include <stdio.h>
 
 #include "common.h"
@@ -63,6 +64,18 @@ result create_ray_tracing_objects(void) {
     
     VkAccelerationStructureKHR blas;
     PROPAGATE_VK(vkCreateAccelerationStructure(glbl.device, &create_info, NULL, &blas));
+
+    geometry_info.dstAccelerationStructure = blas;
+    geometry_info.scratchData.hostAddress = malloc(build_size.buildScratchSize);
+
+    VkAccelerationStructureBuildRangeInfoKHR range_info = {0};
+    range_info.primitiveCount = 1;
+    range_info.primitiveOffset = 0;
+    range_info.firstVertex = 0;
+
+    const VkAccelerationStructureBuildRangeInfoKHR* range_infos[] = {&range_info}; 
+
+    PROPAGATE_VK(vkBuildAccelerationStructures(glbl.device, VK_NULL_HANDLE, 1, &geometry_info, range_infos));
 
     return SUCCESS;
 }
