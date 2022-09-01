@@ -31,10 +31,10 @@ result create_ray_tracing_objects(void) {
     cube_geometry_data.aabbs.data.hostAddress = &aabb;
     cube_geometry_data.aabbs.stride = sizeof(VkAabbPositionsKHR);
     
-    VkAccelerationStructureGeometryKHR cube_geometry = {0};
-    cube_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-    cube_geometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
-    cube_geometry.geometry = cube_geometry_data;
+    VkAccelerationStructureGeometryKHR* cube_geometry = calloc(1, sizeof(VkAccelerationStructureGeometryKHR));
+    cube_geometry->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+    cube_geometry->geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
+    cube_geometry->geometry = cube_geometry_data;
 
     VkAccelerationStructureBuildGeometryInfoKHR geometry_info = {0};
     geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -42,7 +42,7 @@ result create_ray_tracing_objects(void) {
     geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR | VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
     geometry_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     geometry_info.geometryCount = 1;
-    geometry_info.pGeometries = &cube_geometry;
+    geometry_info.pGeometries = cube_geometry;
 
     uint32_t aabb_num_primitives = 1;
     VkAccelerationStructureBuildSizesInfoKHR build_size;

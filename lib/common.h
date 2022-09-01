@@ -131,6 +131,7 @@ typedef struct secondary_command {
 	} layout_transition;
 	struct {
 	    VkAccelerationStructureBuildGeometryInfoKHR geometry_info;
+	    VkAccelerationStructureGeometryKHR* geometries;
 	    VkAccelerationStructureBuildRangeInfoKHR* range_info;
 	} acceleration_structure_build;
 	struct {

@@ -197,6 +197,7 @@ result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t 
 	    case SECONDARY_TYPE_ACCELERATION_STRUCTURE_BUILD: {
 		vkCmdBuildAccelerationStructures(command_buffer, 1, &commands[i].acceleration_structure_build.geometry_info, (const VkAccelerationStructureBuildRangeInfoKHR *const *) &commands[i].acceleration_structure_build.range_info);
 		free(commands[i].acceleration_structure_build.range_info);
+		free(commands[i].acceleration_structure_build.geometries);
 		break;
 	    }
 	    case SECONDARY_TYPE_CLEANUP: {
