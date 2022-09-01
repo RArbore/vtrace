@@ -40,7 +40,7 @@ result create_instance(void) {
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "Custom";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.apiVersion = VK_API_VERSION_1_1;
+    app_info.apiVersion = VK_API_VERSION_1_2;
 
     VkInstanceCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -228,8 +228,12 @@ result physical_check_swapchain_support(VkPhysicalDevice physical, swapchain_sup
 }
 
 result physical_check_features_support(VkPhysicalDevice physical) {
+    VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_features = {0};
+    buffer_device_address_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+
     VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_features = {0};
     acceleration_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    acceleration_features.pNext = &buffer_device_address_features;
 
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_features = {0};
     ray_tracing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
@@ -245,7 +249,8 @@ result physical_check_features_support(VkPhysicalDevice physical) {
     
     vkGetPhysicalDeviceFeatures2(physical, &device_features);
     
-    if (indexing_features.descriptorBindingPartiallyBound &&
+    if (buffer_device_address_features.bufferDeviceAddress &&
+	indexing_features.descriptorBindingPartiallyBound &&
 	indexing_features.runtimeDescriptorArray &&
 	ray_tracing_features.rayTracingPipeline &&
 	acceleration_features.accelerationStructure &&
@@ -268,8 +273,13 @@ result create_device(void) {
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_priority;
 
+    VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_features = {0};
+    buffer_device_address_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+    buffer_device_address_features.bufferDeviceAddress = VK_TRUE; 
+
     VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_features = {0};
     acceleration_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    acceleration_features.pNext = &buffer_device_address_features;
     acceleration_features.accelerationStructure = VK_TRUE;
     acceleration_features.descriptorBindingAccelerationStructureUpdateAfterBind = VK_TRUE;
 
