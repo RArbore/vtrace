@@ -267,7 +267,7 @@ result create_depth_resources(void) {
 
     PROPAGATE(create_image(0, VK_FORMAT_D32_SFLOAT, extent, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, &glbl.depth_image));
 
-    PROPAGATE(create_image_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &glbl.depth_image_memory, &glbl.depth_image, 1, NULL, 0));
+    PROPAGATE(create_image_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &glbl.depth_image_memory, &glbl.depth_image, 1, NULL, 0));
 
     VkImageSubresourceRange subresource_range = {0};
     subresource_range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;

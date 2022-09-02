@@ -56,7 +56,7 @@ result create_ray_tracing_objects(void) {
 
     VkDeviceMemory buffer_memory;
     VkBuffer buffers[] = {acceleration_structure_buffer, build_scratch_buffer, aabb_buffer};
-    PROPAGATE(create_buffer_memory(VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &buffer_memory, buffers, sizeof(buffers)/sizeof(buffers[0]), NULL, build_size.accelerationStructureSize));
+    PROPAGATE(create_buffer_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT, &buffer_memory, buffers, sizeof(buffers)/sizeof(buffers[0]), NULL, build_size.accelerationStructureSize));
 
     VkAccelerationStructureCreateInfoKHR create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;

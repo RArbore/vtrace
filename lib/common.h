@@ -302,13 +302,13 @@ result record_secondary_command_buffer(VkCommandBuffer command_buffer, uint32_t 
 
 result create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buffer);
 
-result create_buffer_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkBuffer* buffers, uint32_t num_buffers, uint32_t* offsets, uint32_t minimum_size);
+result create_buffer_memory(VkMemoryPropertyFlags properties, VkMemoryAllocateFlags allocate_flags, VkDeviceMemory* memory, VkBuffer* buffers, uint32_t num_buffers, uint32_t* offsets, uint32_t minimum_size);
 
 result create_image(VkImageCreateFlags flags, VkFormat format, VkExtent3D extent, uint32_t mipLevels, uint32_t arrayLevels, VkImageUsageFlagBits usage, VkImage* image);
 
 result create_image_view(VkImage image, VkImageViewType type, VkFormat format, VkImageSubresourceRange subresource_range, VkImageView* view);
 
-result create_image_memory(VkMemoryPropertyFlags properties, VkDeviceMemory* memory, VkImage* images, uint32_t num_images, uint32_t* offsets, uint32_t* requested_size);
+result create_image_memory(VkMemoryPropertyFlags properties, VkMemoryAllocateFlags allocate_flags, VkDeviceMemory* memory, VkImage* images, uint32_t num_images, uint32_t* offsets, uint32_t* requested_size);
 
 result create_cube_buffer(void);
 
