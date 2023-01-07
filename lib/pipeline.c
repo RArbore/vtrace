@@ -121,6 +121,11 @@ result create_raster_pipeline(void) {
     rasterization_state_create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterization_state_create_info.depthBiasEnable = VK_FALSE;
 
+    VkPipelineMultisampleStateCreateInfo multisampling_state_create_info = {0};
+    multisampling_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling_state_create_info.sampleShadingEnable = VK_FALSE;
+    multisampling_state_create_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
     VkPipelineColorBlendAttachmentState color_blend_attachment_state = {0};
     color_blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     color_blend_attachment_state.blendEnable = VK_TRUE;
@@ -223,6 +228,7 @@ result create_raster_pipeline(void) {
     raster_pipeline_create_info.pInputAssemblyState = &input_assembly_create_info;
     raster_pipeline_create_info.pViewportState = &viewport_state_create_info;
     raster_pipeline_create_info.pRasterizationState = &rasterization_state_create_info;
+    raster_pipeline_create_info.pMultisampleState = &multisampling_state_create_info;
     raster_pipeline_create_info.pColorBlendState = &color_blending_state_create_info;
     raster_pipeline_create_info.pDepthStencilState = &depth_stencil_state_create_info;
     raster_pipeline_create_info.pDynamicState = &pipeline_dynamic_state_create_info;

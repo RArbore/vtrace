@@ -53,7 +53,7 @@ result record_raster_command_buffer(VkCommandBuffer command_buffer, uint32_t ima
 
     PROPAGATE_VK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
-    VkClearValue clear_values[0];
+    VkClearValue clear_values[2];
     clear_values[0].color.float32[0] = 53.0f / 100.0f;
     clear_values[0].color.float32[1] = 81.0f / 100.0f;
     clear_values[0].color.float32[2] = 92.0f / 100.0f;
